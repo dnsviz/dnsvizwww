@@ -176,7 +176,7 @@ class NSMapping(models.Model):
 
 class DomainNameAnalysisManager(models.Manager):
     def latest(self, name, date=None):
-        f = Q(name_obj_id=name, analysis_end__isnull=False)
+        f = Q(name=name)
         if date is not None:
             f &= Q(analysis_end__lte=date)
 
@@ -186,7 +186,7 @@ class DomainNameAnalysisManager(models.Manager):
             return None
 
     def earliest(self, name, date=None):
-        f = Q(name_obj_id=name, analysis_end__isnull=False)
+        f = Q(name=name)
         if date is not None:
             f &= Q(analysis_end__gte=date)
 
@@ -197,24 +197,29 @@ class DomainNameAnalysisManager(models.Manager):
 
     def get(self, name, date):
         try:
-            return self.filter(name_obj_id=name, analysis_end=date).get()
+            return self.filter(name=name, analysis_end=date).get()
         except self.model.DoesNotExist:
             return None
 
 class DomainNameAnalysisDummy(dnsviz.analysis.DomainNameAnalysis):
     def __init__(self, *args, **kwargs):
-        assert self.name_obj_id is not None, "Name must be initialized when instantiating DomainNameAnalysis"
-        #XXX try instantiating with dlv_domain
-        if not isinstance(self.name_obj_id, dns.name.Name):
-            self.name_obj_id = dns.name.from_text(self.name_obj_id)
-        super(DomainNameAnalysisDummy, self).__init__(self.name_obj_id)
+        assert self.name is not None, "Name must be initialized when instantiating DomainNameAnalysis"
+        if self.dlv_parent is not None:
+            dlv_domain = self.dlv_parent.name
+        else:
+            dlv_domain = None
+        if self.stub is not None:
+            stub = self.stub
+        else:
+            stub = None
+        super(DomainNameAnalysisDummy, self).__init__(self.name, dlv_domain=dlv_domain, stub=stub)
 
 class DomainNameAnalysis(models.Model, DomainNameAnalysisDummy):
-
-    name_obj = models.ForeignKey(DomainName)
+    name = DomainNameField(max_length=2048)
+    stub = models.BooleanField()
     analysis_start = models.DateTimeField()
-    analysis_end = models.DateTimeField(blank=True, null=True, db_index=True)
-    dep_analysis_end = models.DateTimeField(blank=True, null=True)
+    analysis_end = models.DateTimeField(db_index=True)
+    dep_analysis_end = models.DateTimeField()
 
     version = models.PositiveSmallIntegerField(default=17)
 
@@ -223,21 +228,17 @@ class DomainNameAnalysis(models.Model, DomainNameAnalysisDummy):
 
     referral_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
 
-    nxdomain_name = DomainNameField(max_length=2048, canonicalize=False, blank=True)
+    nxdomain_name = DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     nxdomain_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
-    nxrrset_name = DomainNameField(max_length=2048, canonicalize=False, blank=True)
+    nxrrset_name = DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     nxrrset_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
 
     auth_ns_ip_mapping_db = models.ManyToManyField(NSMapping, related_name='s+')
 
     objects = DomainNameAnalysisManager()
 
-    #XXX might need to do some magic here to support dlv_domain
-    #def __init__(self, *args, dlv_domain=None, **kwargs):
-    #    self.dlv_domain = 
-
     class Meta:
-        unique_together = (('name_obj', 'analysis_start'),)
+        unique_together = (('name', 'analysis_end'),)
         get_latest_by = 'analysis_end'
 
     def _get_previous(self):
@@ -267,8 +268,6 @@ class DomainNameAnalysis(models.Model, DomainNameAnalysisDummy):
     def save(self, save_related=False):
         with transaction.commit_manually():
             try:
-                if self.name_obj is None:
-                    self.name_obj = DomainName.objects.get_or_create(name=self.name)[0]
                 super(DomainNameAnalysis, self).save()
 
                 if save_related:
@@ -715,21 +714,22 @@ class ResourceRecordMapper(models.Model):
 class DBAnalyst(dnsviz.analysis.Analyst):
     qname_only = False
 
-    def __init__(self, name, start_time, client_ipv4=None, client_ipv6=None, force_dnskey=False,
-             trace=None, analysis_cache=None, analysis_cache_lock=None,
-             force=True, force_ancestry=False):
-
     @classmethod
-    def analysis_model(cls, name, dlv_domain=None):
-        name_obj = DomainNameAnalysis(name_obj=DomainName.objects.get_or_create(name=name)[0])
-        dnsviz.analysis.DomainNameAnalysis.__init__(name_obj, name, dlv_domain)
+    def analysis_model(cls, name, dlv_domain=None, stub=False):
+        name_obj = DomainNameAnalysis(name=name)
+        dnsviz.analysis.DomainNameAnalysis.__init__(name_obj, name, dlv_domain=dlv_domain, stub=stub)
         return name_obj
 
-    def _analyze_name(self, name_obj):
-        super(DBAnalyst, self)._analyze_name(name_obj)
-        name_obj.save(save_related=True)
+    def _analyze(self, name, ns_only=False):
+        name_obj = super(DBAnalyst, self)._analyze(name, ns_only)
+        # if this object hasn't been saved before
+        if name_obj.pk is None:
+            # stub zones don't save start/end time
+            if name_obj.stub:
+                name_obj.analysis_start = name_obj.analysis_end = name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+            name_obj.save(save_related=True)
+        return name_obj
 
     def _analyze_dependencies(self, name_obj):
         super(DBAnalyst, self)._analyze_dependencies(name_obj)
         name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
-        name_obj.save()
