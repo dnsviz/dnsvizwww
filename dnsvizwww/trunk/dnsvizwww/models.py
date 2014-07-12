@@ -749,9 +749,9 @@ class DBAnalyst(dnsviz.analysis.Analyst):
         name_obj = super(DBAnalyst, self)._analyze(name, ns_only)
         # if this object hasn't been saved before
         if name_obj.pk is None:
-            # stub zones don't save start/end time
+            # stub zones don't save dep_analysis_end
             if name_obj.stub:
-                name_obj.analysis_start = name_obj.analysis_end = name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+                name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
             name_obj.save(save_related=True)
         return name_obj
 
