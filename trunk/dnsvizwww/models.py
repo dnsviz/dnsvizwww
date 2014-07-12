@@ -203,18 +203,36 @@ class DomainNameAnalysisManager(models.Manager):
 
 class DomainNameAnalysisDummy(dnsviz.analysis.DomainNameAnalysis):
     def __init__(self, *args, **kwargs):
-        assert self.name is not None, "Name must be initialized when instantiating DomainNameAnalysis"
-        if self.dlv_parent is not None:
-            dlv_domain = self.dlv_parent.name
-        else:
-            dlv_domain = None
-        if self.stub is not None:
-            stub = self.stub
-        else:
-            stub = None
-        super(DomainNameAnalysisDummy, self).__init__(self.name, dlv_domain=dlv_domain, stub=stub)
 
-class DomainNameAnalysis(models.Model, DomainNameAnalysisDummy):
+        dlv_domain_default = kwargs.pop('dlv_domain', None)
+        if args:
+            name = args[0]
+            try:
+                stub = args[1]
+            except IndexError:
+                stub = False
+            try:
+                dlv_parent = args[7]
+                if dlv_parent is not None:
+                    dlv_domain = dlv_parent.name
+                else:
+                    dlv_domain = dlv_domain_default
+            except IndexError:
+                dlv_domain = dlv_domain_default
+        else:
+            assert 'name' in kwargs, "Name must be initialized when instantiating DomainNameAnalysis"
+
+            name = kwargs['name']
+            stub = kwargs.get('stub', False)
+            dlv_parent = kwargs.get('dlv_parent', None)
+            if dlv_parent is not None:
+                dlv_domain = dlv_parent.name
+            else:
+                dlv_domain = dlv_domain_default
+
+        super(DomainNameAnalysisDummy, self).__init__(name, dlv_domain=dlv_domain, stub=stub)
+
+class DomainNameAnalysis(DomainNameAnalysisDummy, models.Model):
     name = DomainNameField(max_length=2048)
     stub = models.BooleanField()
     analysis_start = models.DateTimeField()
@@ -236,6 +254,15 @@ class DomainNameAnalysis(models.Model, DomainNameAnalysisDummy):
     auth_ns_ip_mapping_db = models.ManyToManyField(NSMapping, related_name='s+')
 
     objects = DomainNameAnalysisManager()
+
+    def __init__(self, *args, **kwargs):
+        super(DomainNameAnalysis, self).__init__(*args, **kwargs)
+        try:
+            del kwargs['dlv_domain']
+        except KeyError:
+            pass
+        #XXX not sure why it is necessary to run __init__ manually on Model
+        models.Model.__init__(self, *args, **kwargs)
 
     class Meta:
         unique_together = (('name', 'analysis_end'),)
@@ -716,9 +743,7 @@ class DBAnalyst(dnsviz.analysis.Analyst):
 
     @classmethod
     def analysis_model(cls, name, dlv_domain=None, stub=False):
-        name_obj = DomainNameAnalysis(name=name)
-        dnsviz.analysis.DomainNameAnalysis.__init__(name_obj, name, dlv_domain=dlv_domain, stub=stub)
-        return name_obj
+        return DomainNameAnalysis(name=name, dlv_domain=dlv_domain, stub=stub)
 
     def _analyze(self, name, ns_only=False):
         name_obj = super(DBAnalyst, self)._analyze(name, ns_only)
