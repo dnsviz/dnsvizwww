@@ -347,26 +347,19 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                     response_obj.save()
                     response_obj.message = query.responses[server][client].message
 
-    def retrieve_related(self, trace=None):
-        if trace is None:
-            trace = set()
-
-        if self.pk in trace:
-            return
-        trace.add(self.pk)
-
-        dlv_parent_name = None
+    def retrieve_related(self):
         if self.name != dns.name.root and not self.stub:
             parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end)
+            parent.retrieve_related()
 
             if self.dlv_domain is not None:
-                dlv_parent_name = dns.name.from_text(self.dlv_parent_name)
-                dlv_parent = self.__class__.objects.latest(dlv_parent_name, self.analysis_end)
+                dlv_parent = self.__class__.objects.latest(self.dlv_domain, self.analysis_end)
+                dlv_parent.retrieve_related()
 
         if not self.stub:
             if self.name != dns.name.root:
                 self.parent = parent
-                if dlv_parent_name:
+                if self.dlv_domain is not None:
                     self.dlv_parent = dlv_parent
 
         # add the auth NS to IP mapping
@@ -417,6 +410,19 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             self.add_query(query)
         for query in other_queries:
             self.add_query(query)
+
+        for cname in self.cname_targets:
+            self.cname_targets[cname] = self.__class__.objects.latest(cname, self.dep_analysis_end)
+            self.cname_targets[cname].retrieve_related()
+        for dname in self.dname_targets:
+            self.dname_targets[dname] = self.__class__.objects.latest(dname, self.dep_analysis_end)
+            self.dname_targets[dname].retrieve_related()
+        for signer in self.external_signers:
+            self.external_signers[signer] = self.__class__.objects.latest(signer, self.dep_analysis_end)
+            self.external_signers[signer].retrieve_related()
+        #for target in self.get_ns_dependencies():
+        #    self.ns_targets[target] = self.__class__.objects.latest(target, self.dep_analysis_end)
+        #    self.ns_targets[target].retrieve_related()
 
 class NSMapping(models.Model):
     name = DomainNameField(max_length=2048)
