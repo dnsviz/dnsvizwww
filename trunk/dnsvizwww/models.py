@@ -39,7 +39,7 @@ from django.utils.translation import ugettext_lazy as _
 
 import dnsviz.analysis
 import dnsviz.format as fmt
-import dnsviz.query as Q
+import dnsviz.query as Query
 import dnsviz.response as Response
 
 MIN_ANALYSIS_INTERVAL = 14400
@@ -212,7 +212,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
     version = models.PositiveSmallIntegerField(default=17)
 
-    parent_name_db = DomainNameField(max_length=2048)
+    parent_name_db = DomainNameField(max_length=2048, blank=True, null=True)
 
     referral_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
 
@@ -237,10 +237,19 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 if len(args) > 2: kwargs['stub'] = args[2]
                 args = ()
             else:
-                # if only args, then this could suit either parent __init__, but
-                # in the case of dnsviz.analysis.DomainNameAnalysis, need to make
-                # sure only the first three args are passed
-                dnsviz.analysis.DomainNameAnalysis.__init__(self, *args[:3])
+                # If only args, then this could suit either parent __init__.
+                # In the case of models.Model, the first argument would be int,
+                # for the 'id' field.  In this case, we convert the args to
+                # kwargs for models.Model.__init__.
+                if isinstance(args[0], (int, long)):
+                    args_modified = args[1:4]
+                else:
+                    args_modified = args[:3]
+                    kwargs['name'] = args[0]
+                    if len(args) > 1: kwargs['dlv_domain'] = args[1]
+                    if len(args) > 2: kwargs['stub'] = args[2]
+                    args = ()
+                dnsviz.analysis.DomainNameAnalysis.__init__(self, *args_modified)
         else:
             # only kwargs, so this was intended only for models.Model.__init__.  We
             # create args for dnsviz.analysis.DomainNameAnalysis.__init__ by pulling
@@ -284,6 +293,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     def save(self, save_related=False):
         with transaction.commit_manually():
             try:
+                self.parent_name_db = self.parent_name()
                 super(DomainNameAnalysis, self).save()
                 if save_related:
                     self.store_related()
@@ -326,12 +336,87 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             # add the responses
             for server in query.responses:
                 for client in query.responses[server]:
+                    if query.responses[server][client].message is not None:
+                        flags = query.responses[server][client].message.flags
+                    else:
+                        flags = None
                     #TODO get history
-                    response_obj = DNSResponse(query=query_obj, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
+                    response_obj = DNSResponse(query=query_obj, flags=flags, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
                             error=query.responses[server][client].error, errno=query.responses[server][client].errno,
                             tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000))
                     response_obj.save()
                     response_obj.message = query.responses[server][client].message
+
+    def retrieve_related(self, trace=None):
+        if trace is None:
+            trace = set()
+
+        if self.pk in trace:
+            return
+        trace.add(self.pk)
+
+        dlv_parent_name = None
+        if self.name != dns.name.root and not self.stub:
+            parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end)
+
+            if self.dlv_domain is not None:
+                dlv_parent_name = dns.name.from_text(self.dlv_parent_name)
+                dlv_parent = self.__class__.objects.latest(dlv_parent_name, self.analysis_end)
+
+        if not self.stub:
+            if self.name != dns.name.root:
+                self.parent = parent
+                if dlv_parent_name:
+                    self.dlv_parent = dlv_parent
+
+        # add the auth NS to IP mapping
+        for name, ip in self.auth_ns_ip_mapping_db.values_list('name', 'server__ip_address'):
+            self.add_auth_ns_ip_mappings((dns.name.from_text(name), ip))
+
+        # import delegation NS queries first
+        delegation_types = set([dns.rdatatype.NS])
+        if self.referral_rdtype is not None:
+            delegation_types.add(self.referral_rdtype)
+
+        delegation_queries = []
+        other_queries = []
+
+        # add the queries
+        for query in self.queries_db.all():
+            if query.options.edns_max_udp_payload is not None:
+                edns = query.options.edns_flags>>16
+                edns_max_udp_payload = query.options.edns_max_udp_payload
+                edns_flags = query.options.edns_flags
+                edns_options = []
+                index = 0
+                while index < len(query.options.edns_options):
+                    (otype, olen) = struct.unpack('!HH', query.options.edns_options[index:index + 4])
+                    index += 4
+                    opt = dns.edns.option_from_wire(otype, query.options.edns_options, index, olen)
+                    edns_options.append(opt)
+                    index += olen
+            else:
+                edns = -1
+                edns_max_udp_payload = None
+                edns_flags = None
+                edns_options = []
+
+            query1 = Query.DNSQuery(query.qname, query.rdtype, query.rdclass, query.options.flags, edns, edns_max_udp_payload, edns_flags, edns_options)
+
+            # add the responses
+            for response in query.responses.all():
+                response1 = Response.DNSResponse(response.message, response.error, response.errno, [], response.response_time, response.tcp_first)
+                query1.add_response(response.server, response.client, response1)
+
+            if query1.rdtype in delegation_types:
+                delegation_queries.append(query1)
+            else:
+                other_queries.append(query1)
+
+        for query in delegation_queries:
+            self.add_query(query)
+        for query in other_queries:
+            self.add_query(query)
 
 class NSMapping(models.Model):
     name = DomainNameField(max_length=2048)
@@ -552,6 +637,8 @@ class DNSResponse(models.Model):
     client = models.GenericIPAddressField()
 
     # response attributes
+    flags = UnsignedSmallIntegerField(blank=True, null=True)
+
     has_question = models.BooleanField(default=True)
     question_name = DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     question_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
@@ -631,17 +718,17 @@ class DNSResponse(models.Model):
                 prev_order = None
 
             if prev_order != rr_map.order:
-                if rr_map.rr.rdtype == dns.rdatatype.RRSIG:
-                    covers = rr_map.rr.rdata.covers()
+                if rr_map.rdata.rdtype == dns.rdatatype.RRSIG:
+                    covers = rr_map.rdata.rdata.covers()
                 else:
                     covers = dns.rdatatype.NONE
-                rrset = dns.rrset.RRset(rr_map.rr.name, rr_map.rr.rdclass, rr_map.rr.rdtype, covers)
+                rrset = dns.rrset.RRset(rr_map.rdata.name, rr_map.rdata.rdclass, rr_map.rdata.rdtype, covers)
                 section.append(rrset)
                 message.index[(message.section_number(section),
                         rrset.name, rrset.rdclass, rrset.rdtype, rrset.covers, None)] = rrset
                 prev_order = rr_map.order
 
-            rrset.add(rr_map.rr.rdata, rr_map.ttl)
+            rrset.add(rr_map.rdata.rdata, rr_map.ttl)
 
     def _set_message(self, message):
         assert self.pk is not None, 'Response object must be saved before response data can be associated with it'
@@ -686,7 +773,7 @@ class DNSResponse(models.Model):
             self._message.flags = self.flags
 
             if self.has_question:
-                qname, qrdclass, qrdtype = self.qname, self.rdclass, self.rdtype
+                qname, qrdclass, qrdtype = self.query.qname, self.query.rdclass, self.query.rdtype
                 if self.question_name is not None:
                     qname = self.question_name
                 if self.question_rdclass is not None:
