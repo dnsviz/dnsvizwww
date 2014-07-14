@@ -99,7 +99,7 @@ def main():
         names = []
         with codecs.open(opts['-f'], 'r', 'utf-8') as f:
             for line in f:
-                names.append(dns.name.from_text(line.strip()))
+                names.append(dns.name.from_unicode(line.strip()))
     else:
         names = map(dns.name.from_text, args)
 
