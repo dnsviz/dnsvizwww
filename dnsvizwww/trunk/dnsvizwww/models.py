@@ -336,10 +336,23 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             # add the responses
             for server in query.responses:
                 for client in query.responses[server]:
-                    #TODO get history
+                    history = []
+                    for retry in query.responses[server][client].history:
+                        response_time = int(retry.response_time*1000)
+                        cause = retry.cause
+                        cause_arg = retry.cause_arg
+                        action = retry.action
+                        action_arg = retry.action_arg
+                        if cause_arg is None:
+                            cause_arg = -1
+                        if action_arg is None:
+                            action_arg = -1
+                        history.extend([response_time, cause, cause_arg, action, action_arg])
+                    history_str = ','.join(map(str, history))
                     response_obj = DNSResponse(query=query_obj, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
                             error=query.responses[server][client].error, errno=query.responses[server][client].errno,
-                            tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000))
+                            tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000),
+                            history_serialized=history_str)
                     response_obj.save()
                     response_obj.message = query.responses[server][client].message
                     response_obj.save()
@@ -411,6 +424,20 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
             # add the responses
             for response in query.responses.all():
+                history = []
+                if response.history_serialized:
+                    history_vals = map(int, response.history_serialized.split(','))
+                    for i in range(0, len(history_vals), 5):
+                        response_time = history_vals[i]/1.0
+                        cause = history_vals[i+1]
+                        cause_arg = history_vals[i+2]
+                        action = history_vals[i+3]
+                        action_arg = history_vals[i+4]
+                        if cause_arg < 0:
+                            cause_arg = None
+                        if action_arg < 0:
+                            action_arg = None
+                        history.append(Query.DNSQueryRetryAttempt(response_time, cause, cause_arg, action, action_arg))
                 response1 = Response.DNSResponse(response.message, response.error, response.errno, [], response.response_time, response.tcp_first)
                 query1.add_response(response.server, response.client, response1)
 
