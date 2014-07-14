@@ -880,12 +880,12 @@ class ResourceRecordMapper(models.Model):
         return str(self.rr)
 
 
-class DBAnalyst(dnsviz.analysis.Analyst):
+class Analyst(dnsviz.analysis.Analyst):
     qname_only = False
     analysis_model = DomainNameAnalysis
 
     def _analyze(self, name, ns_only=False):
-        name_obj = super(DBAnalyst, self)._analyze(name, ns_only)
+        name_obj = super(Analyst, self)._analyze(name, ns_only)
         # if this object hasn't been saved before
         if name_obj.pk is None:
             # stub zones don't save dep_analysis_end
@@ -895,5 +895,5 @@ class DBAnalyst(dnsviz.analysis.Analyst):
         return name_obj
 
     def _analyze_dependencies(self, name_obj):
-        super(DBAnalyst, self)._analyze_dependencies(name_obj)
+        super(Analyst, self)._analyze_dependencies(name_obj)
         name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
