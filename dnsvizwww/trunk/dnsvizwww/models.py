@@ -392,7 +392,6 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         else:
             queries = self.queries_db.all()
         for query in queries:
-            print query.qname, dns.rdatatype.to_text(query.rdtype)
             if query.options.edns_max_udp_payload is not None:
                 edns = query.options.edns_flags>>16
                 edns_max_udp_payload = query.options.edns_max_udp_payload
