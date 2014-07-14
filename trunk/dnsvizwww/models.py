@@ -336,16 +336,13 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             # add the responses
             for server in query.responses:
                 for client in query.responses[server]:
-                    if query.responses[server][client].message is not None:
-                        flags = query.responses[server][client].message.flags
-                    else:
-                        flags = None
                     #TODO get history
-                    response_obj = DNSResponse(query=query_obj, flags=flags, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
+                    response_obj = DNSResponse(query=query_obj, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
                             error=query.responses[server][client].error, errno=query.responses[server][client].errno,
                             tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000))
                     response_obj.save()
                     response_obj.message = query.responses[server][client].message
+                    response_obj.save()
 
     def retrieve_related(self, rdtypes=None, cache=None):
         if cache is None:
