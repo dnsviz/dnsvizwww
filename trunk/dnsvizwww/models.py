@@ -201,48 +201,18 @@ class DomainNameAnalysisManager(models.Manager):
         except self.model.DoesNotExist:
             return None
 
-class DomainNameAnalysisDummy(dnsviz.analysis.DomainNameAnalysis):
-    def __init__(self, *args, **kwargs):
-
-        dlv_domain_default = kwargs.pop('dlv_domain', None)
-        if args:
-            name = args[0]
-            try:
-                stub = args[1]
-            except IndexError:
-                stub = False
-            try:
-                dlv_parent = args[7]
-                if dlv_parent is not None:
-                    dlv_domain = dlv_parent.name
-                else:
-                    dlv_domain = dlv_domain_default
-            except IndexError:
-                dlv_domain = dlv_domain_default
-        else:
-            assert 'name' in kwargs, "Name must be initialized when instantiating DomainNameAnalysis"
-
-            name = kwargs['name']
-            stub = kwargs.get('stub', False)
-            dlv_parent = kwargs.get('dlv_parent', None)
-            if dlv_parent is not None:
-                dlv_domain = dlv_parent.name
-            else:
-                dlv_domain = dlv_domain_default
-
-        super(DomainNameAnalysisDummy, self).__init__(name, dlv_domain=dlv_domain, stub=stub)
-
-class DomainNameAnalysis(DomainNameAnalysisDummy, models.Model):
+class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     name = DomainNameField(max_length=2048)
+    dlv_domain = DomainNameField(max_length=2048, blank=True, null=True)
     stub = models.BooleanField()
+
     analysis_start = models.DateTimeField()
     analysis_end = models.DateTimeField(db_index=True)
     dep_analysis_end = models.DateTimeField()
 
     version = models.PositiveSmallIntegerField(default=17)
 
-    parent = models.ForeignKey('self', related_name='children', blank=True, null=True)
-    dlv_parent = models.ForeignKey('self', related_name='dlv_children', blank=True, null=True)
+    parent_name_db = DomainNameField(max_length=2048)
 
     referral_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
 
@@ -256,12 +226,31 @@ class DomainNameAnalysis(DomainNameAnalysisDummy, models.Model):
     objects = DomainNameAnalysisManager()
 
     def __init__(self, *args, **kwargs):
-        super(DomainNameAnalysis, self).__init__(*args, **kwargs)
-        try:
-            del kwargs['dlv_domain']
-        except KeyError:
-            pass
-        #XXX not sure why it is necessary to run __init__ manually on Model
+        if args:
+            if kwargs:
+                # since args and kwargs were both supplied to __init__, this was
+                # intended for dnsviz.analysis.DomainNameAnalysis, so we need to
+                # convert the args to kwargs for models.Model.__init__.
+                dnsviz.analysis.DomainNameAnalysis.__init__(self, *args[:3], **kwargs)
+                kwargs['name'] = args[0]
+                if len(args) > 1: kwargs['dlv_domain'] = args[1]
+                if len(args) > 2: kwargs['stub'] = args[2]
+                args = ()
+            else:
+                # if only args, then this could suit either parent __init__, but
+                # in the case of dnsviz.analysis.DomainNameAnalysis, need to make
+                # sure only the first three args are passed
+                dnsviz.analysis.DomainNameAnalysis.__init__(self, *args[:3])
+        else:
+            # only kwargs, so this was intended only for models.Model.__init__.  We
+            # create args for dnsviz.analysis.DomainNameAnalysis.__init__ by pulling
+            # the 'name' kwarg from kwargs.
+            kwargs_modified = {}
+            if 'dlv_domain' in kwargs:
+                kwargs_modified['dlv_domain'] = kwargs['dlv_domain']
+            if 'stub' in kwargs:
+                kwargs_modified['stub'] = kwargs['stub']
+            dnsviz.analysis.DomainNameAnalysis.__init__(self, (kwargs['name'],), **kwargs_modified)
         models.Model.__init__(self, *args, **kwargs)
 
     class Meta:
@@ -296,50 +285,53 @@ class DomainNameAnalysis(DomainNameAnalysisDummy, models.Model):
         with transaction.commit_manually():
             try:
                 super(DomainNameAnalysis, self).save()
-
                 if save_related:
-                    # add the auth NS to IP mapping
-                    for name in self._auth_ns_ip_mapping:
-                        for ip in self._auth_ns_ip_mapping[name]:
-                            ip = fmt.fix_ipv6(ip)
-                            self.auth_ns_ip_mapping_db.add(NSMapping.objects.get_or_create(name=name, server=DNSServer.objects.get_or_create(ip_address=ip)[0])[0])
-
-                    # add the queries
-                    for (qname, rdtype), query in self.queries.items():
-                        if query.edns >= 0:
-                            edns_max_udp_payload = query.edns_max_udp_payload
-                            edns_flags = query.edns_flags
-                            edns_options = ''
-                            for opt in query.edns_options:
-                                s = StringIO.StringIO()
-                                opt.to_wire(s)
-                                data = s.getvalue()
-                                edns_options += struct.pack('!HH', opt.otype, len(data)) + data
-                        else:
-                            edns_max_udp_payload = None
-                            edns_flags = None
-                            edns_options = None
-
-                        query_options = DNSQueryOptions.objects.get_or_create(flags=query.flags, edns_max_udp_payload=edns_max_udp_payload,
-                                edns_flags=edns_flags, edns_options=edns_options)[0]
-
-                        query_obj = DNSQuery.objects.create(qname=query.qname, rdtype=query.rdtype, rdclass=query.rdclass,
-                                options=query_options, analysis=self)
-
-                        # add the responses
-                        for server in query.responses:
-                            for client in query.responses[server]:
-                                #TODO get history
-                                response_obj = DNSResponse(query=query_obj, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
-                                        error=query.responses[server][client].error, errno=query.responses[server][client].errno,
-                                        tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000))
-                                response_obj.save()
-                                response_obj.message = query.responses[server][client].message
+                    self.store_related()
             except:
                 transaction.rollback()
                 raise
             else:
                 transaction.commit()
+
+
+    def store_related(self):
+        # add the auth NS to IP mapping
+        for name in self._auth_ns_ip_mapping:
+            for ip in self._auth_ns_ip_mapping[name]:
+                ip = fmt.fix_ipv6(ip)
+                self.auth_ns_ip_mapping_db.add(NSMapping.objects.get_or_create(name=name, server=DNSServer.objects.get_or_create(ip_address=ip)[0])[0])
+
+        # add the queries
+        for (qname, rdtype), query in self.queries.items():
+            if query.edns >= 0:
+                edns_max_udp_payload = query.edns_max_udp_payload
+                edns_flags = query.edns_flags
+                edns_options = ''
+                for opt in query.edns_options:
+                    s = StringIO.StringIO()
+                    opt.to_wire(s)
+                    data = s.getvalue()
+                    edns_options += struct.pack('!HH', opt.otype, len(data)) + data
+            else:
+                edns_max_udp_payload = None
+                edns_flags = None
+                edns_options = None
+
+            query_options = DNSQueryOptions.objects.get_or_create(flags=query.flags, edns_max_udp_payload=edns_max_udp_payload,
+                    edns_flags=edns_flags, edns_options=edns_options)[0]
+
+            query_obj = DNSQuery.objects.create(qname=query.qname, rdtype=query.rdtype, rdclass=query.rdclass,
+                    options=query_options, analysis=self)
+
+            # add the responses
+            for server in query.responses:
+                for client in query.responses[server]:
+                    #TODO get history
+                    response_obj = DNSResponse(query=query_obj, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
+                            error=query.responses[server][client].error, errno=query.responses[server][client].errno,
+                            tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000))
+                    response_obj.save()
+                    response_obj.message = query.responses[server][client].message
 
 class NSMapping(models.Model):
     name = DomainNameField(max_length=2048)
@@ -724,7 +716,7 @@ class ResourceRecordMapper(models.Model):
     section = models.PositiveSmallIntegerField()
 
     order = models.PositiveSmallIntegerField()
-    raw_name = DomainNameField(max_length=2048, canonicalize=False, blank=True)
+    raw_name = DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     rdata = models.ForeignKey(ResourceRecord)
     ttl = UnsignedIntegerField()
 
@@ -740,10 +732,7 @@ class ResourceRecordMapper(models.Model):
 
 class DBAnalyst(dnsviz.analysis.Analyst):
     qname_only = False
-
-    @classmethod
-    def analysis_model(cls, name, dlv_domain=None, stub=False):
-        return DomainNameAnalysis(name=name, dlv_domain=dlv_domain, stub=stub)
+    analysis_model = DomainNameAnalysis
 
     def _analyze(self, name, ns_only=False):
         name_obj = super(DBAnalyst, self)._analyze(name, ns_only)
