@@ -347,14 +347,25 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                     response_obj.save()
                     response_obj.message = query.responses[server][client].message
 
-    def retrieve_related(self):
+    def retrieve_related(self, rdtypes=None, cache=None):
+        if cache is None:
+            cache = {}
+
         if self.name != dns.name.root and not self.stub:
             parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end)
-            parent.retrieve_related()
+            if parent.pk in cache:
+                parent = cache[parent.pk]
+            else:
+                cache[parent.pk] = parent
+                parent.retrieve_related(rdtypes=set([parent.referral_rdtype, dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS]), cache=cache)
 
             if self.dlv_domain is not None:
                 dlv_parent = self.__class__.objects.latest(self.dlv_domain, self.analysis_end)
-                dlv_parent.retrieve_related()
+                if dlv_parent.pk in cache:
+                    dlv_parent = cache[dlv_parent.pk]
+                else:
+                    cache[dlv_parent.pk] = dlv_parent
+                    dlv_parent.retrieve_related(rdtypes=set([dns.rdatatype.NS, dns.rdatatype.DNSKEY]), cache=cache)
 
         if not self.stub:
             if self.name != dns.name.root:
@@ -375,7 +386,13 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         other_queries = []
 
         # add the queries
-        for query in self.queries_db.all():
+        if rdtypes is not None:
+            rdtypes = rdtypes.union(delegation_types)
+            queries = self.queries_db.filter(rdtype__in=rdtypes)
+        else:
+            queries = self.queries_db.all()
+        for query in queries:
+            print query.qname, dns.rdatatype.to_text(query.rdtype)
             if query.options.edns_max_udp_payload is not None:
                 edns = query.options.edns_flags>>16
                 edns_max_udp_payload = query.options.edns_max_udp_payload
@@ -413,16 +430,33 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         for cname in self.cname_targets:
             self.cname_targets[cname] = self.__class__.objects.latest(cname, self.dep_analysis_end)
-            self.cname_targets[cname].retrieve_related()
+            if self.cname_targets[cname].pk in cache:
+                self.cname_targets[cname] = cache[self.cname_targets[cname].pk]
+            else:
+                cache[self.cname_targets[cname].pk] = self.cname_targets[cname]
+                self.cname_targets[cname].retrieve_related(cache=cache)
         for dname in self.dname_targets:
             self.dname_targets[dname] = self.__class__.objects.latest(dname, self.dep_analysis_end)
-            self.dname_targets[dname].retrieve_related()
+            if self.dname_targets[dname].pk in cache:
+                self.dname_targets[dname] = cache[self.dname_targets[dname].pk]
+            else:
+                cache[self.dname_targets[dname].pk] = self.dname_targets[dname]
+                self.dname_targets[dname].retrieve_related(cache=cache)
         for signer in self.external_signers:
             self.external_signers[signer] = self.__class__.objects.latest(signer, self.dep_analysis_end)
-            self.external_signers[signer].retrieve_related()
+            if self.external_signers[signer].pk in cache:
+                self.external_signers[signer] = cache[self.external_signers[signer].pk]
+            else:
+                cache[self.external_signers[signer].pk] = self.external_signers[signer]
+                self.external_signers[signer].retrieve_related(rdtypes=set([parent.referral_rdtype, dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS]), cache=cache)
         #for target in self.get_ns_dependencies():
         #    self.ns_targets[target] = self.__class__.objects.latest(target, self.dep_analysis_end)
-        #    self.ns_targets[target].retrieve_related()
+        #    if self.ns_targets[target].pk in cache:
+        #        self.ns_targets[target] = cache[self.ns_targets[target].pk]
+        #    else:
+        #        cache[self.ns_targets[target].pk] = self.ns_targets[target]
+        #        self.external_signers[signer].retrieve_related(), cache=cache)
+        #        self.ns_targets[target].retrieve_related(rdtypes=set([parent.referral_rdtype, dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.A, dns.rdatatype.AAAA]), cache=cache)
 
 class NSMapping(models.Model):
     name = DomainNameField(max_length=2048)
