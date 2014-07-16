@@ -42,6 +42,8 @@ import dnsviz.format as fmt
 import dnsviz.query as Query
 import dnsviz.response as Response
 
+import util
+
 MIN_ANALYSIS_INTERVAL = 14400
 
 class UnsignedSmallIntegerField(models.SmallIntegerField):
@@ -266,6 +268,16 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         unique_together = (('name', 'analysis_end'),)
         get_latest_by = 'analysis_end'
 
+    def timestamp_url_encoded(self):
+        return util.datetime_url_encode(self.analysis_end)
+
+    def base_url(self):
+        name = util.name_url_encode(self.name)
+        return '/d/%s/' % name
+
+    def base_url_with_timestamp(self):
+        return '%s%s/' % (self.base_url(), self.timestamp_url_encoded())
+
     def _get_previous(self):
         if not hasattr(self, '_previous') or self._previous is None:
             self._previous = self.__class__.objects.latest(self.name, self.analysis_end - datetime.timedelta(microseconds=1))
@@ -302,7 +314,6 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 raise
             else:
                 transaction.commit()
-
 
     def store_related(self):
         # add the auth NS to IP mapping
