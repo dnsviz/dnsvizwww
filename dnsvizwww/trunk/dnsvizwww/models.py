@@ -895,14 +895,18 @@ class Analyst(dnsviz.analysis.Analyst):
     qname_only = False
     analysis_model = DomainNameAnalysis
 
-    def _analyze(self, name, ns_only=False):
-        name_obj = super(Analyst, self)._analyze(name, ns_only)
-        # if this object hasn't been saved before
-        if name_obj.pk is None:
-            # stub zones don't save dep_analysis_end
-            if name_obj.stub:
-                name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
-            name_obj.save(save_related=True)
+    def _analyze(self, name):
+        name_obj = super(Analyst, self)._analyze(name)
+        
+        # save only if the name is the proper name or if it
+        # is a zone.
+        if name_obj.is_zone() or self.name == name:
+            # if this object hasn't been saved before
+            if name_obj.pk is None:
+                # stub zones don't save dep_analysis_end
+                if name_obj.stub:
+                    name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+                name_obj.save(save_related=True)
         return name_obj
 
     def _analyze_dependencies(self, name_obj):
