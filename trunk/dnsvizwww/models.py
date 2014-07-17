@@ -302,18 +302,23 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
     first = property(_get_first)
 
-    def save(self, save_related=False):
-        with transaction.commit_manually():
-            try:
-                self.parent_name_db = self.parent_name()
-                super(DomainNameAnalysis, self).save()
-                if save_related:
-                    self.store_related()
-            except:
-                transaction.rollback()
-                raise
-            else:
-                transaction.commit()
+    def save_all(self, cache=None):
+        if cache is None:
+            cache = set()
+
+        if self.name in cache:
+            return
+        cache.add(self.name)
+
+        if self.parent is not None:
+            self.parent.save_all(cache)
+        if self.dlv_parent is not None:
+            self.dlv_parent.save_all(cache)
+
+        if self.pk is None:
+            self.parent_name_db = self.parent_name()
+            self.save()
+            self.store_related()
 
     def store_related(self):
         # add the auth NS to IP mapping
@@ -894,21 +899,22 @@ class Analyst(dnsviz.analysis.Analyst):
     qname_only = False
     analysis_model = DomainNameAnalysis
 
+    def analyze(self):
+        name_obj = super(Analyst, self).analyze()
+        with transaction.commit_manually():
+            try:
+                name_obj.save_all()
+            except:
+                transaction.rollback()
+                raise
+            else:
+                transaction.commit()
+        return name_obj
+
     def _analyze_stub(self, name):
         name_obj = super(Analyst, self)._analyze_stub(name)
         if name_obj.dep_analysis_end is None:
             name_obj.dep_analysis_end = name_obj.analysis_end
-        return name_obj
-
-    def _analyze(self, name):
-        name_obj = super(Analyst, self)._analyze(name)
-        
-        # save only if the name is the proper name or if it
-        # is a zone.
-        if name_obj.is_zone() or self.name == name:
-            # if this object hasn't been saved before
-            if name_obj.pk is None:
-                name_obj.save(save_related=True)
         return name_obj
 
     def _analyze_dependencies(self, name_obj):
