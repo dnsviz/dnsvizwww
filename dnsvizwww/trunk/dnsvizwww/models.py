@@ -217,6 +217,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     parent_name_db = DomainNameField(max_length=2048, blank=True, null=True)
 
     referral_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
+    explicit_delegation = models.BooleanField()
 
     nxdomain_name = DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     nxdomain_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
