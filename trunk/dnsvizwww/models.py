@@ -381,7 +381,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             parent = None
 
         if self.name != dns.name.root and self.dlv_parent_name_db is not None:
-            dlv_parent = self.__class__.objects.latest(self.dlv_domain, self.analysis_end)
+            dlv_parent = self.__class__.objects.latest(self.dlv_parent_name_db, self.analysis_end)
             if dlv_parent.pk in cache:
                 dlv_parent = cache[dlv_parent.pk]
             else:
