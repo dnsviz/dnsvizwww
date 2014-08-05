@@ -145,7 +145,6 @@ def main():
     logger.addHandler(handler)
     logger.setLevel(debug_level)
 
-    #TODO: support unicode
     if '-f' in opts:
         names = []
         with codecs.open(opts['-f'], 'r', 'utf-8') as f:
@@ -180,7 +179,6 @@ def main():
             continue
         name_obj.serialize(d)
 
-    sys.exit(0)
     if '-p' in opts:
         kwargs = { 'indent': 4, 'separators': (',', ': ') }
     else:
