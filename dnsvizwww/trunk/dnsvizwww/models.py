@@ -205,7 +205,6 @@ class DomainNameAnalysisManager(models.Manager):
 
 class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     name = DomainNameField(max_length=2048)
-    dlv_domain = DomainNameField(max_length=2048, blank=True, null=True)
     stub = models.BooleanField()
 
     analysis_start = models.DateTimeField()
@@ -215,6 +214,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     version = models.PositiveSmallIntegerField(default=17)
 
     parent_name_db = DomainNameField(max_length=2048, blank=True, null=True)
+    dlv_parent_name_db = DomainNameField(max_length=2048, blank=True, null=True)
 
     referral_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
     explicit_delegation = models.BooleanField()
@@ -234,10 +234,9 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 # since args and kwargs were both supplied to __init__, this was
                 # intended for dnsviz.analysis.DomainNameAnalysis, so we need to
                 # convert the args to kwargs for models.Model.__init__.
-                dnsviz.analysis.DomainNameAnalysis.__init__(self, *args[:3], **kwargs)
+                dnsviz.analysis.DomainNameAnalysis.__init__(self, *args[:2], **kwargs)
                 kwargs['name'] = args[0]
-                if len(args) > 1: kwargs['dlv_domain'] = args[1]
-                if len(args) > 2: kwargs['stub'] = args[2]
+                if len(args) > 1: kwargs['stub'] = args[1]
                 args = ()
             else:
                 # If only args, then this could suit either parent __init__.
@@ -245,12 +244,11 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 # for the 'id' field.  In this case, we convert the args to
                 # kwargs for models.Model.__init__.
                 if isinstance(args[0], (int, long)):
-                    args_modified = args[1:4]
+                    args_modified = args[1:3]
                 else:
-                    args_modified = args[:3]
+                    args_modified = args[:2]
                     kwargs['name'] = args[0]
-                    if len(args) > 1: kwargs['dlv_domain'] = args[1]
-                    if len(args) > 2: kwargs['stub'] = args[2]
+                    if len(args) > 1: kwargs['stub'] = args[1]
                     args = ()
                 dnsviz.analysis.DomainNameAnalysis.__init__(self, *args_modified)
         else:
@@ -258,8 +256,6 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             # create args for dnsviz.analysis.DomainNameAnalysis.__init__ by pulling
             # the 'name' kwarg from kwargs.
             kwargs_modified = {}
-            if 'dlv_domain' in kwargs:
-                kwargs_modified['dlv_domain'] = kwargs['dlv_domain']
             if 'stub' in kwargs:
                 kwargs_modified['stub'] = kwargs['stub']
             dnsviz.analysis.DomainNameAnalysis.__init__(self, (kwargs['name'],), **kwargs_modified)
@@ -318,6 +314,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         if self.pk is None:
             self.parent_name_db = self.parent_name()
+            self.dlv_parent_name_db = self.dlv_parent_name()
             self.save()
             self.store_related()
 
@@ -329,50 +326,51 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 self.auth_ns_ip_mapping_db.add(NSMapping.objects.get_or_create(name=name, server=DNSServer.objects.get_or_create(ip_address=ip)[0])[0])
 
         # add the queries
-        for (qname, rdtype), query in self.queries.items():
-            if query.edns >= 0:
-                edns_max_udp_payload = query.edns_max_udp_payload
-                edns_flags = query.edns_flags
-                edns_options = ''
-                for opt in query.edns_options:
-                    s = StringIO.StringIO()
-                    opt.to_wire(s)
-                    data = s.getvalue()
-                    edns_options += struct.pack('!HH', opt.otype, len(data)) + data
-            else:
-                edns_max_udp_payload = None
-                edns_flags = None
-                edns_options = None
+        for (qname, rdtype) in self.queries:
+            for query in self.queries[(qname, rdtype)].queries.values():
+                if query.edns >= 0:
+                    edns_max_udp_payload = query.edns_max_udp_payload
+                    edns_flags = query.edns_flags
+                    edns_options = ''
+                    for opt in query.edns_options:
+                        s = StringIO.StringIO()
+                        opt.to_wire(s)
+                        data = s.getvalue()
+                        edns_options += struct.pack('!HH', opt.otype, len(data)) + data
+                else:
+                    edns_max_udp_payload = None
+                    edns_flags = None
+                    edns_options = None
 
-            query_options = DNSQueryOptions.objects.get_or_create(flags=query.flags, edns_max_udp_payload=edns_max_udp_payload,
-                    edns_flags=edns_flags, edns_options=edns_options)[0]
+                query_options = DNSQueryOptions.objects.get_or_create(flags=query.flags, edns_max_udp_payload=edns_max_udp_payload,
+                        edns_flags=edns_flags, edns_options=edns_options)[0]
 
-            query_obj = DNSQuery.objects.create(qname=query.qname, rdtype=query.rdtype, rdclass=query.rdclass,
-                    options=query_options, analysis=self)
+                query_obj = DNSQuery.objects.create(qname=query.qname, rdtype=query.rdtype, rdclass=query.rdclass,
+                        options=query_options, analysis=self)
 
-            # add the responses
-            for server in query.responses:
-                for client in query.responses[server]:
-                    history = []
-                    for retry in query.responses[server][client].history:
-                        response_time = int(retry.response_time*1000)
-                        cause = retry.cause
-                        cause_arg = retry.cause_arg
-                        action = retry.action
-                        action_arg = retry.action_arg
-                        if cause_arg is None:
-                            cause_arg = -1
-                        if action_arg is None:
-                            action_arg = -1
-                        history.extend([response_time, cause, cause_arg, action, action_arg])
-                    history_str = ','.join(map(str, history))
-                    response_obj = DNSResponse(query=query_obj, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
-                            error=query.responses[server][client].error, errno=query.responses[server][client].errno,
-                            tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000),
-                            history_serialized=history_str)
-                    response_obj.save()
-                    response_obj.message = query.responses[server][client].message
-                    response_obj.save()
+                # add the responses
+                for server in query.responses:
+                    for client in query.responses[server]:
+                        history = []
+                        for retry in query.responses[server][client].history:
+                            response_time = int(retry.response_time*1000)
+                            cause = retry.cause
+                            cause_arg = retry.cause_arg
+                            action = retry.action
+                            action_arg = retry.action_arg
+                            if cause_arg is None:
+                                cause_arg = -1
+                            if action_arg is None:
+                                action_arg = -1
+                            history.extend([response_time, cause, cause_arg, action, action_arg])
+                        history_str = ','.join(map(str, history))
+                        response_obj = DNSResponse(query=query_obj, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
+                                error=query.responses[server][client].error, errno=query.responses[server][client].errno,
+                                tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000),
+                                history_serialized=history_str)
+                        response_obj.save()
+                        response_obj.message = query.responses[server][client].message
+                        response_obj.save()
 
     def retrieve_related(self, rdtypes=None, cache=None):
         if cache is None:
@@ -388,7 +386,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         else:
             parent = None
 
-        if self.name != dns.name.root and self.dlv_domain is not None:
+        if self.name != dns.name.root and self.dlv_parent_name_db is not None:
             dlv_parent = self.__class__.objects.latest(self.dlv_domain, self.analysis_end)
             if dlv_parent.pk in cache:
                 dlv_parent = cache[dlv_parent.pk]
@@ -399,7 +397,8 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             dlv_parent = None
 
         self.parent = parent
-        self.dlv_parent = dlv_parent
+        if dlv_parent is not None:
+            self.dlv_parent = dlv_parent
 
         # add the auth NS to IP mapping
         for name, ip in self.auth_ns_ip_mapping_db.values_list('name', 'server__ip_address'):
