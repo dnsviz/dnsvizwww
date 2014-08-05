@@ -299,24 +299,18 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
     first = property(_get_first)
 
-    def save_all(self, cache=None):
-        if cache is None:
-            cache = set()
-
-        if self.name in cache:
+    def save_all(self):
+        if self.pk is not None:
             return
-        cache.add(self.name)
 
-        if self.parent is not None:
-            self.parent.save_all(cache)
-        if self.dlv_parent is not None:
-            self.dlv_parent.save_all(cache)
-
-        if self.pk is None:
-            self.parent_name_db = self.parent_name()
-            self.dlv_parent_name_db = self.dlv_parent_name()
-            self.save()
-            self.store_related()
+        # set the parent name, and save this object
+        self.parent_name_db = self.parent_name()
+        self.dlv_parent_name_db = self.dlv_parent_name()
+        self.save()
+        # now store the name/IP mapping, query/response, and other information
+        self.store_related()
+        # recursively save the dependent names
+        self.save_dependencies()
 
     def store_related(self):
         # add the auth NS to IP mapping
@@ -503,9 +497,18 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                     self.ns_dependencies[target] = cache[self.ns_dependencies[target].pk]
                 else:
                     cache[self.ns_dependencies[target].pk] = self.ns_dependencies[target]
-                    self.external_signers[signer].retrieve_related(cache=cache)
                     self.ns_dependencies[target].retrieve_related(rdtypes=set([parent.referral_rdtype, dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.A, dns.rdatatype.AAAA]), cache=cache)
 
+    def save_dependencies(self):
+        for cname_obj in self.cname_targets.values():
+            cname_obj.save_all()
+        for dname_obj in self.dname_targets.values():
+            dname_obj.save_all()
+        for signer_obj in self.external_signers.values():
+            signer_obj.save_all()
+        for ns_obj in self.ns_dependencies.values():
+            if ns_obj is not None:
+                ns_obj.save_all()
 
 class NSMapping(models.Model):
     name = DomainNameField(max_length=2048)
@@ -909,24 +912,80 @@ class Analyst(dnsviz.analysis.Analyst):
     qname_only = False
     analysis_model = DomainNameAnalysis
 
-    def analyze(self):
-        name_obj = super(Analyst, self).analyze()
-        with transaction.commit_manually():
-            try:
-                name_obj.save_all()
-            except:
-                transaction.rollback()
-                raise
-            else:
-                transaction.commit()
-        return name_obj
+    def unsaved_dependencies(self, name_obj, trace=None):
+        if trace is None:
+            trace = []
+
+        unsaved_names = []
+        if name_obj.name in trace:
+            return unsaved_names
+        
+        for cname, cname_obj in name_obj.cname_targets.items():
+            if cname_obj is None or cname_obj.pk is None:
+                unsaved_names.append(cname)
+                if cname_obj is not None:
+                    unsaved_names.extend(self.unsaved_dependencies(cname_obj, trace+[name_obj.name]))
+        for dname, dname_obj in name_obj.dname_targets.items():
+            if dname_obj is None or dname_obj.pk is None:
+                unsaved_names.append(dname)
+                if dname_obj is not None:
+                    unsaved_names.extend(self.unsaved_dependencies(dname_obj, trace+[name_obj.name]))
+        for signer, signer_obj in name_obj.external_signers.items():
+            if signer_obj is None or signer_obj.pk is None:
+                unsaved_names.append(signer)
+                if signer_obj is not None:
+                    unsaved_names.extend(self.unsaved_dependencies(signer_obj, trace+[name_obj.name]))
+        if self.follow_ns:
+            for target, ns_obj in name_obj.ns_dependencies.items():
+                if ns_obj is None or ns_obj.pk is None:
+                    unsaved_names.append(target)
+                    if ns_obj is not None:
+                        unsaved_names.extend(self.unsaved_dependencies(ns_obj, trace+[name_obj.name]))
+
+        return unsaved_names
 
     def _analyze_stub(self, name):
-        name_obj = super(Analyst, self)._analyze_stub(name)
-        if name_obj.dep_analysis_end is None:
-            name_obj.dep_analysis_end = name_obj.analysis_end
-        return name_obj
+        name_obj, created = super(Analyst, self)._analyze_stub(name)
+        if created:
+            self._save_analysis(name_obj)
+        return name_obj, created
 
-    def _analyze_dependencies(self, name_obj):
-        super(Analyst, self)._analyze_dependencies(name_obj)
-        name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+    def _analyze(self, name):
+        name_obj, created = super(Analyst, self)._analyze(name)
+        if created:
+            self._save_analysis(name_obj)
+        return name_obj, created
+
+    def _save_analysis(self, name_obj):
+        # if this object hasn't been saved already (it might have been
+        # retrieved from the database) and it is either a zone or the name in
+        # question, then save it.
+        if name_obj.pk is not None or not (name_obj.is_zone() or name_obj.name == self.name):
+            return
+
+        if name_obj.dep_analysis_end is None:
+            if name_obj.stub:
+                name_obj.dep_analysis_end = name_obj.analysis_end
+            else:
+                name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+            self.analysis_cache[name_obj.name] = name_obj
+
+        # check for cyclic dependencies.  if there are no unsaved
+        # dependencies in the trace (which will cause everything to be
+        # saved in a single transaction) then go ahead and save.
+        unsaved_deps = self.unsaved_dependencies(name_obj)
+        names_in_trace = [n for n,r in self.trace]
+        unsaved_dep_in_trace = False
+        for dep in unsaved_deps:
+            if dep in names_in_trace:
+                unsaved_dep_in_trace = True
+        if not unsaved_dep_in_trace:
+            with transaction.commit_manually():
+                try:
+                    name_obj.save_all()
+                except:
+                    transaction.rollback()
+                    raise
+                else:
+                    transaction.commit()
+        self.analysis_cache[name_obj.name] = name_obj
