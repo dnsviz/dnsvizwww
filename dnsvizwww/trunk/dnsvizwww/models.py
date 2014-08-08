@@ -368,34 +368,14 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                         response_obj.message = query.responses[server][client].message
                         response_obj.save()
 
-    def retrieve_related(self, rdtypes=None, cache=None):
+    def retrieve_all(self, cache=None):
         if cache is None:
             cache = {}
+        self.retrieve_ancestry(cache=cache)
+        self.retrieve_related()
+        self.retrieve_dependencies(cache=cache)
 
-        if self.parent_name_db is not None:
-            parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end)
-            if parent.pk in cache:
-                parent = cache[parent.pk]
-            else:
-                cache[parent.pk] = parent
-                parent.retrieve_related(rdtypes=set([parent.referral_rdtype, dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS]), cache=cache)
-        else:
-            parent = None
-
-        if self.name != dns.name.root and self.dlv_parent_name_db is not None:
-            dlv_parent = self.__class__.objects.latest(self.dlv_parent_name_db, self.analysis_end)
-            if dlv_parent.pk in cache:
-                dlv_parent = cache[dlv_parent.pk]
-            else:
-                cache[dlv_parent.pk] = dlv_parent
-                dlv_parent.retrieve_related(rdtypes=set([dns.rdatatype.NS, dns.rdatatype.DNSKEY]), cache=cache)
-        else:
-            dlv_parent = None
-
-        self.parent = parent
-        if dlv_parent is not None:
-            self.dlv_parent = dlv_parent
-
+    def retrieve_related(self, rdtypes=None):
         # add the auth NS to IP mapping
         for name, ip in self.auth_ns_ip_mapping_db.values_list('name', 'server__ip_address'):
             self.add_auth_ns_ip_mappings((dns.name.from_text(name), ip))
@@ -470,27 +450,73 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         for query in other_queries:
             self.add_query(query)
 
+    def retrieve_ancestry(self, dnssec_rdtypes=True, follow_dependencies=False, cache=None):
+        if cache is None:
+            cache = {}
+
+        if self.parent_name_db is not None:
+            parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end)
+            if parent.pk in cache:
+                parent = cache[parent.pk]
+            else:
+                cache[parent.pk] = parent
+                rdtypes = set([dns.rdatatype.NS])
+                if parent.referral_rdtype is not None:
+                    rdtypes.add(parent.referral_rdtype)
+                if dnssec_rdtypes:
+                    rdtypes.update((dns.rdatatype.DNSKEY, dns.rdatatype.DS))
+                parent.retrieve_ancestry(dnssec_rdtypes=dnssec_rdtypes, follow_dependencies=follow_dependencies, cache=cache)
+                parent.retrieve_related(rdtypes=rdtypes)
+                if follow_dependencies:
+                    parent.retrieve_dependencies(cache=cache)
+        else:
+            parent = None
+
+        if self.name != dns.name.root and self.dlv_parent_name_db is not None:
+            dlv_parent = self.__class__.objects.latest(self.dlv_parent_name_db, self.analysis_end)
+            if dlv_parent.pk in cache:
+                dlv_parent = cache[dlv_parent.pk]
+            else:
+                cache[dlv_parent.pk] = dlv_parent
+                dlv_parent.retrieve_related(rdtypes=set([dns.rdatatype.NS, dns.rdatatype.DNSKEY]))
+        else:
+            dlv_parent = None
+
+        self.parent = parent
+        if dlv_parent is not None:
+            self.dlv_parent = dlv_parent
+
+    def retrieve_dependencies(self, cache=None):
+        if cache is None:
+            cache = {}
+
         for cname in self.cname_targets:
             self.cname_targets[cname] = self.__class__.objects.latest(cname, self.dep_analysis_end)
             if self.cname_targets[cname].pk in cache:
                 self.cname_targets[cname] = cache[self.cname_targets[cname].pk]
             else:
                 cache[self.cname_targets[cname].pk] = self.cname_targets[cname]
-                self.cname_targets[cname].retrieve_related(cache=cache)
+                self.cname_targets[cname].retrieve_ancestry(dnssec_rdtypes=True, follow_dependencies=True, cache=cache)
+                self.cname_targets[cname].retrieve_related()
+                self.cname_targets[cname].retrieve_dependencies(cache=cache)
         for dname in self.dname_targets:
             self.dname_targets[dname] = self.__class__.objects.latest(dname, self.dep_analysis_end)
             if self.dname_targets[dname].pk in cache:
                 self.dname_targets[dname] = cache[self.dname_targets[dname].pk]
             else:
                 cache[self.dname_targets[dname].pk] = self.dname_targets[dname]
-                self.dname_targets[dname].retrieve_related(cache=cache)
+                self.dname_targets[dname].retrieve_ancestry(dnssec_rdtypes=True, follow_dependencies=True, cache=cache)
+                self.dname_targets[dname].retrieve_related()
+                self.dname_targets[dname].retrieve_dependencies(cache=cache)
         for signer in self.external_signers:
             self.external_signers[signer] = self.__class__.objects.latest(signer, self.dep_analysis_end)
             if self.external_signers[signer].pk in cache:
                 self.external_signers[signer] = cache[self.external_signers[signer].pk]
             else:
                 cache[self.external_signers[signer].pk] = self.external_signers[signer]
-                self.external_signers[signer].retrieve_related(rdtypes=set([parent.referral_rdtype, dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS]), cache=cache)
+                self.external_signers[signer].retrieve_ancestry(dnssec_rdtypes=True, follow_dependencies=True, cache=cache)
+                self.external_signers[signer].retrieve_related(rdtypes=set([parent.referral_rdtype, dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS]))
+                self.external_signers[signer].retrieve_dependencies(cache=cache)
         for target in self.ns_dependencies:
             self.ns_dependencies[target] = self.__class__.objects.latest(target, self.dep_analysis_end)
             #TODO also check freshness of retrieved object
@@ -499,7 +525,9 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                     self.ns_dependencies[target] = cache[self.ns_dependencies[target].pk]
                 else:
                     cache[self.ns_dependencies[target].pk] = self.ns_dependencies[target]
-                    self.ns_dependencies[target].retrieve_related(rdtypes=set([parent.referral_rdtype, dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.A, dns.rdatatype.AAAA]), cache=cache)
+                    self.ns_dependencies[target].retrieve_ancestry(dnssec_rdtypes=True, follow_dependencies=True, cache=cache)
+                    self.ns_dependencies[target].retrieve_related(rdtypes=set([parent.referral_rdtype, dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.A, dns.rdatatype.AAAA]))
+                    self.ns_dependencies[target].retrieve_dependencies(cache=cache)
 
     def save_dependencies(self):
         for cname_obj in self.cname_targets.values():
@@ -1007,13 +1035,14 @@ class Analyst(dnsviz.analysis.Analyst):
                     transaction.commit()
         self.analysis_cache[name_obj.name] = name_obj
 
-    def _get_name_for_analysis(self, name, stub=False):
+    def _get_name_for_analysis(self, name, stub=False, lock=True):
         with self.analysis_cache_lock:
             try:
                 name_obj = self.analysis_cache[name]
                 wait_for_analysis = True
             except KeyError:
-                name_obj = self.analysis_cache[name] = self.analysis_model(name, stub=stub)
+                if lock:
+                    name_obj = self.analysis_cache[name] = self.analysis_model(name, stub=stub)
                 wait_for_analysis = False
 
         # name is now locked locally (for threads that use analysis_cache) but
@@ -1025,9 +1054,17 @@ class Analyst(dnsviz.analysis.Analyst):
 
                 # if no analysis is necessary, then simply return
                 if not self._analyze_or_not(fresh_name_obj):
-                    fresh_name_obj.retrieve_related()
+                    rdtypes = set([dns.rdatatype.NS])
+                    if fresh_name_obj.referral_rdtype is not None:
+                        rdtypes.add(fresh_name_obj.referral_rdtype)
+                    fresh_name_obj.retrieve_ancestry(dnssec_rdtypes=False, follow_dependencies=False)
+                    fresh_name_obj.retrieve_related(rdtypes=rdtypes)
                     self.analysis_cache[name] = fresh_name_obj
                     return fresh_name_obj
+
+                # if not locking, then return None
+                if not lock:
+                    return None
 
                 # get the name (or create it)
                 dname_obj = DomainName.objects.get_or_create(name=name)[0]
@@ -1050,7 +1087,7 @@ class Analyst(dnsviz.analysis.Analyst):
                 if attempt_lock and DomainName.objects.filter(pk=dname_obj.pk, analysis_start=dname_obj.analysis_start).update(analysis_start=now):
                     return name_obj
 
-                time.sleep(1)
+                time.sleep(3)
 
         else:
             # if there is a complete event, then wait on it

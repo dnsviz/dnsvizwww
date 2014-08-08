@@ -94,7 +94,6 @@ def main():
         usage()
         sys.exit(1)
 
-    #TODO: support unicode
     if '-f' in opts:
         names = []
         with codecs.open(opts['-f'], 'r', 'utf-8') as f:
@@ -109,9 +108,10 @@ def main():
         trusted_keys = ()
 
     name_objs = []
+    cache = {}
     for name in names:
         name_obj = DomainNameAnalysis.objects.filter(name=name, stub=False).latest()
-        name_obj.retrieve_related()
+        name_obj.retrieve_all(cache=cache)
         name_objs.append(name_obj)
 
     G = DNSAuthGraph()
