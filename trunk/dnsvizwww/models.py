@@ -905,14 +905,9 @@ class ResourceRecordMapper(models.Model):
     def __str__(self):
         return str(self.rr)
 
-class ActiveDomainNameAnalysis(DomainNameAnalysis):
-    def __init__(self, *args, **kwargs):
-        super(ActiveDomainNameAnalysis, self).__init__(*args, **kwargs)
-        self.complete = threading.Event()
-
 class Analyst(dnsviz.analysis.Analyst):
     qname_only = False
-    analysis_model = ActiveDomainNameAnalysis
+    analysis_model = DomainNameAnalysis
 
     clone_attrnames = dnsviz.analysis.Analyst.clone_attrnames + ['force_ancestry','start_time']
 
