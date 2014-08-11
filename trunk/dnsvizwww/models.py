@@ -179,8 +179,8 @@ class NSMapping(models.Model):
         return '%s -> %s' % (self.name.to_text(), self.server)
 
 class DomainNameAnalysisManager(models.Manager):
-    def latest(self, name, date=None):
-        f = Q(name=name)
+    def latest(self, name, date=None, stub=False):
+        f = Q(name=name, stub=stub)
         if date is not None:
             f &= Q(analysis_end__lte=date)
 
@@ -189,8 +189,8 @@ class DomainNameAnalysisManager(models.Manager):
         except self.model.DoesNotExist:
             return None
 
-    def earliest(self, name, date=None):
-        f = Q(name=name)
+    def earliest(self, name, date=None, stub=False):
+        f = Q(name=name, stub=stub)
         if date is not None:
             f &= Q(analysis_end__gte=date)
 
@@ -199,9 +199,9 @@ class DomainNameAnalysisManager(models.Manager):
         except IndexError:
             return None
 
-    def get(self, name, date):
+    def get(self, name, date, stub=False):
         try:
-            return self.filter(name=name, analysis_end=date).get()
+            return self.filter(name=name, analysis_end=date, stub=stub).get()
         except self.model.DoesNotExist:
             return None
 
