@@ -13,7 +13,7 @@
 		/* hide regions that require javascript */
 		.toggle { display:none; }
 	</style>
-	<link rel="stylesheet" href="{{ STATIC_URL }}css/jquery.tooltip.css" />
+	<link rel="stylesheet" href="{{ STATIC_URL }}css/redmond/jquery-ui-1.10.4.custom.min.css" />
 	<script type="text/javascript">
 		<!--
 		$(document).ready(function() {
@@ -85,6 +85,10 @@
 						var panelWidth = $('#diagram-region').width();
 						try {
 							var image = new AuthGraph('auth_graph', parseInt(panelWidth*0.99), 1.4);
+
+						//TODO determine whether graph has nodes
+
+						/*
 							//XXX image.post_notices('notices');
 							// accordion for notices
 							$("#notices-region h5").toggle(function() {
@@ -99,9 +103,11 @@
 							});
 							$("#notices-region h5").addClass("notice-state-default");
 							$("#notices-region h5").next().hide();
+							*/
 
 							image.draw();
 							$('#graph-hint').html('Mouse over and click elements in the graph below to see more detail.');
+							/*
 							if (image.updated != null) {
 								var updated_str_iso = image.updated.toISOString();
 								var updated_str = updated_str_iso.replace("T", " ").substring(0, 19);
@@ -112,11 +118,12 @@
 								}
 								$('#updated-time abbr.timeago').timeago();
 								$('#most-recent').html(orig_most_recent);
-								/*TODO consider cases where there is no referral */
+								//TODO consider cases where there is no referral
 								{% if induced_update %}
 								$('#previous-analysis').html('<a href="' + current_url + '">&laquo; Previous analysis</a>');
 								{% endif %}
 							}
+							*/
 						} catch (err) {
 							$.cookie("graph_load_error", err);
 							load_graph_alternate();

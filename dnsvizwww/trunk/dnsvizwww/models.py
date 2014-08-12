@@ -180,17 +180,19 @@ class NSMapping(models.Model):
 
 class DomainNameAnalysisManager(models.Manager):
     def latest(self, name, date=None, stub=False):
-        f = Q(name=name, stub=stub)
+        f = Q(name=name)
         if date is not None:
             f &= Q(analysis_end__lte=date)
+        if stub is not None:
+            f &= Q(stub=stub)
 
         try:
             return self.filter(f).latest()
         except self.model.DoesNotExist:
             return None
 
-    def earliest(self, name, date=None, stub=False):
-        f = Q(name=name, stub=stub)
+    def earliest(self, name, date=None):
+        f = Q(name=name, stub=False)
         if date is not None:
             f &= Q(analysis_end__gte=date)
 
@@ -199,9 +201,9 @@ class DomainNameAnalysisManager(models.Manager):
         except IndexError:
             return None
 
-    def get(self, name, date, stub=False):
+    def get(self, name, date):
         try:
-            return self.filter(name=name, analysis_end=date, stub=stub).get()
+            return self.filter(name=name, analysis_end=date, stub=False).get()
         except self.model.DoesNotExist:
             return None
 
@@ -277,7 +279,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     def base_url_with_timestamp(self):
         return '%s%s/' % (self.base_url(), self.timestamp_url_encoded())
 
-    def _get_previous(self):
+    def _get_previous(self, stub=False):
         if not hasattr(self, '_previous') or self._previous is None:
             self._previous = self.__class__.objects.latest(self.name, self.analysis_end - datetime.timedelta(microseconds=1))
         return self._previous
@@ -455,7 +457,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             cache = {}
 
         if self.parent_name_db is not None:
-            parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end)
+            parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end, stub=None)
             if parent.pk in cache:
                 parent = cache[parent.pk]
             else:
