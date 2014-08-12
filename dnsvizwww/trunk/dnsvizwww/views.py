@@ -22,18 +22,17 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-import re
 import datetime
 import logging
+import re
 
-import dns.name, dns.rdataclass, dns.rdatatype, dns.rrset
+import dns.name, dns.rdatatype
 
 from django.conf import settings
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render_to_response
 from django.template import RequestContext
-from django.utils.html import escape
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import condition
 
@@ -160,7 +159,6 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
     G = DNSAuthGraph()
         
     if use_js:
-        notices = set()
         node_info = {}
     else:
         name_obj.retrieve_all()
@@ -178,13 +176,15 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
                 continue
             G.graph_rrset_auth(name_obj, qname, rdtype)
 
+        node_info = G.node_info
+
     analyzed_name_obj = name_obj
     template = 'dnssec.html'
 
     return render_to_response(template,
             { 'name_obj': name_obj, 'analyzed_name_obj': analyzed_name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
                 'options_form': options_form, 'date_form': date_form,
-                'use_js': use_js, 'induced_update': False,
+                'node_info': node_info, 'use_js': use_js,
                 'show_dnssec_options': 'show_dnssec_options' in request.COOKIES, 'query_string': request.META['QUERY_STRING'] },
             context_instance=RequestContext(request))
 
@@ -329,7 +329,7 @@ def analyze(request, name, url_subdir=None):
             a.analyze()
             return HttpResponseRedirect('../')
         except:
-            logger = logging.getLogger('dnsviz.analysis')
+            logger = logging.getLogger('dnsvizwww.views')
             logger.exception('Exception analyzing %s' % name_obj)   
             error_msg = u'There was an error analyzing %s.  We\'ve been notified of the problem and will look into fixing it.  Please try again later.' % name_obj
 
