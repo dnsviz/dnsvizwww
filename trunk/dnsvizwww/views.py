@@ -24,6 +24,7 @@
 
 import datetime
 import logging
+import os
 import re
 
 import dns.name, dns.rdatatype
@@ -242,7 +243,7 @@ def dnssec_auth_graph(request, name_obj, G, format):
     #XXX currently, graphviz only supports local files, so the
     #XXX following two lines are necessary
     if format not in ('png', 'jpg'):
-        img = img.replace(DNSVIZ_SHARE_PATH, settings.STATIC_URL)
+        img = img.replace(os.path.join(DNSVIZ_SHARE_PATH, 'icons'), os.path.join(settings.STATIC_URL, 'images', 'dnssec_legend'))
     if format == 'dot':
         mimetype = 'text/plain'
     elif format == 'jpg':
