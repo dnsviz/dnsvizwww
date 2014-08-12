@@ -65,15 +65,8 @@
 			var orig_updated_time = $('#updated-time').html();
 			var orig_most_recent = $('#most-recent').html();
 			var current_url = '{{ name_obj.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string|safe }}{% endif %}';
-			{% if induced_update %}
-			var load_status = 'Updating...';
-			var timeout = 180000;
-			$('#updated-time').html('<strong>' + load_status + '</strong>');
-			$('#most-recent').html('');
-			{% else %}
 			var load_status = 'Loading...';
 			var timeout = 30000;
-			{% endif %}
 			$('#graph').html('<div id="auth_graph"><div id="graph_loading"><img src="{{ STATIC_URL }}images/loading.gif" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div></div>');
 			$('#notices').html('<div id="notices_loading"><img src="{{ STATIC_URL }}images/loading.gif" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div>');
 
@@ -86,9 +79,9 @@
 						try {
 							var image = new AuthGraph('auth_graph', parseInt(panelWidth*0.99), 1.4);
 
-						//TODO determine whether graph has nodes
+							//TODO determine whether graph has nodes
 
-						/*
+							/*
 							//XXX image.post_notices('notices');
 							// accordion for notices
 							$("#notices-region h5").toggle(function() {
@@ -118,10 +111,6 @@
 								}
 								$('#updated-time abbr.timeago').timeago();
 								$('#most-recent').html(orig_most_recent);
-								//TODO consider cases where there is no referral
-								{% if induced_update %}
-								$('#previous-analysis').html('<a href="' + current_url + '">&laquo; Previous analysis</a>');
-								{% endif %}
 							}
 							*/
 						} catch (err) {
@@ -173,34 +162,6 @@
 		});
 
 		$(window).load(function() {
-			function tooltip_event_for_svg_node(svgDoc, nodeID) {
-				var escapedID = nodeID.replace(/([\.#])/g, '\\$1');
-				var escapedtooltipdivID = escapedID + '_tooltip-data'
-
-				var node_obj = svgDoc.getElementById(nodeID);
-
-				$(node_obj).tooltip({
-					delay: 0,
-					track: true,
-					showURL: false,
-					bodyHandler: function() {
-						return $('#'+escapedtooltipdivID).html();
-					},
-					left: 340,
-					top: 390,
-					extraClass: 'no-padding'
-				});
-
-				$(node_obj).css('cursor', 'pointer');
-				$(node_obj).click(function () {
-					$.floatbox({
-						content: $('#'+escapedtooltipdivID).html(),
-						fade: true,
-						button: ''
-					});
-				});
-			}
-
 			// viz image sizing
 			if ($('#auth_graph.img') || $('#auth_graph.object')) {
 				var widthImg = $('#auth_graph').width();
@@ -210,17 +171,6 @@
 				}
 				$('#auth_graph').show();
 
-				// initialize events on the SVG object
-				var svgObj = $('#auth_graph').get(0);
-				if (svgObj != undefined && svgObj.contentDocument != undefined) {
-					var svgDoc = svgObj.contentDocument;
-
-					$('.tooltip-container').each( function(i) {
-						var objID = $(this).attr('id');
-						var end = objID.length - '_tooltip-data'.length;
-						tooltip_event_for_svg_node(svgDoc, objID.substr(0, end));
-					});
-				}
 			}
 		});
 		-->
