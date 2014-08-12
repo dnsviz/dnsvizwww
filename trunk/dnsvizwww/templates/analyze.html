@@ -35,7 +35,7 @@
 	{% else %}
 		<p>
 		{% if name_obj.analysis_end %}
-		<span class="domain">{{ name_obj }}</span> was last analyzed on {{ name_obj.analysis_end|date }} UTC (<abbr class="timeago" title="{{ name_obj.analysis_end|date:"c" }}">{{ name_obj.updated_ago_str }} ago</abbr>).  To re-analyze the data, please click &quot;Analyze&quot; below.  This process may take several minutes.
+		<span class="domain">{{ name_obj }}</span> was last analyzed on {{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC (<abbr class="timeago" title="{{ name_obj.analysis_end|date:"c" }}">{{ name_obj.updated_ago_str }} ago</abbr>).  To re-analyze the data, please click &quot;Analyze&quot; below.  This process may take several minutes.
 		{% else %}
 		<span class="domain">{{ name_obj }}</span> has not been analyzed before. To analyze this domain name, please click &quot;Analyze&quot; below.  This process may take several minutes.
 		{% endif %}
