@@ -17,23 +17,11 @@ ip_chars = r'[0-9a-fA-F:\.]{,39}'
 urlpatterns = patterns('dnsvizwww.views',
         url(r'^d/(?P<name>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % dns_name, 'domain_view'),
         url(r'^d/(?P<name>%s)/(?P<url_subdir>dnssec)/(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, 'dnssec_info'),
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>dnssec)/(?P<url_file>notices)\.(?P<format>xml|json)$' % dns_name, 'dnssec_info'),
-        url(r'^d/(?P<name>%s)/info\.(?P<format>xml|json)$' % dns_name, 'info_view'),
 
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>cache/)$' % dns_name, 'analyze_cache'),
         url(r'^d/(?P<name>%s)/(?P<url_subdir>analyze/)$' % dns_name, 'analyze'),
 
         url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % (dns_name, timestamp), 'domain_view'),
         url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % (dns_name, timestamp), 'dnssec_info'),
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>dnssec/)(?P<url_file>notices)\.(?P<format>xml|json)$' % (dns_name, timestamp), 'dnssec_info'),
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/info\.(?P<format>xml|json)$' % (dns_name, timestamp), 'info_view'),
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/responses/(?P<qname>%s)/(?P<rdtype>[0-9]{1,5})/(?P<server>%s)/(?P<rd>t|f)(?P<do>t|f)(?P<cd>t|f)/(?P<client>%s)/$' % (dns_name, timestamp, dns_name, ip_chars, ip_chars), 'response_by_name_view'),
-
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>cache/)(?P<server>%s)/(?P<cache_timestamp>%s)/dnssec/$' % (dns_name, timestamp, ip_chars, timestamp), 'domain_view'),
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>cache/)(?P<server>%s)/(?P<cache_timestamp>%s)/dnssec/(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % (dns_name, timestamp, ip_chars, timestamp), 'dnssec_info'),
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>cache/)(?P<server>%s)/(?P<cache_timestamp>%s)/dnssec/(?P<url_file>notices)\.(?P<format>xml|json)$' % (dns_name, timestamp, ip_chars, timestamp), 'dnssec_info'),
-
-        url(r'^r/(?P<qname>%s)/(?P<rdtype>[0-9]{1,5})/(?P<server>%s)/(?P<rd>t|f)(?P<do>t|f)(?P<cd>t|f)/(?P<client>%s)/(?P<timestamp>%s)/$' % (dns_name, ip_chars, ip_chars, timestamp), 'response_view'),
 
         url(r'^contact/$', 'contact'),
         url(r'^search/$', 'domain_search'),
