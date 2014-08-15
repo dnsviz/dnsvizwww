@@ -153,9 +153,7 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
         #G.remove_extra_edges(redundant_edges)
 
-        notices = _init_notices()
-        _populate_notices(notices, G.node_info)
-        _clean_notices(notices)
+        notices = get_notices(G.node_info)
 
     analyzed_name_obj = name_obj
     template = 'dnssec.html'
@@ -306,7 +304,7 @@ def analyze(request, name, url_subdir=None):
             a.analyze()
             return HttpResponseRedirect('../')
         except:
-            logger = logging.getLogger('dnsvizwww.views')
+            logger = logging.getLogger('django.request')
             logger.exception('Exception analyzing %s' % name_obj)   
             error_msg = u'There was an error analyzing %s.  We\'ve been notified of the problem and will look into fixing it.  Please try again later.' % name_obj
 
