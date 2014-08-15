@@ -42,40 +42,14 @@ from dnsviz.util import get_trusted_keys
 from dnsviz.viz.dnssec import DNSAuthGraph
 
 import dnsviz.format as fmt
+import dnsviz.status as Status
 from dnsvizwww.models import DomainNameAnalysis, Analyst
 from dnsvizwww import util
 from dnsvizwww import log
 
 import urls
 from forms import *
-
-def _dnssec_options_form_data(request):
-    values = {}
-
-    dnssec_form_options = set(DNSSECOptionsForm.base_fields).intersection(set(request.GET))
-    if dnssec_form_options:
-        options_form = DNSSECOptionsForm(request.GET)
-        if options_form.is_valid():
-            values = options_form.cleaned_data.copy()
-        else:
-            for name, field in options_form.fields.items():
-                if options_form[name].errors:
-                    values[name] = field.initial
-                else:
-                    values[name] = options_form[name].data
-            options_form2 = DNSSECOptionsForm(values)
-            options_form2.is_valid()
-            values = options_form2.cleaned_data.copy()
-
-    else:
-        options_form = DNSSECOptionsForm()
-        for name, field in options_form.fields.items():
-            values[name] = field.initial
-        options_form = DNSSECOptionsForm(values)
-        options_form.is_valid()
-        values = options_form.cleaned_data.copy()
-
-    return options_form, values
+from notices import get_notices
 
 def domain_last_modified(request, name, *args, **kwargs): 
     timestamp = kwargs.get('timestamp', None)
@@ -143,7 +117,7 @@ def detail_view(request, name_obj, timestamp, url_subdir, date_form):
 
 def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
     dlv_name = name_obj.dlv_parent_name()
-    options_form, values = _dnssec_options_form_data(request)
+    options_form, values = get_dnssec_options_form_data(request)
     rdtypes = set(values['rr'])
     show_dlv = dlv_name in values['ta']
     denial_of_existence = values['doe']
@@ -160,7 +134,7 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
     G = DNSAuthGraph()
         
     if use_js:
-        node_info = {}
+        notices = {}
     else:
         name_obj.retrieve_all()
         name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
@@ -177,7 +151,12 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
                 continue
             G.graph_rrset_auth(name_obj, qname, rdtype)
 
-        node_info = G.node_info
+        G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
+        #G.remove_extra_edges(redundant_edges)
+
+        notices = _init_notices()
+        _populate_notices(notices, G.node_info)
+        _clean_notices(notices)
 
     analyzed_name_obj = name_obj
     template = 'dnssec.html'
@@ -185,7 +164,7 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
     return render_to_response(template,
             { 'name_obj': name_obj, 'analyzed_name_obj': analyzed_name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
                 'options_form': options_form, 'date_form': date_form,
-                'node_info': node_info, 'use_js': use_js,
+                'notices': notices, 'use_js': use_js,
                 'show_dnssec_options': 'show_dnssec_options' in request.COOKIES, 'query_string': request.META['QUERY_STRING'] },
             context_instance=RequestContext(request))
 
@@ -202,7 +181,7 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
         raise Http404
 
     dlv_name = name_obj.dlv_parent_name()
-    options_form, values = _dnssec_options_form_data(request)
+    options_form, values = get_dnssec_options_form_data(request)
 
     rdtypes = set(values['rr'])
     show_dlv = dlv_name in values['ta']
@@ -233,9 +212,7 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
     G.remove_extra_edges(redundant_edges)
 
-    if url_file == 'notices':
-        return dnssec_notices(request, name_obj, G, format)
-    elif url_file == 'auth_graph':
+    if url_file == 'auth_graph':
         return dnssec_auth_graph(request, name_obj, G, format)
 
 def dnssec_auth_graph(request, name_obj, G, format):
