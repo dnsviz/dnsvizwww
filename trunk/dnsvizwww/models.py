@@ -745,6 +745,7 @@ class DNSQuery(models.Model):
     qname = DomainNameField(max_length=2048, canonicalize=False)
     rdtype = UnsignedSmallIntegerField()
     rdclass = UnsignedSmallIntegerField()
+    response_options = UnsignedSmallIntegerField(default=0)
 
     options = models.ForeignKey(DNSQueryOptions, related_name='queries')
     analysis = models.ForeignKey(DomainNameAnalysis, related_name='queries_db')
