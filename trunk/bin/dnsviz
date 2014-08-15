@@ -9,7 +9,7 @@ import sys
 
 import dns.message, dns.name 
 
-from dnsvizwww.models import DomainNameAnalysis
+from dnsvizwww.analysis import DomainNameAnalysis
 from dnsviz.config import DNSVIZ_SHARE_PATH
 from dnsviz.viz.dnssec import DNSAuthGraph
 from dnsviz.util import get_trusted_keys

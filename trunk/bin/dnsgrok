@@ -10,7 +10,7 @@ import sys
 
 import dns.message, dns.name 
 
-from dnsvizwww.models import DomainNameAnalysis
+from dnsvizwww.analysis import DomainNameAnalysis
 from dnsviz.util import get_trusted_keys
 
 def usage():
@@ -65,6 +65,7 @@ def main():
         trusted_keys = ()
 
     cache = {}
+    name_objs = []
     for name in names:
         name_obj = DomainNameAnalysis.objects.filter(name=name, stub=False).latest()
         name_obj.retrieve_all(cache=cache)

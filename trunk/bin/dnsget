@@ -13,9 +13,10 @@ import threading
 
 import dns.name
 
+from dnsvizwww.analysis import Analyst, DomainNameAnalysis
 from dnsviz.analysis import get_client_addresses, NetworkConnectivityException, _resolver
 import dnsviz.format as fmt
-from dnsvizwww.models import Analyst, DomainNameAnalysis
+
 
 logger = logging.getLogger('dnsviz.analysis')
 
