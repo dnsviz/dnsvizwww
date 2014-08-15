@@ -104,6 +104,26 @@ def _get_label_for_node(notices, node_name, val):
                 l = 'CNAME synthesis of %s' % (dns.name.from_text(m2.group('name')).to_unicode())
     return l
 
+def _populate_notices(notices, obj, label=None):
+    if isinstance(obj, dict):
+        for node_name, val in obj.items():
+            if label is None:
+                l = _get_label_for_node(notices, node_name, val)
+            else:
+                l = label
+                if node_name in ('errors', 'warnings'):
+                    for e in val:
+                        bisect.insort(notices['notices'][node_name], '%s: %s' % (l, e))
+            _populate_notices(notices, val, l)
+    elif isinstance(obj, (list, tuple, set)):
+        if label is not None:
+            for val in obj:
+                _populate_notices(notices, val, label)
+
+def _clean_notices(notices):
+    if not notices['notices']['errors']: del notices['notices']['errors']
+    if not notices['notices']['warnings']: del notices['notices']['warnings']
+
 def get_notices(node_info):
     notices = _init_notices()
     _populate_notices(notices, node_info)
