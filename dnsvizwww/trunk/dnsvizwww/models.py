@@ -359,6 +359,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                         history_str = ','.join(map(str, history))
                         response_obj = DNSResponse(query=query_obj, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
                                 error=query.responses[server][client].error, errno=query.responses[server][client].errno,
+                                msg_size=query.responses[server][client].error,
                                 tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000),
                                 history_serialized=history_str)
                         response_obj.save()
@@ -431,7 +432,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                         if action_arg < 0:
                             action_arg = None
                         history.append(Query.DNSQueryRetryAttempt(response_time, cause, cause_arg, action, action_arg))
-                response1 = Response.DNSResponse(response.message, response.error, response.errno, [], response.response_time, response.tcp_first)
+                response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, [], response.response_time, response.tcp_first)
                 query1.add_response(response.server, response.client, response1)
 
             if query1.rdtype in delegation_types:
