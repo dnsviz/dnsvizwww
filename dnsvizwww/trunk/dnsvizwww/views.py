@@ -38,12 +38,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import condition
 
 from dnsviz.config import DNSVIZ_SHARE_PATH
+import dnsviz.format as fmt
+import dnsviz.status as Status
 from dnsviz.util import get_trusted_keys
 from dnsviz.viz.dnssec import DNSAuthGraph
 
-import dnsviz.format as fmt
-import dnsviz.status as Status
-from dnsvizwww.models import DomainNameAnalysis, Analyst
+from dnsvizwww.analysis import Analyst, DomainNameAnalysis
 from dnsvizwww import util
 from dnsvizwww import log
 
