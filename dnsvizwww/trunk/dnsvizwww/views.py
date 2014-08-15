@@ -45,7 +45,6 @@ from dnsviz.viz.dnssec import DNSAuthGraph
 
 from dnsvizwww.analysis import Analyst, DomainNameAnalysis
 from dnsvizwww import util
-from dnsvizwww import log
 
 import urls
 from forms import *
