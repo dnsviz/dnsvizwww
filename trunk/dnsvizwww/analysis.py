@@ -18,16 +18,11 @@ class Analyst(dnsviz.analysis.Analyst):
 
     clone_attrnames = dnsviz.analysis.Analyst.clone_attrnames + ['force_ancestry','start_time']
 
-    def __init__(self, name, dlv_domain=None, client_ipv4=None, client_ipv6=None, ceiling=None, force_dnskey=False,
-             follow_ns=False, trace=None, explicit_delegations=None, analysis_cache=None, analysis_cache_lock=None, start_time=None, force_ancestry=False, force_self=True):
-
-        super(Analyst, self).__init__(name, dlv_domain=dlv_domain, client_ipv4=client_ipv4, client_ipv6=client_ipv6, ceiling=ceiling,
-                force_dnskey=force_dnskey, follow_ns=follow_ns, trace=trace, explicit_delegations=explicit_delegations, analysis_cache=analysis_cache, analysis_cache_lock=analysis_cache_lock)
-        if start_time is None:
-            start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
-        self.start_time = start_time
-        self.force_ancestry = force_ancestry
-        self.force_self = force_self
+    def __init__(self, *args, **kwargs):
+        self.start_time = kwargs.pop('start_time', datetime.datetime.now(fmt.utc).replace(microsecond=0))
+        self.force_ancestry = kwargs.pop('force_ancestry', False)
+        self.force_self = kwargs.pop('force_self', True)
+        super(Analyst, self).__init__(*args, **kwargs)
 
     def _analyze_dlv(self):
         if self.dlv_domain is not None and self.dlv_domain != self.name and self.dlv_domain not in self.analysis_cache:
