@@ -44,6 +44,7 @@ from dnsviz.util import get_trusted_keys
 from dnsviz.viz.dnssec import DNSAuthGraph
 
 from dnsvizwww.analysis import Analyst, DomainNameAnalysis
+from dnsvizwww import log
 from dnsvizwww import util
 
 import urls
@@ -298,15 +299,23 @@ def analyze(request, name, url_subdir=None):
         else:
             analyze_form = form_class()
 
+        request_logger = logging.getLogger('django.request')
+
         start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
-        a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), start_time=start_time, force_ancestry=force_ancestry)
-        try:
-            a.analyze()
-            return HttpResponseRedirect('../')
-        except:
-            logger = logging.getLogger('django.request')
-            logger.exception('Exception analyzing %s' % name_obj)   
-            error_msg = u'There was an error analyzing %s.  We\'ve been notified of the problem and will look into fixing it.  Please try again later.' % name_obj
+        if request.is_ajax():
+            analysis_logger = log.IsolatedLogger(logging.DEBUG, request_logger, 'Error analyzing %s' % name_obj)
+            a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), logger=analysis_logger.logger, start_time=start_time, force_ancestry=force_ancestry)
+            a.analyze_async(analysis_logger.success_callback, analysis_logger.exc_callback)
+            #TODO set alarm here for too long waits
+            return HttpResponse(analysis_logger.handler)
+        else:
+            a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), start_time=start_time, force_ancestry=force_ancestry)
+            try:
+                a.analyze()
+                return HttpResponseRedirect('../')
+            except:
+                request_logger.exception('Error analyzing %s' % name_obj)
+                error_msg = u'There was an error analyzing %s.  We\'ve been notified of the problem and will look into fixing it.  Please try again later.' % name_obj
 
     return render_to_response('analyze.html',
             { 'name_obj': name_obj, 'url_subdir': url_subdir, 'title': name_obj,
