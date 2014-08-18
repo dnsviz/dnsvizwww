@@ -39,9 +39,9 @@
 					success: function() {
 						$('#progress-bar').hide();
 						var el = $('#progress-log div').last();
-						$('<p><form method="get" action="../dnssec/"><input type="submit" class="button" value="Continue"></form></p>').insertAfter(el);
+						$('<p><form method="get" action="../dnssec/"><input type="submit" class="button" value="Continue"></form></p>').insertAfter($('#progress-log'));
 						if (el.hasClass('loglevel-error') || el.hasClass('loglevel-critical')) {
-							$('<p class="form-error">There was an error analyzing {{ name_obj }}.  We\'ve been notified of the problem and will look into fixing it.</p>').insertAfter(el);
+							$('<p class="form-error">There was an error analyzing {{ name_obj }}.  We\'ve been notified of the problem and will look into fixing it.</p>').insertAfter($('#progress-log'));
 						}
 					},
 					error: function() {
