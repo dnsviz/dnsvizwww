@@ -1,6 +1,6 @@
 <!-- DNSSEC OPTIONS -->
 <fieldset id="options">
-	<legend>DNSSEC options  (<strong><a class="toggle">{% if show_dnssec_options or options_form.errors %}hide{% else %}show{% endif %}</a></strong>)</legend>
+	<legend>DNSSEC options  (<strong><a class="toggle">{% if options_form.errors %}show{% else %}hide{% endif %}</a></strong>)</legend>
 	<form action="" method="get">
 	{% if options_form.errors %}
 		<p class="form-error">

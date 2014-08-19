@@ -18,40 +18,34 @@
 		$(document).ready(function() {
 			// turn on hidden regions if javascript is enabled
 			$('.toggle').show();
-			
+
 			// visualization options
-			{% if show_dnssec_options or options_form.errors %}
-			// load page w/options visible
-			$('.toggle').toggle(function(){
-					$(this).text('show');
-					$('#options form').slideToggle('slow', function(){
-						$('#options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
-					});
-					$.cookie("show_dnssec_options", null, { "path": "/" } );
-				}, function(){
-					$(this).text('hide');
-					$('#options').removeAttr("style");
-					$('#options form').slideToggle('slow');
-					$.cookie("show_dnssec_options", "true", { "path": "/" } );
+			$('#options .toggle').click(function() {
+				var tog = $(this);
+				$('#options form').slideToggle({
+					'duration': 'slow',
+					'complete': function() {
+						if (tog.text() == 'hide') {
+							tog.text('show');
+							$('#options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
+						} else {
+							tog.text('hide');
+						}
+					},
+					'start': function() {
+						if (tog.text() == 'show') {
+							$('#options').removeAttr("style");
+						}
+					}
 				});
-			{% else %}
-			// load page w/options hidden
-			$('#options form').css({'display':'none'}).parent().css({'border-bottom':'none', 'border-left':'none', 'border-right':'none', 'padding-left' : '3px' });
-			$('.toggle').toggle(function(){
-					$(this).text('hide');
-					$('#options').removeAttr("style");
-					$('#options form').slideToggle('slow', function(){
-					
-					});
-					$.cookie("show_dnssec_options", "true", { "path": "/" } );
-				}, function(){
-					$(this).text('show');
-					$('#options form').slideToggle('slow', function(){
-						$('#options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
-					});
-					$.cookie("show_dnssec_options", null, { "path": "/" } );
-				});
+			});
+
+			{% if not options_form.errors %}
+			$('#options form').hide();
+			$('#options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
+			$('#options .toggle').text('show');
 			{% endif %}
+			
 
 			// viz options tooltips
 			$('#options-list a.form-tooltip').tooltip({
