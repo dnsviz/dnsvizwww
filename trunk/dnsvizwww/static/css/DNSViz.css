@@ -501,16 +501,6 @@ fieldset { border: 0; }
 #progress-log .loglevel-error { font-weight: bold; background-color: #f17b7b; }
 #progress-log .loglevel-critical { font-weight: bold; background-color: #f17b7b; }
 
-.ui-tooltip {
-	max-width: none;
-}
-.ui-tooltip-content {
-	font-size: 10pt;
-	padding: 0pt;
-	margin: -8px;
-}
-.ui-tooltip-content ul { list-style:none; }
-
 .dnsviz-secure { background-color: #8ffeff; }
 .dnsviz-insecure { background-color: #b7b7b7; }
 .dnsviz-bogus { background-color: #f17b7b; }

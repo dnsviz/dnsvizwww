@@ -1,0 +1,9 @@
+.ui-tooltip {
+	max-width: none;
+}
+.ui-tooltip-content {
+	font-size: 10pt;
+	padding: 0pt;
+	margin: -8px;
+}
+.ui-tooltip-content ul { list-style:none; }
