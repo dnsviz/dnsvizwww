@@ -41,6 +41,7 @@ from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
 import dnsviz.status as Status
 from dnsviz.util import get_trusted_keys
+from django.views.decorators.cache import cache_page
 from dnsviz.viz.dnssec import DNSAuthGraph
 
 from dnsvizwww.analysis import Analyst, DomainNameAnalysis
@@ -72,7 +73,11 @@ def domain_last_modified(request, name, *args, **kwargs):
 def reset_query_string(request):
     return HttpResponseRedirect(request.path)
 
-@condition(last_modified_func=domain_last_modified)
+@cache_page(600)
+#@condition(last_modified_func=domain_last_modified)
+def domain_view_cacheable(request, name, timestamp, url_subdir='', **kwargs):
+    return domain_view(request, name, timestamp, url_subdir, **kwargs)
+
 def domain_view(request, name, timestamp=None, url_subdir='', **kwargs):
     if 'reset_query' in request.GET:
         return reset_query_string(request)
@@ -166,7 +171,6 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
                 'show_dnssec_options': 'show_dnssec_options' in request.COOKIES, 'query_string': request.META['QUERY_STRING'] },
             context_instance=RequestContext(request))
 
-@condition(last_modified_func=domain_last_modified)
 def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, format=None, **kwargs):
     name = util.name_url_decode(name)
     if timestamp is None:
@@ -201,6 +205,8 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
             continue
         if rdtype not in rdtypes:
             continue
+        #TODO fix this so that if a name is returned both as NXDOMAIN/NO DATA and
+        # with positive response, denial_of_existence is not required to be true.
         if ((qname, rdtype) in name_obj.nxdomain_servers_clients or \
                 (qname, rdtype) in name_obj.noanswer_servers_clients) and \
                 not denial_of_existence:
@@ -212,6 +218,13 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
 
     if url_file == 'auth_graph':
         return dnssec_auth_graph(request, name_obj, G, format)
+    else:
+        raise Http404
+
+@cache_page(600)
+#@condition(last_modified_func=domain_last_modified)
+def dnssec_info_cacheable(request, name, timestamp, url_subdir=None, url_file=None, format=None, **kwargs):
+    return dnssec_info(request, name, timestamp, url_subdir, url_file, format, **kwargs)
 
 def dnssec_auth_graph(request, name_obj, G, format):
     img = G.draw(format)
