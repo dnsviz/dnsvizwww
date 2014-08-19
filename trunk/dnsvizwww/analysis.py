@@ -128,11 +128,8 @@ class Analyst(dnsviz.analysis.Analyst):
 
                 # if no analysis is necessary, then simply return
                 if not self._analyze_or_not(fresh_name_obj):
-                    rdtypes = set([dns.rdatatype.NS])
-                    if fresh_name_obj.referral_rdtype is not None:
-                        rdtypes.add(fresh_name_obj.referral_rdtype)
-                    fresh_name_obj.retrieve_ancestry(dnssec_rdtypes=False, follow_dependencies=False)
-                    fresh_name_obj.retrieve_related(rdtypes=rdtypes)
+                    fresh_name_obj.retrieve_ancestry(fresh_name_obj.RDTYPES_DELEGATION, follow_dependencies=False)
+                    fresh_name_obj.retrieve_related(fresh_name_obj.RDTYPES_DELEGATION)
                     self.analysis_cache[name] = fresh_name_obj
                     return fresh_name_obj
 
