@@ -10,10 +10,12 @@ import sys
 import multiprocessing
 import multiprocessing.managers
 import threading
+import time
 
 import dns.name
 
 from dnsvizwww.analysis import Analyst, DomainNameAnalysis
+from dnsvizwww.models import DomainName
 from dnsviz.analysis import get_client_addresses, NetworkConnectivityException, _resolver
 import dnsviz.format as fmt
 
@@ -71,14 +73,65 @@ class ParallelAnalyst(BulkAnalyst):
 
         return pool.map(_analyze, _name_to_args_iter(names))
 
+    def refresh(self):
+        pool = multiprocessing.Pool(self.processes)
+
+        wait_time = 20
+        last_refresh_offsets = {}
+
+        logger = logging.getLogger('dnsviz.analysis')
+        last_stats = 0
+        stats_interval = 30
+        refreshed = 0
+        try:
+            while True:
+                refresh_intervals = set(DomainName.objects.filter(refresh_interval__isnull=False).values_list('refresh_interval', flat=True).distinct())
+
+                # synchronize refresh_intervals and last_refresh_offsets
+                for i in set(last_refresh_offsets).union(refresh_intervals):
+                    if i not in last_refresh_offsets:
+                        last_refresh_offsets[i] = None
+                    if i not in refresh_intervals:
+                        del last_refresh_offsets[i]
+
+                # at the start of every loop check for names being analyzed
+                start = int(time.time())
+                timestamp = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+                tot = 0
+                for interval, last_offset in last_refresh_offsets.items():
+                    offset = DomainName.objects.offset_for_interval(interval)
+                    if last_offset is not None:
+                        names_to_refresh = set(DomainName.objects.names_to_refresh(interval, offset, last_offset).values_list('name', flat=True))
+
+                        refresh_tuples = [(MultiProcessAnalyst, dns.name.from_text(name), self.dlv_domain, self.client_ipv4, self.client_ipv6, self.force_ancestry, timestamp) for name in names_to_refresh]
+                        pool.map_async(_analyze, refresh_tuples)
+
+                        refreshed += len(names_to_refresh)
+                    last_refresh_offsets[interval] = offset
+
+                end = int(time.time())
+                elapsed = end - start
+                if elapsed < wait_time:
+                    time.sleep(wait_time - elapsed)
+                time_since_stats = end - last_stats
+                if time_since_stats >= stats_interval:
+                    now = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+                    last_stats = end
+                    logger.warning('%s: (refreshed: %d; taskqueue: %d) ' % (now, refreshed, pool._taskqueue.qsize()))
+                    refreshed = 0
+
+        except KeyboardInterrupt:
+            pass
+
 def usage():
-    sys.stderr.write('''Usage: %s [ options ] ( -f <filename> | <domain name> [... ] )
+    sys.stderr.write('''Usage: %s [ options ] ( -R | -f <filename> | <domain name> [... ] )
 
 Options:
     -f <filename>  - read names from a file (one name per line), instead of from command line
     -d <level>     - set debug level to a value from 0 to 3, with increasing verbosity (default: 1 or WARNING)
     -l <dlv>       - use dlv as a domain for DNSSEC look-aside validation
     -r <filename>  - read analysis from a file, instead of querying servers (use "-" for stdin)
+    -R             - refresh names on a periodic basis
     -t <threads>   - use multiple threads for analysis
     -F             - force analysis of ancestry, instead of relying on cached versions
     -p             - make json output pretty instead of minimal
@@ -89,13 +142,14 @@ Options:
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'f:d:l:r:t:pyYo:F')
+        opts, args = getopt.getopt(sys.argv[1:], 'f:d:l:r:Rt:pyYo:F')
     except getopt.GetoptError:
         usage()
         sys.exit(1)
 
     opts = dict(opts)
-    if ('-f' in opts and args) or not ('-f' in opts or args):
+    if ('-f' in opts and args) or ('-R' in opts and args) or ('-f' in opts and '-R' in opts) or \
+            not ('-f' in opts or '-R' in opts or args):
         usage()
         sys.exit(1)
 
@@ -156,6 +210,9 @@ def main():
             analysis_structured = json.loads(analysis_str)
         for name in names:
             name_objs.append(DomainNameAnalysis.deserialize(name, analysis_structured))
+    elif '-R' in opts:
+        a = ParallelAnalyst(force_ancestry, dlv_domain, processes)
+        a.refresh()
     else:
         if '-t' in opts:
             a = ParallelAnalyst(force_ancestry, dlv_domain, processes)

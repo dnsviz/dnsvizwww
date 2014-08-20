@@ -23,6 +23,7 @@
 #
 
 import datetime
+import hashlib
 import StringIO
 import struct
 
@@ -41,6 +42,7 @@ import dnsviz.analysis
 import dnsviz.format as fmt
 import dnsviz.query as Query
 import dnsviz.response as Response
+import dnsviz.status as Status
 
 import util
 
@@ -141,10 +143,32 @@ class BinaryField(models.Field):
             return value
         return bytearray(value)
 
+class DomainNameManager(models.Manager):
+    def offset_for_interval(self, interval):
+        if interval > 604800:
+            #XXX log this
+            interval = 604800
+        dt_now = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+        last_sunday = dt_now.date() - datetime.timedelta(days=dt_now.isoweekday())
+        last_sunday_midnight = datetime.datetime(year=last_sunday.year, month=last_sunday.month, day=last_sunday.day, tzinfo=fmt.utc)
+        diff = dt_now - last_sunday_midnight
+        return diff.total_seconds() % interval
+
+    def names_to_refresh(self, interval, offset, last_offset):
+        if offset > last_offset:
+            f = Q(refresh_interval=interval, refresh_offset__gt=last_offset, refresh_offset__lte=offset)
+        else:
+            f = Q(refresh_interval=interval) & ( Q(refresh_offset__gt=last_offset) | Q(refresh_offset__lte=offset) )
+        return self.filter(f)
+
 class DomainName(models.Model):
 
     name = DomainNameField(max_length=2048, primary_key=True)
     analysis_start = models.DateTimeField(blank=True, null=True)
+    refresh_interval = models.PositiveIntegerField(blank=True, null=True)
+    refresh_offset = models.PositiveIntegerField(blank=True, null=True)
+
+    objects = DomainNameManager()
 
     def __unicode__(self):
         return fmt.humanize_name(self.name, True)
@@ -154,6 +178,18 @@ class DomainName(models.Model):
 
     def latest_analysis(self, date=None):
         return DomainNameAnalysis.objects.latest(self.name, date)
+
+    def clear_refresh(self):
+        if (self.refresh_interval, self.refresh_offset) != (None, None):
+            self.refresh_interval = None
+            self.refresh_offset = None
+            self.save()
+
+    def set_refresh(self, refresh_interval, refresh_offset):
+        if (self.refresh_interval, self.refresh_offset) != (refresh_interval, refresh_offset):
+            self.refresh_interval = refresh_interval
+            self.refresh_offset = refresh_offset
+            self.save()
 
 class DNSServer(models.Model):
     ip_address = models.GenericIPAddressField(unique=True)
@@ -319,6 +355,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         self.parent_name_db = self.parent_name()
         self.dlv_parent_name_db = self.dlv_parent_name()
         self.save()
+        self.schedule_refresh()
 
         # now store the name/IP mapping, query/response, and other information
         self.store_related()
@@ -590,6 +627,55 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         for ns_obj in self.ns_dependencies.values():
             if ns_obj is not None:
                 ns_obj.save_all()
+
+    def schedule_refresh(self):
+        dname_obj = DomainName.objects.get(name=self.name)
+
+        self._populate_name_status()
+        # don't schedule names that don't exist
+        if self.status != Status.NAME_STATUS_YXDOMAIN:
+            dname_obj.clear_refresh()
+            return
+
+        # don't schedule names that don't have any records
+        # (or for which they couldn't be retrieved)
+        if not self.ttl_mapping:
+            dname_obj.clear_refresh()
+            return
+
+        # check against refresh blacklist
+        if hasattr(settings, 'BLACKLIST_FROM_REFRESH'):
+            for black in settings.BLACKLIST_FROM_REFRESH:
+                if self.name.is_subdomain(black):
+                    dname_obj.clear_refresh()
+                    return
+
+        # analyze root every hour
+        if self.name == dns.name.root:
+            refresh_interval = 3600
+
+        # if we are a TLD, then re-analyze every six hours
+        elif len(self.name) <= 2:
+            refresh_interval = 21600
+
+        # if delegation records were received, but
+        # other records were not, try again in two days
+        elif max(self.ttl_mapping.keys()) < 0:
+            refresh_interval = 172800
+
+        elif self.is_zone():
+            # if we are a signed zone, then re-analyze every eight hours
+            if self.signed:
+                refresh_interval = 28800
+            # if we are an unsigned zone, then re-analyze every two days
+            else:
+                refresh_interval = 172800
+        else:
+            dname_obj.clear_refresh()
+            return
+
+        refresh_offset = int(hashlib.sha1(self.name.canonicalize().to_text()).hexdigest()[-9:], 16) % refresh_interval
+        dname_obj.set_refresh(refresh_interval, refresh_offset)
 
 class NSMapping(models.Model):
     name = DomainNameField(max_length=2048)
