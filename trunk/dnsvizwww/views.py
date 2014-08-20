@@ -23,9 +23,11 @@
 #
 
 import datetime
+import json
 import logging
 import os
 import re
+import urllib
 
 import dns.name, dns.rdatatype
 
@@ -50,7 +52,7 @@ from dnsvizwww import util
 
 import urls
 from forms import *
-from notices import get_notices
+from notices import get_notices, notices_to_javascript
 
 def domain_last_modified(request, name, *args, **kwargs): 
     timestamp = kwargs.get('timestamp', None)
@@ -158,7 +160,6 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
 
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
         #G.remove_extra_edges(redundant_edges)
-
         notices = get_notices(G.node_info)
 
     analyzed_name_obj = name_obj
@@ -167,8 +168,7 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
     return render_to_response(template,
             { 'name_obj': name_obj, 'analyzed_name_obj': analyzed_name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
                 'options_form': options_form, 'date_form': date_form,
-                'notices': notices, 'use_js': use_js,
-                'show_dnssec_options': 'show_dnssec_options' in request.COOKIES, 'query_string': request.META['QUERY_STRING'] },
+                'notices': notices, 'use_js': use_js, 'query_string': request.META['QUERY_STRING'] },
             context_instance=RequestContext(request))
 
 def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, format=None, **kwargs):
@@ -242,6 +242,7 @@ def dnssec_auth_graph(request, name_obj, G, format):
         mimetype = 'image/svg+xml'
     elif format == 'js':
         mimetype = 'application/javascript'
+        img += notices_to_javascript(get_notices(G.node_info))
     else:
         raise Exception('Unknown file type!')
 
@@ -251,6 +252,12 @@ def dnssec_auth_graph(request, name_obj, G, format):
         if not filename_base:
             filename_base = 'root'
         response['Content-Disposition'] = 'attachment; filename=%s-%s.%s' % (filename_base, fmt.datetime_to_str(name_obj.analysis_end).replace(' ', '-'), format)
+
+    if 'err' in request.GET:
+        logger = logging.getLogger('django.request')
+        logger.error('Graph load errors\n  Path: %s\n  User-agent: %s\n  Referer: %s\n  Remote host: %s\n  Error: %s\n' % \
+                (request.path, request.META.get('HTTP_USER_AGENT', ''), request.META.get('HTTP_REFERER', ''),
+                request.META.get('REMOTE_ADDR', ''), request.GET['err']))
 
     return response
 
