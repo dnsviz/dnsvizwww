@@ -348,7 +348,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         d = {}
         self._serialize_related(d)
-        Cache.add('analysis_related_%d_%d' % (self.pk, required_rdtype_code), d, timeout)
+        Cache.add('dnsvizwww.models.DomainNameAnalysis.%d.related.%d' % (self.pk, required_rdtype_code), d, timeout)
 
     def store_related(self):
         self._store_related_cache(self.RDTYPES_ALL)
@@ -416,7 +416,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
     def _retrieve_related_cache(self, required_rdtype_code):
         for i in range(required_rdtype_code+1):
-            d = Cache.get('analysis_related_%d_%d' % (self.pk, i))
+            d = Cache.get('dnsvizwww.models.DomainNameAnalysis.%d.related.%d' % (self.pk, i))
             if d is not None:
                 self._deserialize_related(d)
                 return True
