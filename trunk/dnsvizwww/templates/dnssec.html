@@ -60,7 +60,7 @@
 			$('#notices').html('<div id="notices_loading"><img src="{{ STATIC_URL }}images/loading.gif" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div>');
 
 			var load_graph = function () {
-				$.ajax("{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.js{% if query_string %}?{{ query_string|safe }}{% endif %}", {
+				$.ajax("{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.js{% if query_string %}?{{ query_string }}{% endif %}", {
 					timeout: timeout,
 					cache: true,
 					success: function(data) {
@@ -112,7 +112,7 @@
 
 			var load_graph_alternate = function (err_msg) {
 				$('#graph-hint').html('We were unable to load the interactive version of the graph.');
-				$('#graph').html('<img id="auth_graph" src="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png?{% if query_string %}{{ query_string|safe }}&{% endif %}err=' + err_msg + '" alt="DNSSEC authentication graph" />');
+				$('#graph').html('<img id="auth_graph" src="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png?{% if query_string %}{{ query_string }}&amp;{% endif %}err=' + err_msg + '" alt="DNSSEC authentication graph" />');
 			};
 
 			load_graph();
@@ -198,7 +198,7 @@
 
 		<div id="diagram-region">
 			<div id="graph-download">
-				Download: <a href="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png?download=1{% if query_string %}&{{ query_string|safe }}{% endif %}">png</a> | <a href="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.svg?download=1{% if query_string %}&{{ query_string|safe }}{% endif %}">svg</a><br />
+				Download: <a href="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png?download=1{% if query_string %}&amp;{{ query_string }}{% endif %}">png</a> | <a href="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.svg?download=1{% if query_string %}&amp;{{ query_string }}{% endif %}">svg</a><br />
 			</div>
 
 			<div id="graph-hint">
@@ -207,7 +207,7 @@
 				<div>
 				<img alt="Warning" src="{{ STATIC_URL }}images/dnssec_legend/warning.png" />
 				JavaScript doesn't appear to be be enabled in your browser. 
-					Please enable JavaScript, or <a href="?{% if query_string %}{{ query_string|safe }}&{% else %}{% endif %}no_js=1">click here</a> to view an alternate version of this page, that includes a more detailed analysis.
+					Please enable JavaScript, or <a href="?{% if query_string %}{{ query_string }}&amp;{% else %}{% endif %}no_js=1">click here</a> to view an alternate version of this page, that includes a more detailed analysis.
 				</div>
 			</noscript>
 			{% else %}
@@ -222,7 +222,7 @@
 				{% if use_js %}
 				<noscript>
 				{% endif %}
-					<div><img id="auth_graph" src="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png{% if query_string %}?{{ query_string|safe }}{% endif %}" alt="DNSSEC authentication graph" /></div>
+					<div><img id="auth_graph" src="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png{% if query_string %}?{{ query_string }}{% endif %}" alt="DNSSEC authentication graph" /></div>
 				{% if use_js %}
 				</noscript>
 				{% endif %}

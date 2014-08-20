@@ -40,7 +40,7 @@
 
 {% if name_obj.analysis_end %}
 <div id="last-updated">
-	Updated: <span id="updated-time"><strong>{% if url_subdir != "analyze/" %}<a href="{{ name_obj.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string|safe }}{% endif %}">{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC</a>{% else %}{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC{% endif %}</strong> (<abbr class="timeago" title="{{ name_obj.analysis_end|date:"c" }}">{{ name_obj.updated_ago_str }} ago</abbr>)</span>
+	Updated: <span id="updated-time"><strong>{% if url_subdir != "analyze/" %}<a href="{{ name_obj.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string }}{% endif %}">{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC</a>{% else %}{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC{% endif %}</strong> (<abbr class="timeago" title="{{ name_obj.analysis_end|date:"c" }}">{{ name_obj.updated_ago_str }} ago</abbr>)</span>
 <span id="most-recent">
 {% if name_obj.next %}
 	<a href="{{ name_obj.base_url }}{{ url_subdir }}">Go to most recent &raquo;</a>
@@ -53,13 +53,13 @@
 {% if url_subdir != "analyze/" %}
 <div id="time-navigation">
 {% if name_obj.previous %} 
-  <span id="previous-analysis"><a href="{{ name_obj.previous.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string|safe }}{% endif %}">&laquo; Previous analysis</a></span>
+  <span id="previous-analysis"><a href="{{ name_obj.previous.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string }}{% endif %}">&laquo; Previous analysis</a></span>
 {% else %}
 	<span id="previous-analysis" class="inactive">&laquo; Previous analysis</span>
 {% endif %}
 |
 {% if name_obj.next %}
-	<span id="next-analysis"><a href="{{ name_obj.next.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string|safe }}{% endif %}">Next analysis &raquo;</a></span>
+	<span id="next-analysis"><a href="{{ name_obj.next.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string }}{% endif %}">Next analysis &raquo;</a></span>
 {% else %}
 	<span id="next-analysis" class="inactive">Next analysis &raquo;</span>
 {% endif %}
