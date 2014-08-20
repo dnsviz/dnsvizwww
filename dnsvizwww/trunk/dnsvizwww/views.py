@@ -76,6 +76,8 @@ def reset_query_string(request):
     return HttpResponseRedirect(request.path)
 
 @cache_page(600)
+#XXX don't cache this page for 2 weeks until prev/next links are figured out
+#@cache_page(1209600, cache='page_cache')
 #@condition(last_modified_func=domain_last_modified)
 def domain_view_cacheable(request, name, timestamp, url_subdir='', **kwargs):
     return domain_view(request, name, timestamp, url_subdir, **kwargs)
@@ -222,6 +224,7 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
         raise Http404
 
 @cache_page(600)
+@cache_page(1209600, cache='page_cache')
 #@condition(last_modified_func=domain_last_modified)
 def dnssec_info_cacheable(request, name, timestamp, url_subdir=None, url_file=None, format=None, **kwargs):
     return dnssec_info(request, name, timestamp, url_subdir, url_file, format, **kwargs)
