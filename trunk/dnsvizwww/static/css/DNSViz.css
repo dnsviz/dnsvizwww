@@ -365,12 +365,12 @@ fieldset { border: 0; }
 #notices-region div {
 	clear: right;
 }
-#notices-region .insecure div, #notices-region .not-misconfigured h6 {
+#notices-region .insecure div, #notices-region .non-existent div, #notices-region .not-misconfigured h6 {
 	background-color:#b7b7b7;
 	color:#000;
 	cursor:auto;
 }
-#notices-region .insecure h5, #notices-region .server-list h5 {
+#notices-region .insecure h5, #notices-region .non-existent h5, #notices-region .server-list h5 {
 	background-color:#000;
 	color:#fff;
 }
@@ -393,10 +393,10 @@ fieldset { border: 0; }
 #notices-region .secure h5 {
 	background-color:#0a879a;
 }
-#notices-region .warnings div, #notices-region .non-existent div {
+#notices-region .warnings div {
 	background-color:#fffa8f;
 }
-#notices-region .warnings h5, #notices-region .non-existent h5 {
+#notices-region .warnings h5 {
 	background-color:#f4b800;
 }
 #notices-region .rrsig-expirations div {
@@ -419,39 +419,9 @@ fieldset { border: 0; }
 #graph img, #graph object { background:transparent; }
 
 /* Tooltips */
-.tooltip-container {
-	display: none;
-}
-
-#tooltip.fixed-width {
+.fixed-width {
 	width: 250px;
 }
-
-#tooltip.no-padding {
-	padding: 0;
-	border: none;
-}
-
-/* node tooltip styles */
-.tooltip-data { border-width: 3px; border-style: solid; opacity: 0.95; }
-.tooltip-data.secure { border-color: #0a879a; background-color: #8ffeff; }
-.tooltip-data.insecure { border-color: #000000; background-color: #b7b7b7; }
-.tooltip-data.bogus { border-color: #be1515; background-color: #f17b7b; }
-.tooltip-data.non-existent { border-color: #f4b800; background-color: #fffa8f; }
-.tooltip-data.missing { border-color: #be1515; background-color: #f17b7b; }
- 
-/* edge tooltip styles */
-.tooltip-data.valid { border-color: #0a879a; background-color: #8ffeff; }
-.tooltip-data.invalid { border-color: #be1515; background-color: #f17b7b; }
-.tooltip-data.expired { border-color: #6131a3; background-color: #ad7fed; }
-.tooltip-data.not-yet-valid { border-color: #6131a3; background-color: #ad7fed; }
-.tooltip-data.unknown { border-color: #f4b800; background-color: #fffa8f; }
-
-.close-floatbox { display: none; }
-#floatbox-box .close-floatbox { display: inline; }
-
-.floatbox-detail { display: inline; }
-#floatbox-box .floatbox-detail { display: none; font-size: smaller; }
 
 #graph-download { float: left; }
 #graph-hint { float: right; font-size: smaller; }

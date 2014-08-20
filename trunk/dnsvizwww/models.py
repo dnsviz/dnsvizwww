@@ -270,8 +270,15 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         unique_together = (('name', 'analysis_end'),)
         get_latest_by = 'analysis_end'
 
+    def to_text(self):
+        return str(self)
+
     def timestamp_url_encoded(self):
         return util.datetime_url_encode(self.analysis_end)
+
+    def updated_ago_str(self):
+        updated_ago = datetime.datetime.now(fmt.utc).replace(microsecond=0) - self.analysis_end
+        return fmt.humanize_time(updated_ago.seconds, updated_ago.days)
 
     def base_url(self):
         name = util.name_url_encode(self.name)

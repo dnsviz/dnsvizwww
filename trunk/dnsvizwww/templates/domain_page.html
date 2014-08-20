@@ -40,7 +40,7 @@
 
 {% if name_obj.analysis_end %}
 <div id="last-updated">
-	Updated: <span id="updated-time"><strong>{% if url_subdir != "analyze/" %}<a href="{{ name_obj.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string|safe }}{% endif %}">{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC</a>{% else %}{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC{% endif %}</strong> (<abbr class="timeago" title="{{ name_obj.analysis_end|date:"c" }}"></abbr>)</span>
+	Updated: <span id="updated-time"><strong>{% if url_subdir != "analyze/" %}<a href="{{ name_obj.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string|safe }}{% endif %}">{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC</a>{% else %}{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC{% endif %}</strong> (<abbr class="timeago" title="{{ name_obj.analysis_end|date:"c" }}">{{ name_obj.updated_ago_str }} ago</abbr>)</span>
 <span id="most-recent">
 {% if name_obj.next %}
 	<a href="{{ name_obj.base_url }}{{ url_subdir }}">Go to most recent &raquo;</a>
