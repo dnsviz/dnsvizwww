@@ -6,7 +6,6 @@
 
 	{% if use_js %}
 	<!-- Javascripts and associated styles -->
-	<script type="text/javascript" src="{{ STATIC_URL }}js/jquery.cookie.js"></script>
 	<script type="text/javascript" src="{{ STATIC_URL }}js/raphael-min.js"></script>
 	<script type="text/javascript" src="{{ STATIC_URL }}js/dnsviz.js"></script>
 	<style type="text/css" media="screen">
@@ -74,41 +73,31 @@
 
 							//TODO determine whether graph has nodes
 
-							/*
-							//XXX image.post_notices('notices');
-							// accordion for notices
-							$("#notices-region h5").toggle(function() {
-									$(this).removeClass("notice-state-default");
-									$(this).addClass("notice-state-active");
-									$(this).next().toggle('slow');
-								},
-								function() {
-									$(this).removeClass("notice-state-active");
-									$(this).addClass("notice-state-default");
-									$(this).next().toggle('slow');
+							image.postNotices('notices', '{{ STATIC_URL }}images/dnssec_legend/');
+
+							$("#notices-region h5").click(function() {
+								var tog = $(this);
+								$(this).next().slideToggle({
+									'duration': 'slow',
+									'complete': function() {
+										if (tog.hasClass("notice-state-active")) {
+											tog.removeClass("notice-state-active");
+											tog.addClass("notice-state-default");
+										} else {
+											tog.removeClass("notice-state-default");
+											tog.addClass("notice-state-active");
+										}
+									},
+								});
 							});
 							$("#notices-region h5").addClass("notice-state-default");
 							$("#notices-region h5").next().hide();
-							*/
 
 							image.draw();
+
 							$('#graph-hint').html('Mouse over and click elements in the graph below to see more detail.');
-							/*
-							if (image.updated != null) {
-								var updated_str_iso = image.updated.toISOString();
-								var updated_str = updated_str_iso.replace("T", " ").substring(0, 19);
-								if (image.page_url != null) {
-									$('#updated-time').html('<strong><a href="' + image.page_url + '">' + updated_str + ' UTC</a></strong> (<abbr class="timeago" title="' + updated_str_iso + '"></abbr>)</span>');
-								} else {
-									$('#updated-time').html('<strong>' + updated_str + ' UTC</strong> (<abbr class="timeago" title="' + updated_str_iso + '"></abbr>)</span>');
-								}
-								$('#updated-time abbr.timeago').timeago();
-								$('#most-recent').html(orig_most_recent);
-							}
-							*/
 						} catch (err) {
-							$.cookie("graph_load_error", err);
-							load_graph_alternate();
+							load_graph_alternate(err);
 							$('#updated-time').html(orig_updated_time);
 							$('#most-recent').html(orig_most_recent);
 							$('#updated-time abbr.timeago').timeago();
@@ -120,7 +109,6 @@
 							$('#notices_loading').remove();
 							return;
 						}
-						$.cookie("graph_load_error", "Ajax load of graph failed with status '" + textStatus + "'.");
 						/*
 						var msg;
 						if (textStatus == "timeout") {
@@ -132,7 +120,7 @@
 							load_graph();
 						} else {
 						*/
-							load_graph_alternate();
+							load_graph_alternate("Ajax load of graph failed with status '" + textStatus + "'.");
 							$('#graph_loading').remove();
 							$('#notices_loading').remove();
 							$('#updated-time').html(orig_updated_time);
@@ -145,10 +133,9 @@
 				});
 			};
 
-			var load_graph_alternate = function () {
-			
+			var load_graph_alternate = function (err_msg) {
 				$('#graph-hint').html('We were unable to load the interactive version of the graph.');
-				$('#graph').html('<img id="auth_graph" src="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png{% if query_string %}?{{ query_string|safe }}{% endif %}" alt="DNSSEC authentication graph" />');
+				$('#graph').html('<img id="auth_graph" src="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png?{% if query_string %}{{ query_string|safe }}&{% endif %}err=' + err_msg + '" alt="DNSSEC authentication graph" />');
 			};
 
 			load_graph();
