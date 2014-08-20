@@ -49,14 +49,11 @@
 			// viz options tooltips
 			$('#options-list a.form-tooltip').tooltip({
 				track: true,
-				delay: 0,
-				showURL: false,
-				extraClass: "fixed-width"
+				show: { 'delay': 0 },
+				hide: { 'delay': 0 },
+				tooltipClass: "fixed-width"
 			});
 
-			var orig_updated_time = $('#updated-time').html();
-			var orig_most_recent = $('#most-recent').html();
-			var current_url = '{{ name_obj.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string|safe }}{% endif %}';
 			var load_status = 'Loading...';
 			var timeout = 30000;
 			$('#graph').html('<div id="auth_graph"><div id="graph_loading"><img src="{{ STATIC_URL }}images/loading.gif" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div></div>');
@@ -98,9 +95,6 @@
 							$('#graph-hint').html('Mouse over and click elements in the graph below to see more detail.');
 						} catch (err) {
 							load_graph_alternate(err);
-							$('#updated-time').html(orig_updated_time);
-							$('#most-recent').html(orig_most_recent);
-							$('#updated-time abbr.timeago').timeago();
 						}
 					},
 					complete: function(jqXHR, textStatus) {
@@ -109,26 +103,9 @@
 							$('#notices_loading').remove();
 							return;
 						}
-						/*
-						var msg;
-						if (textStatus == "timeout") {
-							msg = 'Loading the analysis has timed out.';
-						} else {
-							msg = 'There was an error loading the analysis.';
-						}
-						if (confirm(msg + '  Some information will not be available.  Try again?')) {
-							load_graph();
-						} else {
-						*/
-							load_graph_alternate("Ajax load of graph failed with status '" + textStatus + "'.");
-							$('#graph_loading').remove();
-							$('#notices_loading').remove();
-							$('#updated-time').html(orig_updated_time);
-							$('#most-recent').html(orig_most_recent);
-							$('#updated-time abbr.timeago').timeago();
-						/*
-						}
-						*/
+						load_graph_alternate("Ajax load of graph failed with status '" + textStatus + "'.");
+						$('#graph_loading').remove();
+						$('#notices_loading').remove();
 					}
 				});
 			};
@@ -214,7 +191,7 @@
 
 			<div id="see-also">
 				<h3>See also</h3>
-				<a href="http://dnssec-debugger.verisignlabs.com/{{ name_obj.to_text }}">DNSSEC Debugger</a> by <a href="http://labs.verisign.com/">Verisign Labs</a>.
+				<a href="http://dnssec-debugger.verisignlabs.com/{{ name_obj.to_text }}">DNSSEC Debugger</a> by <a href="http://www.verisignlabs.com/">Verisign Labs</a>.
 			</div>
 
 		</div> <!-- notices-region -->
