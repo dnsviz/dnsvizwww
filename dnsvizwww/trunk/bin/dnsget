@@ -187,6 +187,18 @@ def main():
         debug_level = logging.WARNING
     else:
         debug_level = logging.ERROR
+    has_handler = False
+    # check if there's already a StreamHandler that allows messages through the
+    # filters by default
+    for handler in logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            if False not in [f.filter(None) for f in handler.filters]:
+                has_handler = True
+                break
+    if not has_handler:
+        handler = logging.StreamHandler()
+        handler.setLevel(debug_level)
+        logger.addHandler(handler)
     logger.setLevel(debug_level)
 
     if '-f' in opts:
