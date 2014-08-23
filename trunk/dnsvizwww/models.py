@@ -480,6 +480,8 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         delegation_queries = []
         other_queries = []
 
+        bailiwick_map, default_bailiwick = self.get_bailiwick_mapping()
+
         # add the queries
         if rdtypes is not None:
             rdtypes = rdtypes.union(delegation_types)
@@ -524,7 +526,8 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                             action_arg = None
                         history.append(Query.DNSQueryRetryAttempt(response_time, cause, cause_arg, action, action_arg))
                 response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, [], response.response_time, response.tcp_first)
-                query1.add_response(response.server, response.client, response1)
+                bailiwick = bailiwick_map.get(response.server, default_bailiwick)
+                query1.add_response(response.server, response.client, response1, bailiwick)
 
             if query1.rdtype in delegation_types:
                 delegation_queries.append(query1)
