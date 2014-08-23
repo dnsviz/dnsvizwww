@@ -154,9 +154,9 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
                 continue
             if rdtype not in rdtypes:
                 continue
-            if ((qname, rdtype) in name_obj.nxdomain_servers_clients or \
-                    (qname, rdtype) in name_obj.noanswer_servers_clients) and \
-                    not denial_of_existence:
+            if qname not in name_obj.yxdomain and not denial_of_existence:
+                continue
+            if (qname,rdtype) not in name_obj.yxrrset and not denial_of_existence:
                 continue
             G.graph_rrset_auth(name_obj, qname, rdtype)
 
@@ -207,11 +207,9 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
             continue
         if rdtype not in rdtypes:
             continue
-        #TODO fix this so that if a name is returned both as NXDOMAIN/NO DATA and
-        # with positive response, denial_of_existence is not required to be true.
-        if ((qname, rdtype) in name_obj.nxdomain_servers_clients or \
-                (qname, rdtype) in name_obj.noanswer_servers_clients) and \
-                not denial_of_existence:
+        if qname not in name_obj.yxdomain and not denial_of_existence:
+            continue
+        if (qname,rdtype) not in name_obj.yxrrset and not denial_of_existence:
             continue
         G.graph_rrset_auth(name_obj, qname, rdtype)
 
