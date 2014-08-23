@@ -63,17 +63,14 @@ class Analyst(dnsviz.analysis.Analyst):
 
         return unsaved_names
 
-    def _analyze_stub(self, name):
-        name_obj, created = super(Analyst, self)._analyze_stub(name)
-        if created:
-            self._save_analysis(name_obj)
-        return name_obj, created
+    def _finalize_analysis_all(self, name_obj):
+        name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+        self._save_analysis(name_obj)
+        super(Analyst, self)._finalize_analysis_all(name_obj)
 
-    def _analyze(self, name):
-        name_obj, created = super(Analyst, self)._analyze(name)
-        if created:
-            self._save_analysis(name_obj)
-        return name_obj, created
+    def _cleanup_analysis_all(self, name_obj):
+        # release the lock on the name
+        DomainName.objects.filter(name=name_obj.name).update(analysis_start=None)
 
     def _save_analysis(self, name_obj):
         # if this object hasn't been saved already (it might have been
@@ -81,13 +78,6 @@ class Analyst(dnsviz.analysis.Analyst):
         # question, then save it.
         if name_obj.pk is not None or not (name_obj.is_zone() or name_obj.name == self.name):
             return
-
-        if name_obj.dep_analysis_end is None:
-            if name_obj.stub:
-                name_obj.dep_analysis_end = name_obj.analysis_end
-            else:
-                name_obj.dep_analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
-            self.analysis_cache[name_obj.name] = name_obj
 
         # check for cyclic dependencies.  if there are no unsaved
         # dependencies in the trace (which will cause everything to be
@@ -99,15 +89,27 @@ class Analyst(dnsviz.analysis.Analyst):
             if dep in names_in_trace:
                 unsaved_dep_in_trace = True
         if not unsaved_dep_in_trace:
-            with transaction.commit_manually():
-                try:
-                    name_obj.save_all()
-                except:
-                    transaction.rollback()
-                    raise
-                else:
-                    transaction.commit()
+            attempts = 0
+            while True:
+                with transaction.commit_manually():
+                    try:
+                        name_obj.save_all()
+                    except:
+                        import sys
+                        self.logger.warning('Error saving %s' % name_obj, exc_info=sys.exc_info())
+                        transaction.rollback()
+                        #XXX this can be more elegant
+                        if attempts > 1:
+                            raise
+                    else:
+                        transaction.commit()
+                        break
+                time.sleep(1)
+                attempts += 1
+                
         self.analysis_cache[name_obj.name] = name_obj
+
+        super(Analyst, self)._analyze_dependencies(name_obj)
 
     def _get_name_for_analysis(self, name, stub=False, lock=True):
         with self.analysis_cache_lock:
