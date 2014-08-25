@@ -40,6 +40,7 @@ from django.utils.translation import ugettext_lazy as _
 
 import dnsviz.analysis
 import dnsviz.format as fmt
+from dnsviz.ipaddr import IPAddr
 import dnsviz.query as Query
 import dnsviz.response as Response
 import dnsviz.status as Status
@@ -393,8 +394,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         # add the auth NS to IP mapping
         for name in self._auth_ns_ip_mapping:
             for ip in self._auth_ns_ip_mapping[name]:
-                ip = fmt.fix_ipv6(ip)
-                self.auth_ns_ip_mapping_db.add(NSMapping.objects.get_or_create(name=name, server=DNSServer.objects.get_or_create(ip_address=ip)[0])[0])
+                self.auth_ns_ip_mapping_db.add(NSMapping.objects.get_or_create(name=name, server=DNSServer.objects.get_or_create(ip_address=str(ip))[0])[0])
 
         # add the queries
         for (qname, rdtype) in self.queries:
@@ -435,7 +435,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                                 action_arg = -1
                             history.extend([response_time, cause, cause_arg, action, action_arg])
                         history_str = ','.join(map(str, history))
-                        response_obj = DNSResponse(query=query_obj, server=fmt.fix_ipv6(server), client=fmt.fix_ipv6(client),
+                        response_obj = DNSResponse(query=query_obj, server=str(server), client=str(client),
                                 error=query.responses[server][client].error, errno=query.responses[server][client].errno,
                                 msg_size=query.responses[server][client].msg_size,
                                 tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000),
@@ -467,7 +467,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         # add the auth NS to IP mapping
         for name, ip in self.auth_ns_ip_mapping_db.values_list('name', 'server__ip_address'):
-            self.add_auth_ns_ip_mappings((dns.name.from_text(name), ip))
+            self.add_auth_ns_ip_mappings((dns.name.from_text(name), IPAddr(ip)))
 
         if self.stub:
             return
@@ -525,9 +525,11 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                         if action_arg < 0:
                             action_arg = None
                         history.append(Query.DNSQueryRetryAttempt(response_time, cause, cause_arg, action, action_arg))
+                server = IPAddr(response.server)
+                client = IPAddr(response.client)
                 response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, [], response.response_time, response.tcp_first)
-                bailiwick = bailiwick_map.get(response.server, default_bailiwick)
-                query1.add_response(response.server, response.client, response1, bailiwick)
+                bailiwick = bailiwick_map.get(server, default_bailiwick)
+                query1.add_response(server, client, response1, bailiwick)
 
             if query1.rdtype in delegation_types:
                 delegation_queries.append(query1)
