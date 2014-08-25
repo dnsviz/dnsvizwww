@@ -1,9 +1,9 @@
 #
 # This file is a part of DNSViz, a tool suite for DNS/DNSSEC monitoring,
 # analysis, and visualization.
-# Author: Casey Deccio (ctdecci@sandia.gov)
+# Author: Casey Deccio (casey@deccio.net)
 #
-# Copyright 2012-2013 Sandia Corporation. Under the terms of Contract
+# Copyright 2012-2014 Sandia Corporation. Under the terms of Contract
 # DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains certain
 # rights in this software.
 # 
@@ -30,13 +30,11 @@ import struct
 import dns.edns, dns.exception, dns.flags, dns.message, dns.name, dns.rcode, dns.rdataclass, dns.rdata, dns.rdatatype, dns.rrset
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.cache import cache as Cache
 from django.db import models
 from django.db.models import Q
 from django.utils.html import escape
 from django.utils.timezone import now, utc
-from django.utils.translation import ugettext_lazy as _
 
 import dnsviz.analysis
 import dnsviz.format as fmt
@@ -45,104 +43,8 @@ import dnsviz.query as Query
 import dnsviz.response as Response
 import dnsviz.status as Status
 
+import fields
 import util
-
-class UnsignedSmallIntegerField(models.SmallIntegerField):
-    __metaclass__ = models.SubfieldBase
-    def to_python(self, value):
-        value = super(UnsignedSmallIntegerField, self).to_python(value)
-        if value is None:
-            return None
-        if value < 0:
-            value = 0x7FFF - value
-        return value
-
-    def get_prep_value(self, value):
-        value = super(UnsignedSmallIntegerField, self).get_prep_value(value)
-        if value is None:
-            return None
-        if value > 0x7FFF:
-            value = -(value - 0x7FFF)
-        return value
-
-class UnsignedIntegerField(models.IntegerField):
-    __metaclass__ = models.SubfieldBase
-    def to_python(self, value):
-        value = super(UnsignedIntegerField, self).to_python(value)
-        if value is None:
-            return None
-        if value < 0:
-            value = 0x7FFFFFFF - value
-        return value
-
-    def get_prep_value(self, value):
-        value = super(UnsignedIntegerField, self).get_prep_value(value)
-        if value is None:
-            return None
-        if value > 0x7FFFFFFF:
-            value = -(value - 0x7FFFFFFF)
-        return value
-
-class DomainNameField(models.CharField):
-    description = _("Domain name (with maximum length of %(max_length)s characters)")
-
-    __metaclass__ = models.SubfieldBase
-
-    def __init__(self, *args, **kwargs):
-        self.canonicalize = kwargs.pop('canonicalize', True)
-        super(DomainNameField, self).__init__(*args, **kwargs)
-
-    def to_python(self, value):
-        if value is None:
-            return None
-        if isinstance(value, dns.name.Name):
-            name = value
-        else:
-            try:
-                name = dns.name.from_text(value)
-            except Exception, e:
-                raise ValidationError('%s: %s is of type %s' % (e, value, type(value)))
-        if self.canonicalize:
-            name = name.canonicalize()
-        return name
-
-    def get_prep_value(self, value):
-        if value is None:
-            return None
-        if isinstance(value, dns.name.Name):
-            name = value
-        else:
-            name = dns.name.from_text(value)
-        if self.canonicalize:
-            name = name.canonicalize()
-        return name.to_text()
-
-class BinaryField(models.Field):
-    #XXX no longer needed as of django 1.6
-    __metaclass__ = models.SubfieldBase
-
-    def db_type(self, connection):
-        if connection.settings_dict['ENGINE'] in ('django.db.backends.postgresql_psycopg2', 'django.db.backends.postgresql'):
-            return 'bytea'
-        elif connection.settings_dict['ENGINE'] == 'django.db.backends.mysql':
-            return 'blob'
-        elif connection.settings_dict['ENGINE'] == 'django.db.backends.sqlite3':
-            return 'BLOB'
-        raise Exception('Binary data type not known for %s db backend' % connection.settings_dict['ENGINE'])
-
-    def to_python(self, value):
-        if value is None:
-            return None
-        if isinstance(value, basestring):
-            return value
-        return str(value)
-
-    def get_prep_value(self, value):
-        if value is None:
-            return None
-        if isinstance(value, bytearray):
-            return value
-        return bytearray(value)
 
 class DomainNameManager(models.Manager):
     def offset_for_interval(self, interval):
@@ -164,7 +66,7 @@ class DomainNameManager(models.Manager):
 
 class DomainName(models.Model):
 
-    name = DomainNameField(max_length=2048, primary_key=True)
+    name = fields.DomainNameField(max_length=2048, primary_key=True)
     analysis_start = models.DateTimeField(blank=True, null=True)
     refresh_interval = models.PositiveIntegerField(blank=True, null=True)
     refresh_offset = models.PositiveIntegerField(blank=True, null=True)
@@ -199,7 +101,7 @@ class DNSServer(models.Model):
         return self.ip_address
 
 class NSMapping(models.Model):
-    name = DomainNameField(max_length=2048)
+    name = fields.DomainNameField(max_length=2048)
     server = models.ForeignKey(DNSServer)
 
     class Meta:
@@ -246,7 +148,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     RDTYPES_SECURE_DELEGATION = 2
     RDTYPES_DELEGATION = 3
 
-    name = DomainNameField(max_length=2048)
+    name = fields.DomainNameField(max_length=2048)
     stub = models.BooleanField()
 
     analysis_start = models.DateTimeField()
@@ -255,16 +157,16 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
     version = models.PositiveSmallIntegerField(default=17)
 
-    parent_name_db = DomainNameField(max_length=2048, blank=True, null=True)
-    dlv_parent_name_db = DomainNameField(max_length=2048, blank=True, null=True)
+    parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
+    dlv_parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
 
-    referral_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
+    referral_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
     explicit_delegation = models.BooleanField()
 
-    nxdomain_name = DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
-    nxdomain_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
-    nxrrset_name = DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
-    nxrrset_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
+    nxdomain_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
+    nxdomain_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
+    nxrrset_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
+    nxrrset_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
 
     auth_ns_ip_mapping_db = models.ManyToManyField(NSMapping, related_name='s+')
 
@@ -683,7 +585,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         dname_obj.set_refresh(refresh_interval, refresh_offset)
 
 class NSMapping(models.Model):
-    name = DomainNameField(max_length=2048)
+    name = fields.DomainNameField(max_length=2048)
     server = models.ForeignKey(DNSServer)
 
     class Meta:
@@ -706,16 +608,16 @@ class DNSServer(models.Model):
         return self.ip_address
 
 class NSMapping(models.Model):
-    name = DomainNameField(max_length=2048)
+    name = fields.DomainNameField(max_length=2048)
     server = models.ForeignKey(DNSServer)
 
 class ResourceRecord(models.Model):
-    name = DomainNameField(max_length=2048)
-    rdtype = UnsignedSmallIntegerField()
-    rdclass = UnsignedSmallIntegerField()
-    rdata_wire = BinaryField()
+    name = fields.DomainNameField(max_length=2048)
+    rdtype = fields.UnsignedSmallIntegerField()
+    rdclass = fields.UnsignedSmallIntegerField()
+    rdata_wire = fields.BinaryField()
 
-    rdata_name = DomainNameField(max_length=2048, blank=True, null=True, db_index=True)
+    rdata_name = fields.DomainNameField(max_length=2048, blank=True, null=True, db_index=True)
     rdata_address = models.GenericIPAddressField(blank=True, null=True, db_index=True)
 
     class Meta:
@@ -800,7 +702,7 @@ class ResourceRecordMX(ResourceRecordWithNameInRdata):
 
 class ResourceRecordDNSKEYRelated(ResourceRecord):
     algorithm = models.PositiveSmallIntegerField()
-    key_tag = UnsignedSmallIntegerField(db_index=True)
+    key_tag = fields.UnsignedSmallIntegerField(db_index=True)
     expiration = models.DateTimeField(blank=True, null=True)
     inception = models.DateTimeField(blank=True, null=True)
 
@@ -873,19 +775,19 @@ class ResourceRecordManager(models.Manager):
 ResourceRecord.add_to_class('objects', ResourceRecordManager())
 
 class DNSQueryOptions(models.Model):
-    flags = UnsignedSmallIntegerField()
-    edns_max_udp_payload = UnsignedSmallIntegerField(blank=True, null=True)
-    edns_flags = UnsignedIntegerField(blank=True, null=True)
-    edns_options = BinaryField(blank=True, null=True)
+    flags = fields.UnsignedSmallIntegerField()
+    edns_max_udp_payload = fields.UnsignedSmallIntegerField(blank=True, null=True)
+    edns_flags = fields.UnsignedIntegerField(blank=True, null=True)
+    edns_options = fields.BinaryField(blank=True, null=True)
 
     class Meta:
         unique_together = (('flags', 'edns_max_udp_payload', 'edns_flags', 'edns_options'),)
 
 class DNSQuery(models.Model):
-    qname = DomainNameField(max_length=2048, canonicalize=False)
-    rdtype = UnsignedSmallIntegerField()
-    rdclass = UnsignedSmallIntegerField()
-    response_options = UnsignedSmallIntegerField(default=0)
+    qname = fields.DomainNameField(max_length=2048, canonicalize=False)
+    rdtype = fields.UnsignedSmallIntegerField()
+    rdclass = fields.UnsignedSmallIntegerField()
+    response_options = fields.UnsignedSmallIntegerField(default=0)
 
     options = models.ForeignKey(DNSQueryOptions, related_name='queries')
     analysis = models.ForeignKey(DomainNameAnalysis, related_name='queries_db')
@@ -902,16 +804,16 @@ class DNSResponse(models.Model):
     client = models.GenericIPAddressField()
 
     # response attributes
-    flags = UnsignedSmallIntegerField(blank=True, null=True)
+    flags = fields.UnsignedSmallIntegerField(blank=True, null=True)
 
     has_question = models.BooleanField(default=True)
-    question_name = DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
-    question_rdtype = UnsignedSmallIntegerField(blank=True, null=True)
-    question_rdclass = UnsignedSmallIntegerField(blank=True, null=True)
+    question_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
+    question_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
+    question_rdclass = fields.UnsignedSmallIntegerField(blank=True, null=True)
 
-    edns_max_udp_payload = UnsignedSmallIntegerField(blank=True, null=True)
-    edns_flags = UnsignedIntegerField(blank=True, null=True)
-    edns_options = BinaryField(blank=True, null=True)
+    edns_max_udp_payload = fields.UnsignedSmallIntegerField(blank=True, null=True)
+    edns_flags = fields.UnsignedIntegerField(blank=True, null=True)
+    edns_options = fields.BinaryField(blank=True, null=True)
 
     error = models.PositiveSmallIntegerField(blank=True, null=True)
     errno = models.PositiveSmallIntegerField(blank=True, null=True)
@@ -919,7 +821,7 @@ class DNSResponse(models.Model):
     response_time = models.PositiveSmallIntegerField()
     history_serialized = models.CommaSeparatedIntegerField(max_length=4096, blank=True)
 
-    msg_size = UnsignedSmallIntegerField(blank=True, null=True)
+    msg_size = fields.UnsignedSmallIntegerField(blank=True, null=True)
 
     def __init__(self, *args, **kwargs):
         super(DNSResponse, self).__init__(*args, **kwargs)
@@ -1063,9 +965,9 @@ class ResourceRecordMapper(models.Model):
     section = models.PositiveSmallIntegerField()
 
     order = models.PositiveSmallIntegerField()
-    raw_name = DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
+    raw_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     rdata = models.ForeignKey(ResourceRecord)
-    ttl = UnsignedIntegerField()
+    ttl = fields.UnsignedIntegerField()
 
     class Meta:
         unique_together = (('message', 'rdata', 'section'),)
