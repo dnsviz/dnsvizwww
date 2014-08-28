@@ -455,9 +455,9 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         if self.parent_name_db is not None:
             parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end, stub=None)
             if parent.pk in cache:
-                parent = cache[parent.pk]
-            else:
-                cache[parent.pk] = parent
+                parent, code = cache[parent.pk]
+            if parent.pk not in cache or code > required_rdtype_code:
+                cache[parent.pk] = parent, required_rdtype_code
                 parent.retrieve_ancestry(required_rdtype_code, follow_dependencies=follow_dependencies, cache=cache)
                 parent.retrieve_related(required_rdtype_code)
                 if follow_dependencies:
@@ -470,9 +470,9 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         elif self.name != dns.name.root and self.dlv_parent_name_db is not None:
             dlv_parent = self.__class__.objects.latest(self.dlv_parent_name_db, self.analysis_end)
             if dlv_parent.pk in cache:
-                dlv_parent = cache[dlv_parent.pk]
-            else:
-                cache[dlv_parent.pk] = dlv_parent
+                dlv_parent, code = cache[dlv_parent.pk]
+            if dlv_parent.pk not in cache or code > required_rdtype_code:
+                cache[dlv_parent.pk] = dlv_parent, required_rdtype_code
                 dlv_parent.retrieve_related(self.RDTYPES_SECURE_DELEGATION)
         else:
             dlv_parent = None
@@ -488,27 +488,27 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         for cname in self.cname_targets:
             self.cname_targets[cname] = self.__class__.objects.latest(cname, self.dep_analysis_end)
             if self.cname_targets[cname].pk in cache:
-                self.cname_targets[cname] = cache[self.cname_targets[cname].pk]
-            else:
-                cache[self.cname_targets[cname].pk] = self.cname_targets[cname]
+                self.cname_targets[cname], code = cache[self.cname_targets[cname].pk]
+            if self.cname_targets[cname].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
+                cache[self.cname_targets[cname].pk] = self.cname_targets[cname], self.RDTYPES_SECURE_DELEGATION
                 self.cname_targets[cname].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
                 self.cname_targets[cname].retrieve_related(self.RDTYPES_ALL)
                 self.cname_targets[cname].retrieve_dependencies(cache=cache)
         for dname in self.dname_targets:
             self.dname_targets[dname] = self.__class__.objects.latest(dname, self.dep_analysis_end)
             if self.dname_targets[dname].pk in cache:
-                self.dname_targets[dname] = cache[self.dname_targets[dname].pk]
-            else:
-                cache[self.dname_targets[dname].pk] = self.dname_targets[dname]
+                self.dname_targets[dname], code = cache[self.dname_targets[dname].pk]
+            if self.dname_targets[dname].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
+                cache[self.dname_targets[dname].pk] = self.dname_targets[dname], self.RDTYPES_SECURE_DELEGATION
                 self.dname_targets[dname].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
                 self.dname_targets[dname].retrieve_related(self.RDTYPES_ALL)
                 self.dname_targets[dname].retrieve_dependencies(cache=cache)
         for signer in self.external_signers:
             self.external_signers[signer] = self.__class__.objects.latest(signer, self.dep_analysis_end)
             if self.external_signers[signer].pk in cache:
-                self.external_signers[signer] = cache[self.external_signers[signer].pk]
-            else:
-                cache[self.external_signers[signer].pk] = self.external_signers[signer]
+                self.external_signers[signer], code = cache[self.external_signers[signer].pk]
+            if self.external_signers[signer].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
+                cache[self.external_signers[signer].pk] = self.external_signers[signer], self.RDTYPES_SECURE_DELEGATION
                 self.external_signers[signer].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
                 self.external_signers[signer].retrieve_related(self.RDTYPES_SECURE_DELEGATION)
                 self.external_signers[signer].retrieve_dependencies(cache=cache)
@@ -517,9 +517,9 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             #TODO also check freshness of retrieved object
             if self.ns_dependencies[target] is not None:
                 if self.ns_dependencies[target].pk in cache:
-                    self.ns_dependencies[target] = cache[self.ns_dependencies[target].pk]
-                else:
-                    cache[self.ns_dependencies[target].pk] = self.ns_dependencies[target]
+                    self.ns_dependencies[target], code = cache[self.ns_dependencies[target].pk]
+                if self.ns_dependencies[target].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
+                    cache[self.ns_dependencies[target].pk] = self.ns_dependencies[target], self.RDTYPES_SECURE_DELEGATION
                     self.ns_dependencies[target].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
                     self.ns_dependencies[target].retrieve_related(self.RDTYPES_NS_TARGET)
                     self.ns_dependencies[target].retrieve_dependencies(cache=cache)
