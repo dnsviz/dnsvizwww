@@ -201,7 +201,7 @@ class Analyst(dnsviz.analysis.Analyst):
             return True
 
         force_analysis = self.force_self and (self.force_ancestry or self.name == name_obj.name)
-        updated_since_analysis_start = name_obj.analysis_end > self.start_time
+        updated_since_analysis_start = name_obj.analysis_end >= self.start_time
 
         min_ttl = None
         for rdtype in (dns.rdatatype.NS, -dns.rdatatype.NS, dns.rdatatype.DS, dns.rdatatype.DNSKEY):
