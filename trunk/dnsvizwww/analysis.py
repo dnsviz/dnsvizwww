@@ -137,7 +137,11 @@ class Analyst(dnsviz.analysis.Analyst):
         with self.analysis_cache_lock:
             try:
                 name_obj = self.analysis_cache[name]
-                wait_for_analysis = True
+                if self._analyze_or_not(name_obj):
+                    del self.analysis_cache[name]
+                    wait_for_analysis = False
+                else:
+                    wait_for_analysis = True
             except KeyError:
                 if lock:
                     name_obj = self.analysis_cache[name] = self.analysis_model(name, stub=stub)
