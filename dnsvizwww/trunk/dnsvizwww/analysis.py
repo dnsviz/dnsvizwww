@@ -66,6 +66,11 @@ class Analyst(dnsviz.analysis.Analyst):
                 unsaved_names.append(cname)
                 if cname_obj is not None:
                     unsaved_names.extend(self.unsaved_dependencies(cname_obj, trace+[name_obj.name]))
+        for dname, dname_obj in name_obj.dname_targets.items():
+            if dname_obj is None or dname_obj.pk is None:
+                unsaved_names.append(dname)
+                if dname_obj is not None:
+                    unsaved_names.extend(self.unsaved_dependencies(dname_obj, trace+[name_obj.name]))
         for signer, signer_obj in name_obj.external_signers.items():
             if signer_obj is None or signer_obj.pk is None:
                 unsaved_names.append(signer)
