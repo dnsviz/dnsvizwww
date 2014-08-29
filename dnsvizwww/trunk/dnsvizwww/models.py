@@ -391,6 +391,10 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         else:
             queries = self.queries_db.all()
         for query in queries:
+            # this query might have already been imported.  If so, don't
+            # re-import.
+            if (query.qname, query.rdtype) in self.queries:
+                continue
             if query.options.edns_max_udp_payload is not None:
                 edns = query.options.edns_flags>>16
                 edns_max_udp_payload = query.options.edns_max_udp_payload
@@ -494,15 +498,6 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 self.cname_targets[cname].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
                 self.cname_targets[cname].retrieve_related(self.RDTYPES_ALL)
                 self.cname_targets[cname].retrieve_dependencies(cache=cache)
-        for dname in self.dname_targets:
-            self.dname_targets[dname] = self.__class__.objects.latest(dname, self.dep_analysis_end)
-            if self.dname_targets[dname].pk in cache:
-                self.dname_targets[dname], code = cache[self.dname_targets[dname].pk]
-            if self.dname_targets[dname].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
-                cache[self.dname_targets[dname].pk] = self.dname_targets[dname], self.RDTYPES_SECURE_DELEGATION
-                self.dname_targets[dname].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
-                self.dname_targets[dname].retrieve_related(self.RDTYPES_ALL)
-                self.dname_targets[dname].retrieve_dependencies(cache=cache)
         for signer in self.external_signers:
             self.external_signers[signer] = self.__class__.objects.latest(signer, self.dep_analysis_end)
             if self.external_signers[signer].pk in cache:
@@ -512,23 +507,22 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 self.external_signers[signer].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
                 self.external_signers[signer].retrieve_related(self.RDTYPES_SECURE_DELEGATION)
                 self.external_signers[signer].retrieve_dependencies(cache=cache)
-        for target in self.ns_dependencies:
-            self.ns_dependencies[target] = self.__class__.objects.latest(target, self.dep_analysis_end)
-            #TODO also check freshness of retrieved object
-            if self.ns_dependencies[target] is not None:
-                if self.ns_dependencies[target].pk in cache:
-                    self.ns_dependencies[target], code = cache[self.ns_dependencies[target].pk]
-                if self.ns_dependencies[target].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
-                    cache[self.ns_dependencies[target].pk] = self.ns_dependencies[target], self.RDTYPES_SECURE_DELEGATION
-                    self.ns_dependencies[target].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
-                    self.ns_dependencies[target].retrieve_related(self.RDTYPES_NS_TARGET)
-                    self.ns_dependencies[target].retrieve_dependencies(cache=cache)
+        #TODO figure a robust solution for this--perhaps with persistent follow_ns boolean or by checking freshess, or...
+        #for target in self.ns_dependencies:
+        #    self.ns_dependencies[target] = self.__class__.objects.latest(target, self.dep_analysis_end)
+        #    #TODO also check freshness of retrieved object
+        #    if self.ns_dependencies[target] is not None:
+        #        if self.ns_dependencies[target].pk in cache:
+        #            self.ns_dependencies[target], code = cache[self.ns_dependencies[target].pk]
+        #        if self.ns_dependencies[target].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
+        #            cache[self.ns_dependencies[target].pk] = self.ns_dependencies[target], self.RDTYPES_SECURE_DELEGATION
+        #            self.ns_dependencies[target].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
+        #            self.ns_dependencies[target].retrieve_related(self.RDTYPES_NS_TARGET)
+        #            self.ns_dependencies[target].retrieve_dependencies(cache=cache)
 
     def save_dependencies(self):
         for cname_obj in self.cname_targets.values():
             cname_obj.save_all()
-        for dname_obj in self.dname_targets.values():
-            dname_obj.save_all()
         for signer_obj in self.external_signers.values():
             signer_obj.save_all()
         for ns_obj in self.ns_dependencies.values():
