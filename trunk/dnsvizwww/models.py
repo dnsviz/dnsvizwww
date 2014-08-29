@@ -498,6 +498,15 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 self.cname_targets[cname].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
                 self.cname_targets[cname].retrieve_related(self.RDTYPES_ALL)
                 self.cname_targets[cname].retrieve_dependencies(cache=cache)
+        for dname in self.dname_targets:
+            self.dname_targets[dname] = self.__class__.objects.latest(dname, self.dep_analysis_end)
+            if self.dname_targets[dname].pk in cache:
+                self.dname_targets[dname], code = cache[self.dname_targets[dname].pk]
+            if self.dname_targets[dname].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
+                cache[self.dname_targets[dname].pk] = self.dname_targets[dname], self.RDTYPES_SECURE_DELEGATION
+                self.dname_targets[dname].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
+                self.dname_targets[dname].retrieve_related(self.RDTYPES_ALL)
+                self.dname_targets[dname].retrieve_dependencies(cache=cache)
         for signer in self.external_signers:
             self.external_signers[signer] = self.__class__.objects.latest(signer, self.dep_analysis_end)
             if self.external_signers[signer].pk in cache:
@@ -523,6 +532,8 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     def save_dependencies(self):
         for cname_obj in self.cname_targets.values():
             cname_obj.save_all()
+        for dname_obj in self.dname_targets.values():
+            dname_obj.save_all()
         for signer_obj in self.external_signers.values():
             signer_obj.save_all()
         for ns_obj in self.ns_dependencies.values():
