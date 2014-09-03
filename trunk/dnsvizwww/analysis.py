@@ -61,11 +61,12 @@ class Analyst(dnsviz.analysis.Analyst):
         if name_obj.name in trace:
             return unsaved_names
         
-        for cname, cname_obj in name_obj.cname_targets.items():
-            if cname_obj is None or cname_obj.pk is None:
-                unsaved_names.append(cname)
-                if cname_obj is not None:
-                    unsaved_names.extend(self.unsaved_dependencies(cname_obj, trace+[name_obj.name]))
+        for cname in name_obj.cname_targets:
+            for target, cname_obj in name_obj.cname_targets[cname].items():
+                if cname_obj is None or cname_obj.pk is None:
+                    unsaved_names.append(target)
+                    if cname_obj is not None:
+                        unsaved_names.extend(self.unsaved_dependencies(cname_obj, trace+[name_obj.name]))
         for signer, signer_obj in name_obj.external_signers.items():
             if signer_obj is None or signer_obj.pk is None:
                 unsaved_names.append(signer)
@@ -132,11 +133,7 @@ class Analyst(dnsviz.analysis.Analyst):
         with self.analysis_cache_lock:
             try:
                 name_obj = self.analysis_cache[name]
-                if self._analyze_or_not(name_obj):
-                    del self.analysis_cache[name]
-                    wait_for_analysis = False
-                else:
-                    wait_for_analysis = True
+                wait_for_analysis = True
             except KeyError:
                 if lock:
                     name_obj = self.analysis_cache[name] = self.analysis_model(name, stub=stub)
@@ -187,6 +184,7 @@ class Analyst(dnsviz.analysis.Analyst):
             while name_obj.analysis_end is None:
                 time.sleep(1)
                 name_obj = self.analysis_cache[name]
+
             #TODO re-do analyses if force_dnskey is True and dnskey hasn't been queried
             #TODO re-do anaysis if not stub requested but cache is stub?
         return name_obj
