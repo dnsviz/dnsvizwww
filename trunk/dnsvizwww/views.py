@@ -149,6 +149,10 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
         name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
 
         G = DNSAuthGraph()
+        # if the name doesn't exist, or its status is otherwise indeterminate,
+        # then set denial_of_existence explicitly 
+        if name_obj.status != name_obj.yxdomain:
+            denial_of_existence = True
         for qname, rdtype in name_obj.queries:
             if rdtype in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
                 continue
@@ -207,6 +211,10 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
 
     G = DNSAuthGraph()
+    # if the name doesn't exist, or its status is otherwise indeterminate,
+    # then set denial_of_existence explicitly 
+    if name_obj.status != name_obj.yxdomain:
+        denial_of_existence = True
     for qname, rdtype in name_obj.queries:
         if rdtype in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
             continue
