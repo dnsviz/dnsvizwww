@@ -374,10 +374,10 @@ fieldset { border: 0; }
 	background-color:#000;
 	color:#fff;
 }
-#notices-region .misconfigured div {
+#notices-region .lame div {
 	background-color:#fffa8f;
 }
-#notices-region .misconfigured-zone h5, #notices-region .misconfigured h6, #notices-region .misconfigured h5 {
+#notices-region .lame-zone h5, #notices-region .lame h6, #notices-region .lame h5 {
 	background-color:#f4b800; 
 	color:#000;
 }
