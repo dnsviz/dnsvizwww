@@ -370,13 +370,14 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         bailiwick_map, default_bailiwick = self.get_bailiwick_mapping()
 
-        # add the queries
+        # create a filter for the queries, based on rdtypes and name
+        f = Q()
         if rdtypes is not None:
             rdtypes = rdtypes.union(delegation_types)
-            queries = self.queries_db.filter(rdtype__in=rdtypes)
-        else:
-            queries = self.queries_db.all()
-        for query in queries:
+            f &= Q(rdtype__in=rdtypes)
+        if level >= self.RDTYPES_ALL_SAME_NAME:
+            f &= Q(qname=self.name)
+        for query in self.queries_db.filter(f):
             # this query might have already been imported.  If so, don't
             # re-import.
             if (query.qname, query.rdtype) in self.queries:
@@ -483,10 +484,10 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 self.cname_targets[cname][target] = self.__class__.objects.latest(target, self.dep_analysis_end)
                 if self.cname_targets[cname][target].pk in cache:
                     self.cname_targets[cname][target], code = cache[self.cname_targets[cname][target].pk]
-                if self.cname_targets[cname][target].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
-                    cache[self.cname_targets[cname][target].pk] = self.cname_targets[cname][target], self.RDTYPES_SECURE_DELEGATION
+                if self.cname_targets[cname][target].pk not in cache or code > self.RDTYPES_ALL_SAME_NAME:
+                    cache[self.cname_targets[cname][target].pk] = self.cname_targets[cname][target], self.RDTYPES_ALL_SAME_NAME
                     self.cname_targets[cname][target].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
-                    self.cname_targets[cname][target].retrieve_related(self.RDTYPES_ALL)
+                    self.cname_targets[cname][target].retrieve_related(self.RDTYPES_ALL_SAME_NAME)
                     self.cname_targets[cname][target].retrieve_dependencies(cache=cache)
         for signer in self.external_signers:
             if signer == self.name:
@@ -510,8 +511,8 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         #    if self.ns_dependencies[target] is not None:
         #        if self.ns_dependencies[target].pk in cache:
         #            self.ns_dependencies[target], code = cache[self.ns_dependencies[target].pk]
-        #        if self.ns_dependencies[target].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
-        #            cache[self.ns_dependencies[target].pk] = self.ns_dependencies[target], self.RDTYPES_SECURE_DELEGATION
+        #        if self.ns_dependencies[target].pk not in cache or code > self.RDTYPES_NS_TARGET:
+        #            cache[self.ns_dependencies[target].pk] = self.ns_dependencies[target], self.RDTYPES_NS_TARGET
         #            self.ns_dependencies[target].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
         #            self.ns_dependencies[target].retrieve_related(self.RDTYPES_NS_TARGET)
         #            self.ns_dependencies[target].retrieve_dependencies(cache=cache)
