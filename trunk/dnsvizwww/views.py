@@ -154,10 +154,15 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
                 continue
             if rdtype not in rdtypes:
                 continue
-            if qname not in name_obj.yxdomain and not denial_of_existence:
-                continue
-            if (qname,rdtype) not in name_obj.yxrrset and not denial_of_existence:
-                continue
+            if not denial_of_existence:
+                if qname == name_obj.nxdomain_name and rdtype == name_obj.nxdomain_rdtype:
+                    continue
+                if qname == name_obj.nxrrset_name and rdtype == name_obj.nxrrset_rdtype:
+                    continue
+                if qname not in name_obj.yxdomain:
+                    continue
+                if (qname, rdtype) not in name_obj.yxrrset:
+                    continue
             G.graph_rrset_auth(name_obj, qname, rdtype)
 
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
@@ -207,10 +212,15 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
             continue
         if rdtype not in rdtypes:
             continue
-        if qname not in name_obj.yxdomain and not denial_of_existence:
-            continue
-        if (qname,rdtype) not in name_obj.yxrrset and not denial_of_existence:
-            continue
+        if not denial_of_existence:
+            if qname == name_obj.nxdomain_name and rdtype == name_obj.nxdomain_rdtype:
+                continue
+            if qname == name_obj.nxrrset_name and rdtype == name_obj.nxrrset_rdtype:
+                continue
+            if qname not in name_obj.yxdomain:
+                continue
+            if (qname, rdtype) not in name_obj.yxrrset:
+                continue
         G.graph_rrset_auth(name_obj, qname, rdtype)
 
     G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
