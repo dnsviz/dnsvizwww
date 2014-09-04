@@ -170,12 +170,12 @@ def domain_date_search_form(name):
                 raise forms.ValidationError('No analysis for %s known prior to %s!' % (fmt.humanize_name(name), self.cleaned_data['date']))
     return DomainDateSearchForm
 
-def get_dnssec_options_form_data(request):
+def get_dnssec_options_form_data(data):
     values = {}
 
-    dnssec_form_options = set(DNSSECOptionsForm.base_fields).intersection(set(request.GET))
+    dnssec_form_options = set(DNSSECOptionsForm.base_fields).intersection(set(data))
     if dnssec_form_options:
-        options_form = DNSSECOptionsForm(request.GET)
+        options_form = DNSSECOptionsForm(data)
         if options_form.is_valid():
             values = options_form.cleaned_data.copy()
         else:

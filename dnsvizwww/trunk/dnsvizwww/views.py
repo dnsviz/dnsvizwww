@@ -22,6 +22,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
+from cgi import escape
 import datetime
 import json
 import logging
@@ -42,6 +43,7 @@ from django.views.decorators.http import condition
 from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
 import dnsviz.status as Status
+import dnsviz.response as Response
 from dnsviz.util import get_trusted_keys
 from django.views.decorators.cache import cache_page
 from dnsviz.viz.dnssec import DNSAuthGraph
@@ -117,6 +119,8 @@ def domain_view(request, name, timestamp=None, url_subdir='', **kwargs):
         return detail_view(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
     elif url_subdir == 'dnssec/':
         return dnssec_view(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
+    elif url_subdir == 'responses/':
+        return responses_view(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
     #XXX
     else:
         raise Http404
@@ -126,7 +130,7 @@ def detail_view(request, name_obj, timestamp, url_subdir, date_form):
 
 def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
     dlv_name = name_obj.dlv_parent_name()
-    options_form, values = get_dnssec_options_form_data(request)
+    options_form, values = get_dnssec_options_form_data(request.GET)
     rdtypes = set(values['rr'])
     show_dlv = dlv_name in values['ta']
     denial_of_existence = values['doe']
@@ -196,7 +200,7 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
         raise Http404
 
     dlv_name = name_obj.dlv_parent_name()
-    options_form, values = get_dnssec_options_form_data(request)
+    options_form, values = get_dnssec_options_form_data(request.GET)
 
     rdtypes = set(values['rr'])
     show_dlv = dlv_name in values['ta']
@@ -243,7 +247,7 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     else:
         raise Http404
 
-@cache_page(600)
+@cache_page(601)
 @cache_page(1209600, cache='page_cache')
 #@condition(last_modified_func=domain_last_modified)
 def dnssec_info_cacheable(request, name, timestamp, url_subdir=None, url_file=None, format=None, **kwargs):
@@ -283,6 +287,180 @@ def dnssec_auth_graph(request, name_obj, G, format):
                 request.META.get('REMOTE_ADDR', ''), request.GET['err']))
 
     return response
+
+def responses_view(request, name_obj, timestamp, url_subdir, date_form):
+    options_form, values = get_dnssec_options_form_data({})
+
+    trusted_keys_explicit = values['tk']
+    trusted_zones = values['ta']
+    trusted_keys = trusted_keys_explicit + trusted_zones
+
+    name_obj.retrieve_all()
+    name_obj.populate_status(trusted_keys)
+
+    zone_obj = name_obj.zone
+
+    rdtypes = options_form.cleaned_data['rr']
+    qrrsets = [(name_obj, name, rdtype) for (name,rdtype) in name_obj.queries if rdtype in rdtypes]
+
+    qrrsets.insert(0, (zone_obj, zone_obj.name, dns.rdatatype.NS))
+    qrrsets.insert(0, (zone_obj, zone_obj.name, dns.rdatatype.DNSKEY))
+    if zone_obj.parent is not None:
+        qrrsets.insert(0, (zone_obj, zone_obj.name, dns.rdatatype.DS))
+        parent_all_auth_servers = zone_obj.parent.get_auth_or_designated_servers()
+        parent_server_list = [(ip, zone_obj.parent.get_ns_name_for_ip(ip)[0]) for ip in parent_all_auth_servers]
+        parent_server_list.sort(cmp=util.ip_name_cmp)
+
+    all_auth_servers = zone_obj.get_auth_or_designated_servers()
+    server_list = [(ip, zone_obj.get_ns_name_for_ip(ip)[0]) for ip in all_auth_servers]
+    server_list.sort(cmp=util.ip_name_cmp)
+    response_consistency = []
+
+    for my_name_obj, name, rdtype in qrrsets:
+        if rdtype == dns.rdatatype.DS:
+            slist = parent_server_list
+            zone_name = my_name_obj.parent_name()
+        else:
+            slist = server_list
+            zone_name = my_name_obj.zone.name
+
+        pos_matrix = []
+
+        query = my_name_obj.queries[(name, rdtype)]
+
+        servers_pos_responses = set()
+        servers_neg_responses = set()
+        servers_error_responses = set()
+        for rrset_info in query.rrset_answer_info:
+            servers_pos_responses.update([s[0] for s in rrset_info.servers_clients])
+        if (name, rdtype) in name_obj.nxdomain_servers_clients:
+            servers_neg_responses.update([s[0] for s in name_obj.nxdomain_servers_clients[(name, rdtype)]])
+        if (name, rdtype) in name_obj.noanswer_servers_clients:
+            servers_neg_responses.update([s[0] for s in name_obj.noanswer_servers_clients[(name, rdtype)]])
+        #TODO error responses
+        #TODO NSEC responses
+
+        for rrset_info in query.rrset_answer_info:
+            rrset_servers = set([s[0] for s in rrset_info.servers_clients])
+            row_grouping = []
+            row = []
+            row.append((fmt.humanize_name(rrset_info.rrset.name, True), 'not-styled'))
+            row.append((rrset_info.rrset.ttl, 'not-styled'))
+            row.append((dns.rdatatype.to_text(rrset_info.rrset.rdtype), 'not-styled'))
+            rrset_str = ''
+            rrset_list = list(rrset_info.rrset)
+            rrset_list.sort(cmp=Response._rr_cmp)
+            for rr in rrset_list:
+                rr_str = escape(rr.to_text(), quote=True)
+                if rrset_info.rrset.rdtype == dns.rdatatype.DNSKEY:
+                    rr_str += ' ; <b>key tag = %d</b>' % Response.DNSKEYMeta.calc_key_tag(rr)
+                rrset_str += '\n<div class="rr">%s</div>' % rr_str
+            row.append((rrset_str, 'not-styled'))
+
+            status = ('OK', 'valid')
+            row.append(status)
+
+            for server, names in slist:
+                if server in rrset_servers:
+                    row.append(('Y', 'valid', ))
+                else:
+                    server_queried = False
+                    for q in query.queries.values():
+                        if server in q.responses:
+                            server_queried = True
+                    if server_queried:
+                        row.append(('', 'not-styled'))
+                    else:
+                        row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype))))
+            row_grouping.append(row)
+
+            for rrsig in my_name_obj.rrsig_status[rrset_info]:
+                rrsig_servers = set([s[0] for s in rrset_info.rrsig_info[rrsig].servers_clients])
+                row = []
+                row.append(('', 'not-styled'))
+                row.append((rrset_info.rrsig_info[rrsig].ttl, 'not-styled'))
+                row.append(('RRSIG', 'not-styled'))
+                row.append(('<div class="rr">%s</div>' % rrsig.to_text(), 'not-styled'))
+
+                try:
+                    status = filter(lambda x: x.signature_valid == True, my_name_obj.rrsig_status[rrset_info][rrsig].values())[0]
+                except IndexError:
+                    status = my_name_obj.rrsig_status[rrset_info][rrsig].values()[0]
+
+                style = Status.rrsig_status_mapping[status.validation_status]
+                row.append((Status.rrsig_status_mapping[status.validation_status], style))
+
+                for server, names in slist:
+                    if server in rrsig_servers:
+                        row.append(('Y', style))
+                    elif server not in rrset_servers:
+                        row.append(('', 'not-queried'))
+                    else:
+                        row.append(('', 'not-styled'))
+                row_grouping.append(row)
+            pos_matrix.append(row_grouping)
+
+        row_grouping = []
+        row = []
+        row.append(('RR count (Answer/Authority/Additional)', 'not-styled', None, None, 4))
+        row.append(('OK', 'valid'))
+        for server, names in slist:
+            server_queried = False
+            response = None
+            for q in query.queries.values():
+                if server in q.responses:
+                    server_queried = True
+                    r = q.responses[server].values()[0]
+                    if r.is_complete_response():
+                        response = r
+                        break
+            if server_queried and response is not None:
+                answer_ct = 0
+                for i in response.message.answer: answer_ct += len(i)
+                authority_ct = 0
+                for i in response.message.authority: authority_ct += len(i)
+                additional_ct = 0
+                for i in response.message.additional: additional_ct += len(i)
+                if response.message.edns >= 0:
+                    additional_ct += 1
+                row.append(('%d/%d/%d' % (answer_ct, authority_ct, additional_ct), 'valid'))
+            elif not server_queried:
+                row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype))))
+            elif server:
+                row.append(('', 'not-styled'))
+        row_grouping.append(row)
+        pos_matrix.append(row_grouping)
+
+        row_grouping = []
+        row = []
+        row.append(('Response size (bytes)', 'not-styled', None, None, 4))
+        row.append(('OK', 'valid'))
+        for server, names in slist:
+            server_queried = False
+            response = None
+            for q in query.queries.values():
+                if server in q.responses:
+                    server_queried = True
+                    r = q.responses[server].values()[0]
+                    if r.is_complete_response():
+                        response = r
+                        break
+            if server_queried and response is not None:
+                row.append((response.msg_size, 'valid'))
+            elif not server_queried:
+                row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, util.format.humanize_name(name), dns.rdatatype.to_text(rdtype))))
+            elif server:
+                row.append(('', 'not-styled'))
+        row_grouping.append(row)
+        pos_matrix.append(row_grouping)
+
+        if pos_matrix:
+            response_consistency.append(('Responses for %s/%s' % (fmt.humanize_name(name, True), dns.rdatatype.to_text(rdtype)), slist, pos_matrix))
+
+    return render_to_response('responses.html',
+            { 'name_obj': name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
+                'date_form': date_form, 'response_consistency': response_consistency },
+            context_instance=RequestContext(request))
 
 def domain_search(request):
     name = request.GET.get('d', '')

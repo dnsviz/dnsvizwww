@@ -2,9 +2,7 @@
 
 {% block extra_media %}
 	{{ block.super }}
-	<script type="text/javascript" src="{{ STATIC_URL }}js/jquery.tooltip.js"></script>
 	<script type="text/javascript" src="{{ STATIC_URL }}js/raphael-min.js"></script>
-	<link rel="stylesheet" href="{{ STATIC_URL }}css/jquery.tooltip.css" />
 	<script type="text/javascript">
 		<!--
 		$(document).ready(function() {
@@ -76,7 +74,6 @@
 				<div id="consistency-header">DNS Server Responses</div>
 		</div>
 		<div id="consistency-region">
-		<img alt="Notice" src="{{ STATIC_URL }}images/dnssec_legend/warning.png" /><b>Notice:</b> The features on this page are not yet fully developed but it has been deployed in its infant form to further aid with DNS/DNSSEC troubleshooting.  This page will be updated in due time to make it more useful for troubleshooting.
 		{% for cat, servers, matrix in response_consistency %}
 				<div class="consistency-matrix">
 					<h4>{{ cat }}</h4>
@@ -88,7 +85,7 @@
 						{% for row in row_grouping %}
 						{% autoescape off %}
 						<tr class="{{ row_class }}">
-							{% for col, style, url, tooltip, col_count in row %}<td{% if style or tooltip or url %} class="{% if style %}{{ style }}{% if tooltip or url %} {% endif %}{% endif %}{% if tooltip %}servers-tooltip{% if url %} {% endif %}{% endif %}{% if url %}servers-popup{% endif %}"{% endif %}{% if col_count %} colspan="{{ col_count }}"{% endif %}{% if tooltip %} title="{{ tooltip }}"{% endif %}>{% if url %}<a href="{{ url }}">{% endif %}{{ col }}{% if url %}</a>{% endif %}</td>{% endfor %}
+							{% for col, style, url, tooltip, col_count in row %}<td{% if style or tooltip or url %} class="{% if style %}{{ style|slugify }}{% if tooltip or url %} {% endif %}{% endif %}{% if tooltip %}servers-tooltip{% if url %} {% endif %}{% endif %}{% if url %}servers-popup{% endif %}"{% endif %}{% if col_count %} colspan="{{ col_count }}"{% endif %}{% if tooltip %} title="{{ tooltip }}"{% endif %}>{% if url %}<a href="{{ url }}">{% endif %}{{ col }}{% if url %}</a>{% endif %}</td>{% endfor %}
 						</tr>
 						{% endautoescape %}
 						{% endfor %}
