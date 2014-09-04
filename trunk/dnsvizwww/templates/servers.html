@@ -2,9 +2,6 @@
 
 {% block extra_media %}
 	{{ block.super }}
-	<script type="text/javascript" src="{{ STATIC_URL }}js/jquery.tooltip.js"></script>
-	<script type="text/javascript" src="{{ STATIC_URL }}js/raphael-min.js"></script>
-	<link rel="stylesheet" href="{{ STATIC_URL }}css/jquery.tooltip.css" />
 	<script type="text/javascript">
 		<!--
 		$(document).ready(function() {
@@ -61,7 +58,6 @@
 				<div id="consistency-header">DNS Server Status</div>
 		</div>
 		<div id="consistency-region">
-		<img alt="Notice" src="{{ STATIC_URL }}images/dnssec_legend/warning.png" /><b>Notice:</b> The features on this page are not yet fully developed but it has been deployed in its infant form to further aid with DNS/DNSSEC troubleshooting.  This page will be updated in due time to make it more useful for troubleshooting.
 			<div class="consistency-matrix">
 			<h4>Delegation Information</h4>
 				<table>
@@ -96,20 +92,6 @@
 				</table>
 			</div>
 			{% endif %}
-			<div class="consistency-matrix">
-				<h4>Server information</h4>
-				<table>
-					<tr class="vertical"><th></th>{% for server in servers %}<th class="vertical servers-tooltip" title="{{ server.1|join:", " }} ({{ server.0 }})">{{ server.1|join:", " }} ({{ server.0 }})</th>{% endfor %}</tr>
-					{% for row in server_matrix %}
-					<!--{% cycle "grouping-1" "grouping-2" as row_class %}-->
-					{% autoescape off %}
-					<tr class="{{ row_class }}">
-						{% for col, style, url, tooltip, col_count in row %}<td{% if style or tooltip or url %} class="{% if style %}{{ style }}{% if tooltip or url %} {% endif %}{% endif %}{% if tooltip %}servers-tooltip{% if url %} {% endif %}{% endif %}{% if url %}servers-popup{% endif %}"{% endif %}{% if col_count %} colspan="{{ col_count }}"{% endif %}{% if tooltip %} title="{{ tooltip }}"{% endif %}>{% if url %}<a href="{{ url }}">{% endif %}{{ col }}{% if url %}</a>{% endif %}</td>{% endfor %}
-					</tr>
-					{% endautoescape %}
-					{% endfor %}
-				</table>
-			</div>
 		</div>
 	</div>
 {% endblock %}
