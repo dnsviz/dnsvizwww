@@ -121,6 +121,8 @@ def domain_view(request, name, timestamp=None, url_subdir='', **kwargs):
         return dnssec_view(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
     elif url_subdir == 'responses/':
         return responses_view(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
+    elif url_subdir == 'servers/':
+        return servers_view(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
     #XXX
     else:
         raise Http404
@@ -448,7 +450,7 @@ def responses_view(request, name_obj, timestamp, url_subdir, date_form):
             if server_queried and response is not None:
                 row.append((response.msg_size, 'valid'))
             elif not server_queried:
-                row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, util.format.humanize_name(name), dns.rdatatype.to_text(rdtype))))
+                row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype))))
             elif server:
                 row.append(('', 'not-styled'))
         row_grouping.append(row)
@@ -460,6 +462,105 @@ def responses_view(request, name_obj, timestamp, url_subdir, date_form):
     return render_to_response('responses.html',
             { 'name_obj': name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
                 'date_form': date_form, 'response_consistency': response_consistency },
+            context_instance=RequestContext(request))
+
+def servers_view(request, name_obj, timestamp, url_subdir, date_form):
+    options_form, values = get_dnssec_options_form_data({})
+
+    trusted_keys_explicit = values['tk']
+    trusted_zones = values['ta']
+    trusted_keys = trusted_keys_explicit + trusted_zones
+
+    name_obj.retrieve_all()
+    name_obj.populate_status(trusted_keys)
+
+    zone_obj = name_obj.zone
+
+    delegation_matrix = []
+    
+    def stealth_cmp(x, y):
+        return cmp((y[0], x[1], x[2]), (x[0], y[1], y[2]))
+
+    all_names_list = list(zone_obj.get_ns_names())
+    all_names_list.sort()
+
+    if zone_obj.parent is not None and not zone_obj.get_auth_or_designated_servers().difference(zone_obj.parent.get_auth_or_designated_servers()):
+        no_non_auth_parent_msg = 'All %s servers are also authoritative for %s' % (fmt.humanize_name(zone_obj.parent_name()), fmt.humanize_name(zone_obj.name))
+    else:
+        no_non_auth_parent_msg = None
+    #XXX need something equivalent here for lack of authoritative response for NS
+    show_msg = False
+
+    ips_from_child = zone_obj.get_servers_in_child()
+    ips_from_parent = zone_obj.get_servers_in_parent()
+
+    for name in all_names_list:
+        if zone_obj.parent is not None:
+            in_bailiwick = name.is_subdomain(zone_obj.parent_name())
+            glue_required = name.is_subdomain(zone_obj.name)
+        else:
+            in_bailiwick = None
+            glue_required = None
+        parent_status = { 'in_bailiwick': in_bailiwick, 'glue_required': glue_required }
+
+        row = []
+        row.append(fmt.humanize_name(name))
+        # (t/f in parent), (glue IPs (or error, if missing)), (real IPs)
+        if zone_obj.get_ns_names_in_parent():
+            glue_mapping = zone_obj.get_glue_ip_mapping()
+            parent_status['in_parent'] = name in glue_mapping
+            glue_ips_v4 = filter(lambda x: ':' not in x, glue_mapping.get(name, set()))
+            glue_ips_v4.sort()
+            glue_ips_v6 = filter(lambda x: ':' in x, glue_mapping.get(name, set()))
+            glue_ips_v6.sort()
+        else:
+            glue_ips_v4 = []
+            glue_ips_v6 = []
+            if zone_obj.delegation_status == Status.DELEGATION_ERROR_NO_NS_IN_PARENT:
+                parent_status['in_parent'] = False
+            else:
+                parent_status['in_parent'] = None
+                show_msg = True
+
+        row.append({ 'parent_status': parent_status, 'glue_ips_v4': glue_ips_v4, 'glue_ips_v6': glue_ips_v6 })
+
+        # (t/f in parent), (glue IPs (or error, if missing)), (real IPs)
+        names_in_child = zone_obj.get_ns_names_in_child()
+        if names_in_child:
+            in_child = name in zone_obj.get_ns_names_in_child()
+        #XXX
+        #elif zone_obj.get_servers_authoritative_for_query(zone_obj.name, dns.rdatatype.NS):
+        #    in_child = None
+        else:
+            in_child = False
+
+        auth_mapping = zone_obj.get_auth_ns_ip_mapping()
+        auth_ips_v4 = filter(lambda x: ':' not in x, auth_mapping.get(name, set()))
+        auth_ips_v4.sort()
+        auth_ips_v6 = filter(lambda x: ':' in x, auth_mapping.get(name, set()))
+        auth_ips_v6.sort()
+
+        row.append({ 'in_child': in_child, 'auth_ips_v4': auth_ips_v4, 'auth_ips_v6': auth_ips_v6 })
+        delegation_matrix.append(row)
+
+    stealth_matrix = []
+    stealth_rows = []
+    for server in zone_obj.get_stealth_servers():
+        names, ancestor_zone = zone_obj.get_ns_name_for_ip(server)
+        stealth_rows.append((ancestor_zone, names, server))
+    stealth_rows.sort(cmp=stealth_cmp)
+
+    for ancestor_zone, names, server in stealth_rows:
+        names = map(fmt.humanize_name, names)
+        if ancestor_zone is not None:
+            ancestor_zone = fmt.humanize_name(ancestor_zone)
+        row = (names, ancestor_zone, server)
+        stealth_matrix.append(row)
+
+    return render_to_response('servers.html',
+            { 'name_obj': name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
+                'date_form': date_form, 'zone_obj': zone_obj, 'delegation': delegation_matrix, 'stealth': stealth_matrix, 'no_non_auth_parent_msg': no_non_auth_parent_msg, 'show_msg': show_msg,
+                'ips_from_parent': ips_from_parent, 'ips_from_child': ips_from_child },
             context_instance=RequestContext(request))
 
 def domain_search(request):

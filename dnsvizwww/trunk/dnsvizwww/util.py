@@ -73,3 +73,6 @@ def target_for_rrset(rrset, section, rdata=None):
         m.update(rdata.to_text())
         target += '-%s' % m.hexdigest()
     return target
+
+def ip_name_cmp((addr1, namelist1), (addr2, namelist2)):
+    return cmp((namelist1[0], addr1), (namelist2[0], addr2))
