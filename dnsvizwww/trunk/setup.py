@@ -15,6 +15,7 @@ setup(name='dnsvizwww',
         long_description=open('README', 'r').read(),
         license='COPYING',
         packages=['dnsvizwww'],
+        scripts=['bin/dnsget-db', 'bin/dnsviz-db', 'bin/dnsgrok-db'],
         data_files=[
                 ('share/doc/dnsvizwww', ['README', 'COPYING']),
                 ('share/dnsvizwww/static/css', glob.glob(os.path.join('dnsvizwww', 'static', 'css', '*.css'))),
