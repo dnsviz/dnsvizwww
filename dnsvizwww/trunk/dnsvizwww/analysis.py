@@ -21,11 +21,12 @@
 #
 
 import datetime
+import random
 import time
 
 import dns.rdatatype
 
-from django.db import transaction
+from django.db import DatabaseError, transaction
 
 import dnsviz.analysis
 import dnsviz.format as fmt
@@ -109,21 +110,18 @@ class Analyst(dnsviz.analysis.Analyst):
         if not unsaved_dep_in_trace:
             attempts = 0
             while True:
+                attempts += 1
                 with transaction.commit_manually():
                     try:
                         name_obj.save_all()
-                    except:
-                        import sys
-                        self.logger.warning('Error saving %s' % name_obj, exc_info=sys.exc_info())
+                    except DatabaseError:
                         transaction.rollback()
-                        #XXX this can be more elegant
-                        if attempts > 1:
+                        if attempts > 2:
                             raise
                     else:
                         transaction.commit()
                         break
-                time.sleep(1)
-                attempts += 1
+                time.sleep(random.randint(1,2000)/1000.0)
                 
         self.analysis_cache[name_obj.name] = name_obj
 
