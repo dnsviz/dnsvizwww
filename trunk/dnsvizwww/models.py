@@ -145,6 +145,7 @@ class DomainNameAnalysisManager(models.Manager):
 class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     name = fields.DomainNameField(max_length=2048)
     stub = models.BooleanField()
+    follow_ns = models.BooleanField(default=False)
 
     analysis_start = models.DateTimeField()
     analysis_end = models.DateTimeField(db_index=True)
