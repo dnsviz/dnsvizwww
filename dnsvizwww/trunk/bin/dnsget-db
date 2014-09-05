@@ -99,7 +99,7 @@ class ParallelAnalyst(BulkAnalyst):
         stats_interval = 30
         refreshed = 0
 
-        pool = multiprocessing.Pool(self.processes, maxtasksperchild=5)
+        pool = multiprocessing.Pool(self.processes, maxtasksperchild=50)
         try:
             while True:
                 refresh_intervals = set(DomainName.objects.filter(refresh_interval__isnull=False).values_list('refresh_interval', flat=True).distinct())
