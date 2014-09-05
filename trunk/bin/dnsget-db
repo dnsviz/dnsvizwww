@@ -92,11 +92,11 @@ class ParallelAnalyst(BulkAnalyst):
         pool.join()
 
     def refresh(self):
-        wait_time = 20
+        wait_time = 60
         last_refresh_offsets = {}
 
         last_stats = 0
-        stats_interval = 30
+        stats_interval = 1800
         refreshed = 0
 
         pool = multiprocessing.Pool(self.processes, maxtasksperchild=50)
