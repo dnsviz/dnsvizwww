@@ -33,6 +33,8 @@ def _analyze((cls, name, dlv_domain, client_ipv4, client_ipv6, force_ancestry, s
     try:
         a = cls(name, dlv_domain=dlv_domain, client_ipv4=client_ipv4, client_ipv6=client_ipv6, start_time=start_time, force_ancestry=force_ancestry)
         return a.analyze()
+    except KeyboardInterrupt:
+        pass
     except:
         logger.exception('Error analyzing %s' % name.canonicalize().to_text())
 
@@ -73,7 +75,7 @@ class ParallelAnalyst(BulkAnalyst):
 
     def analyze(self, names):
 
-        pool = multiprocessing.Pool(self.processes)
+        pool = multiprocessing.Pool(self.processes, maxtasksperchild=50)
         try:
             for args in self._name_to_args_iter(names):
                 while pool._taskqueue.full():
@@ -97,7 +99,7 @@ class ParallelAnalyst(BulkAnalyst):
         stats_interval = 30
         refreshed = 0
 
-        pool = multiprocessing.Pool(self.processes)
+        pool = multiprocessing.Pool(self.processes, maxtasksperchild=5)
         try:
             while True:
                 refresh_intervals = set(DomainName.objects.filter(refresh_interval__isnull=False).values_list('refresh_interval', flat=True).distinct())
