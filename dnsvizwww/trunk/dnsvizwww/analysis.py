@@ -39,10 +39,9 @@ class Analyst(dnsviz.analysis.Analyst):
     qname_only = False
     analysis_model = DomainNameAnalysis
 
-    clone_attrnames = dnsviz.analysis.Analyst.clone_attrnames + ['force_ancestry','start_time']
+    clone_attrnames = dnsviz.analysis.Analyst.clone_attrnames + ['force_ancestry']
 
     def __init__(self, *args, **kwargs):
-        self.start_time = kwargs.pop('start_time', datetime.datetime.now(fmt.utc).replace(microsecond=0))
         self.force_ancestry = kwargs.pop('force_ancestry', False)
         self.force_self = kwargs.pop('force_self', True)
         super(Analyst, self).__init__(*args, **kwargs)
@@ -191,8 +190,16 @@ class Analyst(dnsviz.analysis.Analyst):
         if name_obj is None:
             return True
 
+        if self.name == name_obj.name and self.trace:
+            prev_analysis_end = self.trace[-1][0].analysis_end
+            # check for a loop
+            if self.name in [n.name for n, r in self.trace]:
+                return False
+        else:
+            prev_analysis_end = None
+
         force_analysis = self.force_self and (self.force_ancestry or self.name == name_obj.name)
-        updated_since_analysis_start = name_obj.analysis_end >= self.start_time
+        updated_since_analysis_start = prev_analysis_end is not None and name_obj.analysis_end >= prev_analysis_end
 
         min_ttl = None
         for rdtype in (dns.rdatatype.NS, -dns.rdatatype.NS, dns.rdatatype.DS, dns.rdatatype.DNSKEY):
