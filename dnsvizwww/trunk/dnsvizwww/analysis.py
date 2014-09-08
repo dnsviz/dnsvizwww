@@ -113,9 +113,15 @@ class Analyst(dnsviz.analysis.Analyst):
                 with transaction.commit_manually():
                     try:
                         name_obj.save_all()
-                    except DatabaseError:
+                    except Exception, e:
                         transaction.rollback()
-                        if attempts > 2:
+                        # retry if this is a database error and we tried
+                        # less than three times
+                        if isinstance(e, DatabaseError) and attempts <= 2:
+                            pass
+                        elif isinstance(e, KeyboardInterrupt):
+                            pass
+                        else:
                             raise
                     else:
                         transaction.commit()
