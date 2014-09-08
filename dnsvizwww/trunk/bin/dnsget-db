@@ -235,6 +235,15 @@ def main():
                     logger.warning('%s: %s' % (line.strip(), e))
                     continue
 
+                # check against refresh blacklist
+                blacklisted = False
+                for black in settings.BLACKLIST_FROM_REFRESH:
+                    if name.is_subdomain(black):
+                        blacklisted = True
+                        break
+                if blacklisted:
+                    continue
+
                 names.append(name)
     else:
         names = map(dns.name.from_text, args)
