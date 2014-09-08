@@ -29,9 +29,9 @@ def _setattr_dummy(self, name, value):
     return super(dns.name.Name, self).__setattr__(name, value)
 dns.name.Name.__setattr__ = _setattr_dummy
 
-def _analyze((cls, name, dlv_domain, client_ipv4, client_ipv6, force_ancestry, start_time)):
+def _analyze((cls, name, dlv_domain, client_ipv4, client_ipv6, force_ancestry)):
     try:
-        a = cls(name, dlv_domain=dlv_domain, client_ipv4=client_ipv4, client_ipv6=client_ipv6, start_time=start_time, force_ancestry=force_ancestry)
+        a = cls(name, dlv_domain=dlv_domain, client_ipv4=client_ipv4, client_ipv6=client_ipv6, force_ancestry=force_ancestry)
         return a.analyze()
     except KeyboardInterrupt:
         pass
@@ -48,11 +48,9 @@ class BulkAnalyst(object):
         self.force_ancestry = force_ancestry
         self.dlv_domain = dlv_domain
 
-        self.start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
-
     def _name_to_args_iter(self, names):
         for name in names:
-            yield (self.analyst_cls, name, self.dlv_domain, self.client_ipv4, self.client_ipv6, self.force_ancestry, self.start_time)
+            yield (self.analyst_cls, name, self.dlv_domain, self.client_ipv4, self.client_ipv6, self.force_ancestry)
 
     def analyze(self, names):
         for args in self._name_to_args_iter(names):
