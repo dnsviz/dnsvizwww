@@ -146,7 +146,16 @@ class Analyst(dnsviz.analysis.Analyst):
                 # if no analysis is necessary, then simply return
                 if not self._analyze_or_not(fresh_name_obj):
                     fresh_name_obj.retrieve_ancestry(fresh_name_obj.RDTYPES_DELEGATION, follow_dependencies=False)
-                    fresh_name_obj.retrieve_related(fresh_name_obj.RDTYPES_DELEGATION)
+                    level = fresh_name_obj.RDTYPES_DELEGATION
+                    if self.name == name:
+                        if self._is_referral_of_type(dns.rdatatype.CNAME):
+                            level = fresh_name_obj.RDTYPES_ALL_SAME_NAME
+                        elif self._is_referral_of_type(dns.rdatatype.NS):
+                            level = fresh_name_obj.RDTYPES_NS_TARGET
+                    fresh_name_obj.retrieve_related(level)
+                    if level <= fresh_name_obj.RDTYPES_NS_TARGET:
+                        fresh_name_obj.retrieve_dependencies()
+                    fresh_name_obj._populate_name_status(level)
                     self.analysis_cache[name] = fresh_name_obj
                     return fresh_name_obj
 
@@ -180,7 +189,6 @@ class Analyst(dnsviz.analysis.Analyst):
         else:
             while name_obj.analysis_end is None:
                 time.sleep(1)
-                name_obj = self.analysis_cache[name]
 
             #TODO re-do analyses if force_dnskey is True and dnskey hasn't been queried
             #TODO re-do anaysis if not stub requested but cache is stub?
