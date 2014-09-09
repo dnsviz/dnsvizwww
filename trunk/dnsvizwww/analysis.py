@@ -120,8 +120,6 @@ class Analyst(dnsviz.analysis.Analyst):
                         # less than three times
                         if isinstance(e, DatabaseError) and attempts <= 2:
                             pass
-                        elif isinstance(e, KeyboardInterrupt):
-                            pass
                         else:
                             raise
                     else:

@@ -9,6 +9,7 @@ import logging
 import sys
 import multiprocessing
 import multiprocessing.managers
+import signal
 import threading
 import time
 
@@ -29,11 +30,29 @@ def _setattr_dummy(self, name, value):
     return super(dns.name.Name, self).__setattr__(name, value)
 dns.name.Name.__setattr__ = _setattr_dummy
 
+_interrupts = multiprocessing.Value('i', 0, lock=False)
+def _raise_eof(signum, frame):
+    global _interrupts
+    _interrupts.value += 1
+    if _interrupts > 1:
+        # EOFError is raised instead of KeyboardInterrupt
+        # because the multiprocessing worker doesn't handle
+        # KeyboardInterrupt
+        raise EOFError
+
+def _init_interrupt_handler():
+    signal.signal(signal.SIGINT, _raise_eof)
+
 def _analyze((cls, name, dlv_domain, client_ipv4, client_ipv6, force_ancestry, start_time)):
+    a = cls(name, dlv_domain=dlv_domain, client_ipv4=client_ipv4, client_ipv6=client_ipv6, start_time=start_time, force_ancestry=force_ancestry)
+    return a.analyze()
+
+def _func_with_eof_handler(func, *args, **kwargs):
     try:
-        a = cls(name, dlv_domain=dlv_domain, client_ipv4=client_ipv4, client_ipv6=client_ipv6, start_time=start_time, force_ancestry=force_ancestry)
-        return a.analyze()
-    except KeyboardInterrupt:
+        return func(*args, **kwargs)
+    # handle EOFError, as that is what is raised if there is a
+    # KeyboardInterrupt in ParallelAnalyst
+    except EOFError:
         pass
     except:
         logger.exception('Error analyzing %s' % name.canonicalize().to_text())
@@ -55,8 +74,16 @@ class BulkAnalyst(object):
             yield (self.analyst_cls, name, self.dlv_domain, self.client_ipv4, self.client_ipv6, self.force_ancestry, self.start_time)
 
     def analyze(self, names):
-        for args in self._name_to_args_iter(names):
-            _analyze(args)
+        try:
+            for args in self._name_to_args_iter(names):
+                try:
+                    _analyze(args)
+                except KeyboardInterrupt:
+                    raise
+                except:
+                    logger.exception('Error analyzing %s' % name.canonicalize().to_text())
+        except KeyboardInterrupt:
+            logger.warning('Terminating analysis...')
 
 class MultiProcessAnalyst(Analyst):
     analysis_model = DomainNameAnalysis
@@ -72,20 +99,27 @@ class ParallelAnalyst(BulkAnalyst):
         self.processes = processes
 
     def analyze(self, names):
+        global _interrupts
 
-        pool = multiprocessing.Pool(self.processes, maxtasksperchild=50)
+        pool = multiprocessing.Pool(self.processes, _init_interrupt_handler, maxtasksperchild=50)
         try:
             for args in self._name_to_args_iter(names):
                 while pool._taskqueue.full():
                     time.sleep(0.5)
-                pool.apply_async(_analyze, (args,))
+                pool.apply_async(_func_with_eof_handler, (_analyze, args))
         except KeyboardInterrupt:
-            pass
+            logger.warning('Closing queue to new analyses.\nCtrl-C to terminate current analyses.')
 
-        pool.close()
         try:
+            _interrupts.value += 1
+            pool.close()
             pool.join()
         except KeyboardInterrupt:
+            logger.warning('Terminating analyses currently in process...')
+            # call terminate a second time to ensure that the global _interrupt
+            # value is sufficient for EOFError to be raised in the signal
+            # handler (if not previously interrupted during queueing, this is
+            # necessary)
             pool.terminate()
         pool.join()
 
@@ -97,7 +131,7 @@ class ParallelAnalyst(BulkAnalyst):
         stats_interval = 1800
         refreshed = 0
 
-        pool = multiprocessing.Pool(self.processes, maxtasksperchild=50)
+        pool = multiprocessing.Pool(self.processes, _init_interrupt_handler, maxtasksperchild=50)
         try:
             while True:
                 refresh_intervals = set(DomainName.objects.filter(refresh_interval__isnull=False).values_list('refresh_interval', flat=True).distinct())
@@ -138,12 +172,14 @@ class ParallelAnalyst(BulkAnalyst):
                     refreshed = 0
 
         except KeyboardInterrupt:
-            pass
+            logger.warning('Closing queue to new analyses.\nCtrl-C to terminate current analyses.')
 
-        pool.close()
+        logger.info('Waiting for analyses to finish...')
         try:
+            pool.close()
             pool.join()
         except KeyboardInterrupt:
+            logger.warning('Terminating analyses currently in process...')
             pool.terminate()
         pool.join()
 
