@@ -23,9 +23,9 @@
 #
 
 import datetime
-import hashlib
 import StringIO
 import struct
+import uuid
 
 import dns.edns, dns.exception, dns.flags, dns.message, dns.name, dns.rcode, dns.rdataclass, dns.rdata, dns.rdatatype, dns.rrset
 
@@ -574,7 +574,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             dname_obj.clear_refresh()
             return
 
-        refresh_offset = int(hashlib.sha1(self.name.canonicalize().to_text()).hexdigest()[-9:], 16) % refresh_interval
+        refresh_offset = uuid.uuid5(uuid.NAMESPACE_DNS, self.name.canonicalize().to_text()).int % refresh_interval
         dname_obj.set_refresh(refresh_interval, refresh_offset)
 
 class NSMapping(models.Model):
