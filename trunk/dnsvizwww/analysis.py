@@ -102,7 +102,7 @@ class Analyst(dnsviz.analysis.Analyst):
         # dependencies in the trace (which will cause everything to be
         # saved in a single transaction) then go ahead and save.
         unsaved_deps = self.unsaved_dependencies(name_obj)
-        names_in_trace = [n for n,r in self.trace]
+        names_in_trace = [n.name for n,r in self.trace]
         unsaved_dep_in_trace = False
         for dep in unsaved_deps:
             if dep in names_in_trace:
