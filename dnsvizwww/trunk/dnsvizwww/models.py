@@ -377,7 +377,11 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             rdtypes = rdtypes.union(delegation_types)
             f &= Q(rdtype__in=rdtypes)
         if level >= self.RDTYPES_ALL_SAME_NAME:
-            f &= Q(qname=self.name)
+            if self.dlv_name is not None:
+                names = (self.name, self.dlv_name)
+            else:
+                names = (self.name,)
+            f &= Q(qname__in=names)
         for query in self.queries_db.filter(f):
             # this query might have already been imported.  If so, don't
             # re-import.
