@@ -155,11 +155,11 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
         name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
 
         G = DNSAuthGraph()
-        # if not rrsets exist (either because the name itself doesn't exist, no
+        # if no rrsets exist (either because the name itself doesn't exist, no
         # rrsets exist for the name, or no responses were received one way or
         # the other), then explicitly set denial_of_existence, so a graph is
         # still produced
-        if not name_obj.yxrrset:
+        if not name_obj.yxrrset or not name_obj.get_responsive_auth_or_designated_servers():
             denial_of_existence = True
         for qname, rdtype in name_obj.queries:
             if rdtype in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
@@ -219,11 +219,11 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
 
     G = DNSAuthGraph()
-    # if not rrsets exist (either because the name itself doesn't exist, no
+    # if no rrsets exist (either because the name itself doesn't exist, no
     # rrsets exist for the name, or no responses were received one way or
     # the other), then explicitly set denial_of_existence, so a graph is
     # still produced
-    if not name_obj.yxrrset:
+    if not name_obj.yxrrset or not name_obj.get_responsive_auth_or_designated_servers():
         denial_of_existence = True
     for qname, rdtype in name_obj.queries:
         if rdtype in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
@@ -327,6 +327,11 @@ def responses_view(request, name_obj, timestamp, url_subdir, date_form):
             zone_name = my_name_obj.zone.name
 
         pos_matrix = []
+
+        # if all servers are unresponsive, some of the queries enumerated above
+        # might not have been asked
+        if (name, rdtype) not in my_name_obj.queries:
+            continue
 
         query = my_name_obj.queries[(name, rdtype)]
 
