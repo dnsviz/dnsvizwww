@@ -148,21 +148,28 @@ class Analyst(dnsviz.analysis.Analyst):
                 # retrieve the freshest DomainNameAnalysis from the DB
                 fresh_name_obj = self.analysis_model.objects.latest(name)
 
-                # if no analysis is necessary, then simply return
+                # if no analysis is necessary
                 if not self._analyze_or_not(fresh_name_obj):
-                    fresh_name_obj.retrieve_ancestry(fresh_name_obj.RDTYPES_DELEGATION, follow_dependencies=False)
-                    level = fresh_name_obj.RDTYPES_DELEGATION
+
+                    # The first check is to determine whether the name needs to
+                    # be analyzed, without having to retrieve related information.
+                    # Having gotten this far, we pull responses and check again
+                    # before determining whether analysis is necessary or not.
+                    fresh_name_obj.retrieve_ancestry(fresh_name_obj.RDTYPES_SECURE_DELEGATION, follow_dependencies=False)
+                    level = fresh_name_obj.RDTYPES_SECURE_DELEGATION
                     if self.name == name:
                         if self._is_referral_of_type(dns.rdatatype.CNAME):
                             level = fresh_name_obj.RDTYPES_ALL_SAME_NAME
                         elif self._is_referral_of_type(dns.rdatatype.NS):
                             level = fresh_name_obj.RDTYPES_NS_TARGET
                     fresh_name_obj.retrieve_related(level)
-                    if level <= fresh_name_obj.RDTYPES_NS_TARGET:
-                        fresh_name_obj.retrieve_dependencies()
-                    fresh_name_obj._populate_name_status(level)
-                    self.analysis_cache[name] = fresh_name_obj
-                    return fresh_name_obj
+
+                    if not self._analyze_or_not(fresh_name_obj):
+                        if level <= fresh_name_obj.RDTYPES_NS_TARGET:
+                            fresh_name_obj.retrieve_dependencies()
+                        fresh_name_obj._populate_name_status(level)
+                        self.analysis_cache[name] = fresh_name_obj
+                        return fresh_name_obj
 
                 # if not locking, then return None
                 if not lock:
