@@ -9,7 +9,7 @@
 		<!-- <meta http-equiv="cache-control" content="no-cache" />
 		<meta http-equiv="pragma" content="no-cache" /> -->
 		
-		<link rel="icon" href="http://www.sandia.gov/images2005/snl_icon.png" type="image/png" />
+		<link rel="icon" href="{% firstof STATIC_URL "/static/" %}images/logo_16x16.png" type="image/png" />
 		<link rel="stylesheet" type="text/css" href="{% firstof STATIC_URL "/static/" %}css/sandia.css" media="all" />
 		<link rel="stylesheet" type="text/css" href="http://www.sandia.gov/css/print.css" media="print" />
 		<link rel="stylesheet" type="text/css" href="{% firstof STATIC_URL "/static/" %}css/DNSViz.css" media="all" />
