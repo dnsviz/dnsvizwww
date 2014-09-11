@@ -33,9 +33,9 @@ _rrset_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<rdtype>[A-Z]+)')
 _dnskey_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)')
 _ds_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)\|\d+(_\d+)*')
 _nsec_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<rdtype>[A-Z]+)')
-_node_re = re.compile(r'^(?P<node_type>RRset|DNSKEY|DS|NSEC3?)-(?P<id>\d+(_\d+)*)\|(?P<remnant>.*)')
+_node_re = re.compile(r'^(?P<node_type>RRset|DNSKEY|DS|DLV|NSEC3?)-(?P<id>\d+(_\d+)*)\|(?P<remnant>.*)')
 
-_digest_re = re.compile(r'DS-(?P<id>\d+(_\d+)*)\|(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)\|\d+(_\d+)*\|([a-fA-F0-9]+)\|[a-z]+$')
+_digest_re = re.compile(r'(?P<type>DS|DLV)-(?P<id>\d+(_\d+)*)\|(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)\|\d+(_\d+)*\|([a-fA-F0-9]+)\|[a-z]+$')
 _rrsig_dnskey_re = re.compile(r'DNSKEY-\d+\|(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)\|([a-fA-F0-9]+)\|[a-z]+$')
 _dname_re = re.compile(r'^RRset-\d+\|(?P<name>[^|]+)\|(?P<rdtype>[A-Z]+)')
 _nsecc_re = re.compile(r'(?P<type>NSEC3?)-\d+\|(?P<name>[^\|]+)\|(?P<rdtype>[A-Z]+)$')
@@ -105,7 +105,7 @@ def _get_label_for_node(notices, node_name, val):
                 bisect.insort(notices['delegation status'][val[0]['status']],l)
             elif t1 == 'digest':
                 m2 = _digest_re.search(m1.group('remnant'))
-                l = '%s/DS (alg %s, id %s)' % (dns.name.from_text(m2.group('name')).to_unicode(), m2.group('alg'), m2.group('key_tag'))
+                l = '%s/%s (alg %s, id %s)' % (dns.name.from_text(m2.group('name')).to_unicode(), m2.group('type'), m2.group('alg'), m2.group('key_tag'))
             elif t1 == 'RRSIG':
                 m2 = _node_re.search(m1.group('remnant'))
                 m3 = _rrsig_dnskey_re.search(m2.group('remnant'))
