@@ -131,10 +131,8 @@ def detail_view(request, name_obj, timestamp, url_subdir, date_form):
     return HttpResponseRedirect('dnssec/')
 
 def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
-    dlv_name = name_obj.dlv_parent_name()
     options_form, values = get_dnssec_options_form_data(request.GET)
     rdtypes = set(values['rr'])
-    show_dlv = dlv_name in values['ta']
     denial_of_existence = values['doe']
     dnssec_algorithms = set(values['a'])
     ds_algorithms = set(values['ds'])
@@ -159,7 +157,7 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
         # rrsets exist for the name, or no responses were received one way or
         # the other), then explicitly set denial_of_existence, so a graph is
         # still produced
-        if not name_obj.yxrrset or not name_obj.get_responsive_auth_or_designated_servers():
+        if not filter(lambda x: x[1] not in (dns.rdatatype.CNAME, dns.rdatatype.DNAME, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.yxrrset) or not name_obj.zone.get_responsive_auth_or_designated_servers():
             denial_of_existence = True
         for qname, rdtype in name_obj.queries:
             if rdtype in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
@@ -201,11 +199,9 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     if name_obj is None:
         raise Http404
 
-    dlv_name = name_obj.dlv_parent_name()
     options_form, values = get_dnssec_options_form_data(request.GET)
 
     rdtypes = set(values['rr'])
-    show_dlv = dlv_name in values['ta']
     denial_of_existence = values['doe']
     dnssec_algorithms = set(values['a'])
     ds_algorithms = set(values['ds'])
@@ -223,7 +219,7 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     # rrsets exist for the name, or no responses were received one way or
     # the other), then explicitly set denial_of_existence, so a graph is
     # still produced
-    if not name_obj.yxrrset or not name_obj.get_responsive_auth_or_designated_servers():
+    if not filter(lambda x: x[1] not in (dns.rdatatype.CNAME, dns.rdatatype.DNAME, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.yxrrset) or not name_obj.zone.get_responsive_auth_or_designated_servers():
         denial_of_existence = True
     for qname, rdtype in name_obj.queries:
         if rdtype in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
