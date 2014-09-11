@@ -349,7 +349,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         return False
 
     def retrieve_related(self, level):
-        if self._retrieve_related_cache(level):
+        if not self.stub and self._retrieve_related_cache(level):
             return
 
         rdtypes = self._rdtypes_for_analysis_level(level)
@@ -440,20 +440,26 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         self._store_related_cache(level)
 
-    def retrieve_ancestry(self, level, follow_dependencies=False, cache=None):
+    def retrieve_ancestry(self, level, follow_dependencies=False, force_stub=False, cache=None):
         if cache is None:
             cache = {}
 
         if self.parent_name_db is not None:
             parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end, stub=None)
-            if parent.pk in cache:
-                parent, code = cache[parent.pk]
-            if parent.pk not in cache or code > level:
-                cache[parent.pk] = parent, level
-                parent.retrieve_ancestry(level, follow_dependencies=follow_dependencies, cache=cache)
+            # if force_stub, make it a stub (even if it isn't a stub in the
+            # database) and don't cache it
+            if force_stub:
+                parent.stub = True
                 parent.retrieve_related(level)
-                if follow_dependencies:
-                    parent.retrieve_dependencies(cache=cache)
+            else:
+                if parent.pk in cache:
+                    parent, code = cache[parent.pk]
+                if parent.pk not in cache or code > level:
+                    cache[parent.pk] = parent, level
+                    parent.retrieve_ancestry(level, follow_dependencies=follow_dependencies, cache=cache)
+                    parent.retrieve_related(level)
+                    if follow_dependencies:
+                        parent.retrieve_dependencies(cache=cache)
         else:
             parent = None
 
@@ -465,6 +471,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 dlv_parent, code = cache[dlv_parent.pk]
             if dlv_parent.pk not in cache or code > level:
                 cache[dlv_parent.pk] = dlv_parent, level
+                dlv_parent.retrieve_ancestry(level, follow_dependencies=False, force_stub=True, cache=cache)
                 dlv_parent.retrieve_related(self.RDTYPES_SECURE_DELEGATION)
         else:
             dlv_parent = None
