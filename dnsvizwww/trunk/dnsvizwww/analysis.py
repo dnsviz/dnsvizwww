@@ -230,8 +230,6 @@ class Analyst(dnsviz.analysis.Analyst):
                 #TODO handle negative TTL
                 pass
 
-        no_responsive_servers = bool(name_obj.is_zone() and not name_obj.get_responsive_auth_or_designated_servers())
-
         if min_ttl is None or min_ttl < MIN_ANALYSIS_INTERVAL:
             min_ttl = MIN_ANALYSIS_INTERVAL
 
@@ -242,7 +240,5 @@ class Analyst(dnsviz.analysis.Analyst):
         if force_analysis and not updated_since_analysis_start:
             return True
         if analysis_due:
-            return True
-        if no_responsive_servers:
             return True
         return False
