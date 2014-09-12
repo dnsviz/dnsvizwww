@@ -449,7 +449,13 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
             cache = {}
 
         if self.parent_name_db is not None:
-            parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end, stub=None)
+            # if force_stub, then we don't care if the previous one was stub or
+            # not; otherwise, we care.
+            if force_stub:
+                f_stub = None
+            else:
+                f_stub = False
+            parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end, stub=f_stub)
             # if force_stub, make it a stub (even if it isn't a stub in the
             # database) and don't cache it
             if force_stub:
