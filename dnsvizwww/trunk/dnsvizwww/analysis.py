@@ -145,8 +145,14 @@ class Analyst(dnsviz.analysis.Analyst):
         # now we lock it across the database
         if not wait_for_analysis:
             while True:
+                # if stub, then we don't care if the previous one was stub or
+                # not.
+                if stub:
+                    f_stub = None
+                else:
+                    f_stub = False
                 # retrieve the freshest DomainNameAnalysis from the DB
-                fresh_name_obj = self.analysis_model.objects.latest(name)
+                fresh_name_obj = self.analysis_model.objects.latest(name, stub=f_stub)
 
                 # if no analysis is necessary
                 if not self._analyze_or_not(fresh_name_obj):
