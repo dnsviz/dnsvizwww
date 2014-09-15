@@ -50,8 +50,8 @@ class Analyst(dnsviz.analysis.Analyst):
     def _analyze_dlv(self):
         if self.dlv_domain is not None and self.dlv_domain != self.name and self.dlv_domain not in self.analysis_cache:
             kwargs = dict([(n, getattr(self, n)) for n in self.clone_attrnames])
-            kwargs['ceiling'] = self.dlv_domain
             a = self.__class__(self.dlv_domain, force_self=False, **kwargs)
+            a.ceiling = self.dlv_domain
             a.analyze()
 
     def unsaved_dependencies(self, name_obj, trace=None):
