@@ -425,7 +425,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                         history.append(Query.DNSQueryRetryAttempt(response_time, cause, cause_arg, action, action_arg))
                 server = IPAddr(response.server)
                 client = IPAddr(response.client)
-                response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, [], response.response_time, response.tcp_first)
+                response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time, response.tcp_first)
                 bailiwick = bailiwick_map.get(server, default_bailiwick)
                 query1.add_response(server, client, response1, bailiwick)
 
