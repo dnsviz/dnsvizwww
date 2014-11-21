@@ -153,22 +153,29 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
         name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
 
         G = DNSAuthGraph()
-        # if no rrsets exist (either because the name itself doesn't exist, no
-        # rrsets exist for the name, or no responses were received one way or
-        # the other), then explicitly set denial_of_existence, so a graph is
-        # still produced
-        if not filter(lambda x: x[1] not in (dns.rdatatype.CNAME, dns.rdatatype.DNAME, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.yxrrset) or not name_obj.zone.get_responsive_auth_or_designated_servers():
+
+        # get all the names/types associated with the analysis
+        qnamestypes = set(filter(lambda x: x[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.queries))
+
+        # if denial of existence was not specified, don't include the
+        # explicit nxdomain/nxrrset queries
+        if not denial_of_existence:
+            qnamestypes.difference_update(
+                    [(name_obj.nxdomain_name, name_obj.nxdomain_rdtype),
+                        (name_obj.nxrrset_name, name_obj.nxrrset_rdtype)])
+
+        # queries with positive responses or error responses (yxrrset)
+        yxnamestypes = name_obj.yxrrset.intersection(qnamestypes)
+        errnamestypes = set(filter(lambda x: name_obj.response_errors_rcode[x] or name_obj.response_errors[x], qnamestypes))
+
+        # if no rrsets exist, and there were no response errors, then force denial_of_existence 
+        if not yxnamestypes and not errnamestypes:
             denial_of_existence = True
-        for qname, rdtype in name_obj.queries:
-            if rdtype in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
-                continue
+
+        for qname, rdtype in qnamestypes:
             if rdtype not in rdtypes:
                 continue
             if not denial_of_existence:
-                if qname == name_obj.nxdomain_name and rdtype == name_obj.nxdomain_rdtype:
-                    continue
-                if qname == name_obj.nxrrset_name and rdtype == name_obj.nxrrset_rdtype:
-                    continue
                 if qname not in name_obj.yxdomain:
                     continue
                 if (qname, rdtype) not in name_obj.yxrrset:
@@ -215,22 +222,29 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
 
     G = DNSAuthGraph()
-    # if no rrsets exist (either because the name itself doesn't exist, no
-    # rrsets exist for the name, or no responses were received one way or
-    # the other), then explicitly set denial_of_existence, so a graph is
-    # still produced
-    if not filter(lambda x: x[1] not in (dns.rdatatype.CNAME, dns.rdatatype.DNAME, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.yxrrset) or not name_obj.zone.get_responsive_auth_or_designated_servers():
+
+    # get all the names/types associated with the analysis
+    qnamestypes = set(filter(lambda x: x[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.queries))
+
+    # if denial of existence was not specified, don't include the
+    # explicit nxdomain/nxrrset queries
+    if not denial_of_existence:
+        qnamestypes.difference_update(
+                [(name_obj.nxdomain_name, name_obj.nxdomain_rdtype),
+                    (name_obj.nxrrset_name, name_obj.nxrrset_rdtype)])
+
+    # queries with positive responses or error responses (yxrrset)
+    yxnamestypes = name_obj.yxrrset.intersection(qnamestypes)
+    errnamestypes = set(filter(lambda x: name_obj.response_errors_rcode[x] or name_obj.response_errors[x], qnamestypes))
+
+    # if no rrsets exist, and there were no response errors, then force denial_of_existence 
+    if not yxnamestypes and not errnamestypes:
         denial_of_existence = True
-    for qname, rdtype in name_obj.queries:
-        if rdtype in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
-            continue
+
+    for qname, rdtype in qnamestypes:
         if rdtype not in rdtypes:
             continue
         if not denial_of_existence:
-            if qname == name_obj.nxdomain_name and rdtype == name_obj.nxdomain_rdtype:
-                continue
-            if qname == name_obj.nxrrset_name and rdtype == name_obj.nxrrset_rdtype:
-                continue
             if qname not in name_obj.yxdomain:
                 continue
             if (qname, rdtype) not in name_obj.yxrrset:
