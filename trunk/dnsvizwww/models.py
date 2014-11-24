@@ -249,6 +249,29 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
     first = property(_get_first)
 
+    def get_dane_hostname(self):
+        # If the current name is not DANE-like, then return None
+        if not (len(self.name) > 2 and self.name[1] in ('_tcp', '_udp', '_sctp')):
+            return None
+
+        # Find the most recent version of the DANE host name
+        dane_host_name = dns.name.Name(self.name.labels[2:])
+        dane_host_obj = DomainNameAnalysis.objects.latest(dane_host_name, self.analysis_end)
+
+        #XXX not sure if this check (i.e., the rest of this method) is necessary for versions >= 19
+        if dane_host_obj is None:
+            return None
+
+        # find the most recent version of the zone to which the dane host name pertains
+        parent_obj = self.zone
+        while not dane_host_name.is_subdomain(parent_obj.name):
+            parent_obj = parent_obj.parent
+
+        if dane_host_obj.analysis_end > parent_obj.analysis_end:
+            return dane_host_obj
+
+        return None
+
     def save_all(self):
         if self.pk is not None:
             return
