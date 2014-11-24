@@ -154,6 +154,16 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
 
         G = DNSAuthGraph()
 
+        # if DANE, then graph the A/AAAA records for the DANE host
+        if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
+            dane_host_obj = name_obj.get_dane_hostname()
+            if dane_host_obj is not None:
+                dane_host_obj.retrieve_all()
+                dane_host_obj.populate_status(trusted_keys)
+                for rdtype in (dns.rdatatype.A, dns.rdatatype.AAAA):
+                    if rdtype in rdtypes and (denial_of_existence or (dane_host_obj.name, rdtype) in dane_host_obj.yxrrset):
+                        G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, rdtype)
+
         # get all the names/types associated with the analysis
         qnamestypes = set(filter(lambda x: x[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.queries))
 
@@ -182,17 +192,6 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
                 if (qname, rdtype) not in name_obj.yxrrset:
                     continue
             G.graph_rrset_auth(name_obj, qname, rdtype)
-
-        # if DANE, then graph the A/AAAA records for the DANE host
-        if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
-            dane_host_obj = name_obj.get_dane_hostname()
-            if dane_host_obj is not None:
-                dane_host_obj.retrieve_all()
-                dane_host_obj.populate_status(trusted_keys)
-                if dns.rdatatype.A in rdtypes:
-                    G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, dns.rdatatype.A)
-                if dns.rdatatype.AAAA in rdtypes:
-                    G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, dns.rdatatype.AAAA)
 
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
         #G.remove_extra_edges(redundant_edges)
@@ -235,6 +234,16 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
 
     G = DNSAuthGraph()
 
+    # if DANE, then graph the A/AAAA records for the DANE host
+    if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
+        dane_host_obj = name_obj.get_dane_hostname()
+        if dane_host_obj is not None:
+            dane_host_obj.retrieve_all()
+            dane_host_obj.populate_status(trusted_keys)
+            for rdtype in (dns.rdatatype.A, dns.rdatatype.AAAA):
+                if rdtype in rdtypes and (denial_of_existence or (dane_host_obj.name, rdtype) in dane_host_obj.yxrrset):
+                    G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, rdtype)
+
     # get all the names/types associated with the analysis
     qnamestypes = set(filter(lambda x: x[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.queries))
 
@@ -263,17 +272,6 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
             if (qname, rdtype) not in name_obj.yxrrset:
                 continue
         G.graph_rrset_auth(name_obj, qname, rdtype)
-
-    # if DANE, then graph the A/AAAA records for the DANE host
-    if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
-        dane_host_obj = name_obj.get_dane_hostname()
-        if dane_host_obj is not None:
-            dane_host_obj.retrieve_all()
-            dane_host_obj.populate_status(trusted_keys)
-            if dns.rdatatype.A in rdtypes:
-                G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, dns.rdatatype.A)
-            if dns.rdatatype.AAAA in rdtypes:
-                G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, dns.rdatatype.AAAA)
 
     G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
     G.remove_extra_edges(redundant_edges)
