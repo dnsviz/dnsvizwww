@@ -175,7 +175,8 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
         for qname, rdtype in qnamestypes:
             if rdtype not in rdtypes:
                 continue
-            if not denial_of_existence:
+            if not denial_of_existence and not \
+                    (name_obj.response_errors_rcode[(qname,rdtype)] or name_obj.response_errors[(qname,rdtype)]):
                 if qname not in name_obj.yxdomain:
                     continue
                 if (qname, rdtype) not in name_obj.yxrrset:
@@ -255,7 +256,8 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     for qname, rdtype in qnamestypes:
         if rdtype not in rdtypes:
             continue
-        if not denial_of_existence:
+        if not denial_of_existence and not \
+                (name_obj.response_errors_rcode[(qname,rdtype)] or name_obj.response_errors[(qname,rdtype)]):
             if qname not in name_obj.yxdomain:
                 continue
             if (qname, rdtype) not in name_obj.yxrrset:
