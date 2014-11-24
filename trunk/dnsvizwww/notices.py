@@ -82,7 +82,8 @@ def _get_label_for_node(notices, node_name, val):
                 l += ' (NXDOMAIN)'
             elif m1.group('id') == '1':
                 l += ' (NO DATA)'
-            bisect.insort(notices['RRset status'][val[0]['status']],l)
+            if m1.group('id') != '2':
+                bisect.insort(notices['RRset status'][val[0]['status']],l)
         elif t1 == 'DNSKEY':
             m2 = _dnskey_node_re.search(m1.group('remnant'))
             l = '%s/DNSKEY (alg %s, id %s)' % (dns.name.from_text(m2.group('name')).to_unicode(), m2.group('alg'), m2.group('key_tag'))
