@@ -341,7 +341,7 @@ def responses_view(request, name_obj, timestamp, url_subdir, date_form):
 
     # if DANE, then add the A/AAAA records for the DANE host
     if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
-        dane_host_obj = DomainNameAnalysis.objects.latest(dns.name.Name(name_obj.name.labels[2:]), name_obj.analysis_end)
+        dane_host_obj = name_obj.get_dane_hostname()
         dane_host_obj.retrieve_all()
         dane_host_obj.populate_status(trusted_keys)
         if dane_host_obj is not None and dane_host_obj.zone.name == name_obj.zone.name:
