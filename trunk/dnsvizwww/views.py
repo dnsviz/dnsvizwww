@@ -251,6 +251,17 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
                 continue
         G.graph_rrset_auth(name_obj, qname, rdtype)
 
+    # if DANE, then graph the A/AAAA records for the DANE host
+    if len(qname) > 2 and qname[1] in ('_tcp', '_udp', '_sctp'):
+        dane_host_obj = DomainNameAnalysis.objects.latest(dns.name.Name(name_obj.name.labels[2:]), name_obj.analysis_end)
+        if dane_host_obj is not None:
+            dane_host_obj.retrieve_all()
+            dane_host_obj.populate_status(trusted_keys)
+            if dns.rdatatype.A in rdtypes:
+                G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, dns.rdatatype.A)
+            if dns.rdatatype.AAAA in rdtypes:
+                G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, dns.rdatatype.AAAA)
+
     G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
     G.remove_extra_edges(redundant_edges)
 

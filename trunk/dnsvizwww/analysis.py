@@ -93,9 +93,10 @@ class Analyst(dnsviz.analysis.Analyst):
 
     def _save_analysis(self, name_obj):
         # if this object hasn't been saved already (it might have been
-        # retrieved from the database) and it is either a zone or the name in
-        # question, then save it.
-        if name_obj.pk is not None or not (name_obj.is_zone() or name_obj.name == self.name):
+        # retrieved from the database) and it either has records, is the name in
+        # question, or is referenced by the name in question, then save it.
+        if name_obj.pk is not None or not \
+                (name_obj.ttl_mapping or name_obj.name == self.name or (len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp,', '_udp', '_sctp'))):
             return
 
         # check for cyclic dependencies.  if there are no unsaved
