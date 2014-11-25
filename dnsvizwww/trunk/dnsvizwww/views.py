@@ -340,13 +340,14 @@ def responses_view(request, name_obj, timestamp, url_subdir, date_form):
     # if DANE, then add the A/AAAA records for the DANE host
     if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
         dane_host_obj = name_obj.get_dane_hostname()
-        if dane_host_obj is not None and dane_host_obj.zone.name == name_obj.zone.name:
+        if dane_host_obj is not None:
             dane_host_obj.retrieve_all()
             dane_host_obj.populate_status(trusted_keys)
-            if dns.rdatatype.A in rdtypes:
-                qrrsets.append((dane_host_obj, dane_host_obj.name, dns.rdatatype.A))
-            if dns.rdatatype.AAAA in rdtypes:
-                qrrsets.append((dane_host_obj, dane_host_obj.name, dns.rdatatype.AAAA))
+            if dane_host_obj.zone.name == name_obj.zone.name:
+                if dns.rdatatype.A in rdtypes:
+                    qrrsets.append((dane_host_obj, dane_host_obj.name, dns.rdatatype.A))
+                if dns.rdatatype.AAAA in rdtypes:
+                    qrrsets.append((dane_host_obj, dane_host_obj.name, dns.rdatatype.AAAA))
 
     qrrsets.insert(0, (zone_obj, zone_obj.name, dns.rdatatype.NS))
     qrrsets.insert(0, (zone_obj, zone_obj.name, dns.rdatatype.DNSKEY))
