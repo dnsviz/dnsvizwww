@@ -185,11 +185,13 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
         for qname, rdtype in qnamestypes:
             if rdtype not in rdtypes:
                 continue
-            if not denial_of_existence and not \
-                    (name_obj.response_errors_rcode[(qname,rdtype)] or name_obj.response_errors[(qname,rdtype)]):
-                if qname not in name_obj.yxdomain:
-                    continue
-                if (qname, rdtype) not in name_obj.yxrrset:
+            if not denial_of_existence:
+                has_pos_response = qname in name_obj.yxdomain and (qname, rdtype) in name_obj.yxrrset
+                has_neg_response = (qname, rdtype) in name_obj.nxdomain_servers_clients or (qname, rdtype) in name_obj.noanswer_servers_clients
+                # If there is no positive response, but there is a negative
+                # response for the qname/qtype in question, then don't show it.
+                # This way the default display (i.e., when denial_of_existence is
+                if not has_pos_response and has_neg_response:
                     continue
             G.graph_rrset_auth(name_obj, qname, rdtype)
 
@@ -265,12 +267,15 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     for qname, rdtype in qnamestypes:
         if rdtype not in rdtypes:
             continue
-        if not denial_of_existence and not \
-                (name_obj.response_errors_rcode[(qname,rdtype)] or name_obj.response_errors[(qname,rdtype)]):
-            if qname not in name_obj.yxdomain:
+        if not denial_of_existence:
+            has_pos_response = qname in name_obj.yxdomain and (qname, rdtype) in name_obj.yxrrset
+            has_neg_response = (qname, rdtype) in name_obj.nxdomain_servers_clients or (qname, rdtype) in name_obj.noanswer_servers_clients
+            # If there is no positive response, but there is a negative
+            # response for the qname/qtype in question, then don't show it.
+            # This way the default display (i.e., when denial_of_existence is
+            if not has_pos_response and has_neg_response:
                 continue
-            if (qname, rdtype) not in name_obj.yxrrset:
-                continue
+
         G.graph_rrset_auth(name_obj, qname, rdtype)
 
     G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
