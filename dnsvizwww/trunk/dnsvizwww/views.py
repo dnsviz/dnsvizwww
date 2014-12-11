@@ -187,12 +187,15 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
                 continue
             if not denial_of_existence:
                 has_pos_response = qname in name_obj.yxdomain and (qname, rdtype) in name_obj.yxrrset
+                has_cname_response = (qname, dns.rdatatype.CNAME) in name_obj.yxrrset
                 has_neg_response = (qname, rdtype) in name_obj.nxdomain_servers_clients or (qname, rdtype) in name_obj.noanswer_servers_clients
                 # If there is no positive response, but there is a negative
-                # response for the qname/qtype in question, then don't show it.
-                # This way the default display (i.e., when denial_of_existence is
-                if not has_pos_response and has_neg_response:
+                # response or CNAME response for the qname/qtype in question,
+                # then don't show it.  This way the default display (i.e., when
+                # denial_of_existence is
+                if not has_pos_response and (has_neg_response or has_cname_response):
                     continue
+
             G.graph_rrset_auth(name_obj, qname, rdtype)
 
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
@@ -269,11 +272,13 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
             continue
         if not denial_of_existence:
             has_pos_response = qname in name_obj.yxdomain and (qname, rdtype) in name_obj.yxrrset
+            has_cname_response = (qname, dns.rdatatype.CNAME) in name_obj.yxrrset
             has_neg_response = (qname, rdtype) in name_obj.nxdomain_servers_clients or (qname, rdtype) in name_obj.noanswer_servers_clients
             # If there is no positive response, but there is a negative
-            # response for the qname/qtype in question, then don't show it.
-            # This way the default display (i.e., when denial_of_existence is
-            if not has_pos_response and has_neg_response:
+            # response or CNAME response for the qname/qtype in question, then
+            # don't show it.  This way the default display (i.e., when
+            # denial_of_existence is
+            if not has_pos_response and (has_neg_response or has_cname_response):
                 continue
 
         G.graph_rrset_auth(name_obj, qname, rdtype)
