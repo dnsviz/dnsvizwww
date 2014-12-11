@@ -812,6 +812,7 @@ class DNSQueryOptions(models.Model):
     edns_max_udp_payload = fields.UnsignedSmallIntegerField(blank=True, null=True)
     edns_flags = fields.UnsignedIntegerField(blank=True, null=True)
     edns_options = fields.BinaryField(blank=True, null=True)
+    tcp_first = models.BooleanField()
 
     class Meta:
         unique_together = (('flags', 'edns_max_udp_payload', 'edns_flags', 'edns_options', 'tcp_first'),)
