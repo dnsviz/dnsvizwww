@@ -365,14 +365,23 @@ fieldset { border: 0; }
 #notices-region div {
 	clear: right;
 }
-#notices-region .insecure div, #notices-region .non-existent div, #notices-region .not-misconfigured h6 {
+#notices-region .insecure div, #notices-region .not-misconfigured h6 {
 	background-color:#b7b7b7;
+	color:#000;
+	cursor:auto;
+}
+#notices-region .non-existent div {
+	background-color:#d0d0d0;
 	color:#000;
 	cursor:auto;
 }
 #notices-region .insecure h5, #notices-region .non-existent h5, #notices-region .server-list h5 {
 	background-color:#000;
 	color:#fff;
+}
+#notices-region .non-existent h5 {
+	background-color:#909090;
+	color:#000;
 }
 #notices-region .lame div, #notices-region .incomplete div {
 	background-color:#fffa8f;
