@@ -151,7 +151,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     analysis_end = models.DateTimeField(db_index=True)
     dep_analysis_end = models.DateTimeField()
 
-    version = models.PositiveSmallIntegerField(default=20)
+    version = models.PositiveSmallIntegerField(default=21)
 
     parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
     dlv_parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
@@ -326,7 +326,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                     edns_options = None
 
                 query_options = DNSQueryOptions.objects.get_or_create(flags=query.flags, edns_max_udp_payload=edns_max_udp_payload,
-                        edns_flags=edns_flags, edns_options=edns_options)[0]
+                        edns_flags=edns_flags, edns_options=edns_options, tcp_first=query.tcp_first)[0]
 
                 query_obj = DNSQuery.objects.create(qname=query.qname, rdtype=query.rdtype, rdclass=query.rdclass,
                         options=query_options, analysis=self)
@@ -350,7 +350,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                         response_obj = DNSResponse(query=query_obj, server=str(server), client=str(client),
                                 error=query.responses[server][client].error, errno=query.responses[server][client].errno,
                                 msg_size=query.responses[server][client].msg_size,
-                                tcp_first=query.responses[server][client].tcp_first, response_time=int(query.responses[server][client].response_time*1000),
+                                response_time=int(query.responses[server][client].response_time*1000),
                                 history_serialized=history_str)
                         response_obj.save()
                         response_obj.message = query.responses[server][client].message
@@ -428,7 +428,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 edns_flags = None
                 edns_options = []
 
-            query1 = Query.DNSQuery(query.qname, query.rdtype, query.rdclass, query.options.flags, edns, edns_max_udp_payload, edns_flags, edns_options)
+            query1 = Query.DNSQuery(query.qname, query.rdtype, query.rdclass, query.options.flags, edns, edns_max_udp_payload, edns_flags, edns_options, query.options.tcp_first)
 
             # add the responses
             for response in query.responses.all():
@@ -448,7 +448,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                         history.append(Query.DNSQueryRetryAttempt(response_time, cause, cause_arg, action, action_arg))
                 server = IPAddr(response.server)
                 client = IPAddr(response.client)
-                response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time, response.tcp_first)
+                response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time)
                 bailiwick = bailiwick_map.get(server, default_bailiwick)
                 query1.add_response(server, client, response1, bailiwick)
 
@@ -814,7 +814,7 @@ class DNSQueryOptions(models.Model):
     edns_options = fields.BinaryField(blank=True, null=True)
 
     class Meta:
-        unique_together = (('flags', 'edns_max_udp_payload', 'edns_flags', 'edns_options'),)
+        unique_together = (('flags', 'edns_max_udp_payload', 'edns_flags', 'edns_options', 'tcp_first'),)
 
 class DNSQuery(models.Model):
     qname = fields.DomainNameField(max_length=2048, canonicalize=False)
@@ -825,12 +825,12 @@ class DNSQuery(models.Model):
     options = models.ForeignKey(DNSQueryOptions, related_name='queries')
     analysis = models.ForeignKey(DomainNameAnalysis, related_name='queries_db')
 
+    version = models.PositiveSmallIntegerField(default=3)
+
 class DNSResponse(models.Model):
     SECTIONS = { 'QUESTION': 0, 'ANSWER': 1, 'AUTHORITY': 2, 'ADDITIONAL': 3 }
 
     query = models.ForeignKey(DNSQuery, related_name='responses')
-
-    version = models.PositiveSmallIntegerField(default=1)
 
     # network parameters
     server = models.GenericIPAddressField()
@@ -850,7 +850,6 @@ class DNSResponse(models.Model):
 
     error = models.PositiveSmallIntegerField(blank=True, null=True)
     errno = models.PositiveSmallIntegerField(blank=True, null=True)
-    tcp_first = models.BooleanField()
     response_time = models.PositiveSmallIntegerField()
     history_serialized = models.CommaSeparatedIntegerField(max_length=4096, blank=True)
 
