@@ -935,7 +935,7 @@ class DNSResponse(models.Model):
 
         self.flags = message.flags
 
-        if message.payload is not None:
+        if message.edns >= 0:
             self.edns_max_udp_payload = message.payload
             self.edns_flags = message.ednsflags
             self.edns_options = ''
