@@ -267,7 +267,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         while not dane_host_name.is_subdomain(parent_obj.name):
             parent_obj = parent_obj.parent
 
-        if dane_host_obj.analysis_end > parent_obj.analysis_end:
+        if dane_host_obj.analysis_end >= parent_obj.analysis_end:
             return dane_host_obj
 
         return None
