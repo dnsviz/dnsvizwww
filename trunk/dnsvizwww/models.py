@@ -436,7 +436,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 if response.history_serialized:
                     history_vals = map(int, response.history_serialized.split(','))
                     for i in range(0, len(history_vals), 5):
-                        response_time = history_vals[i]/1.0
+                        response_time = history_vals[i]/1000.0
                         cause = history_vals[i+1]
                         cause_arg = history_vals[i+2]
                         action = history_vals[i+3]
