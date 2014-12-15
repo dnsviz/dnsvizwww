@@ -371,6 +371,57 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 return True
         return False
 
+    def _retrieve_query(self, query, bailiwick_map, default_bailiwick):
+        # this query might have already been imported.  If so, don't
+        # re-import.
+        if (query.qname, query.rdtype) in self.queries:
+            return None
+        if query.options.edns_max_udp_payload is not None:
+            edns = query.options.edns_flags>>16
+            edns_max_udp_payload = query.options.edns_max_udp_payload
+            edns_flags = query.options.edns_flags
+            edns_options = []
+            index = 0
+            while index < len(query.options.edns_options):
+                (otype, olen) = struct.unpack('!HH', query.options.edns_options[index:index + 4])
+                index += 4
+                opt = dns.edns.option_from_wire(otype, query.options.edns_options, index, olen)
+                edns_options.append(opt)
+                index += olen
+        else:
+            edns = -1
+            edns_max_udp_payload = None
+            edns_flags = None
+            edns_options = []
+
+        query1 = Query.DNSQuery(query.qname, query.rdtype, query.rdclass, query.options.flags, edns, edns_max_udp_payload, edns_flags, edns_options, query.options.tcp_first)
+
+        # add the responses
+        for response in query.responses.all():
+            history = []
+            if response.history_serialized:
+                history_vals = map(int, response.history_serialized.split(','))
+
+                for i in range(0, len(history_vals), 5):
+                    response_time = history_vals[i]/1000.0
+                    cause = history_vals[i+1]
+                    cause_arg = history_vals[i+2]
+                    action = history_vals[i+3]
+                    action_arg = history_vals[i+4]
+                    if cause_arg < 0:
+                        cause_arg = None
+                    if action_arg < 0:
+                        action_arg = None
+                    history.append(Query.DNSQueryRetryAttempt(response_time, cause, cause_arg, action, action_arg))
+
+            server = IPAddr(response.server)
+            client = IPAddr(response.client)
+            response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time)
+            bailiwick = bailiwick_map.get(server, default_bailiwick)
+            query1.add_response(server, client, response1, bailiwick)
+
+        return query1
+
     def retrieve_related(self, level):
         if not self.stub and self._retrieve_related_cache(level):
             return
@@ -406,53 +457,10 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 names = (self.name,)
             f &= Q(qname__in=names)
         for query in self.queries_db.filter(f):
-            # this query might have already been imported.  If so, don't
-            # re-import.
-            if (query.qname, query.rdtype) in self.queries:
+            query1 = self._retrieve_query(query, bailiwick_map, default_bailiwick)
+            if query1 is None:
                 continue
-            if query.options.edns_max_udp_payload is not None:
-                edns = query.options.edns_flags>>16
-                edns_max_udp_payload = query.options.edns_max_udp_payload
-                edns_flags = query.options.edns_flags
-                edns_options = []
-                index = 0
-                while index < len(query.options.edns_options):
-                    (otype, olen) = struct.unpack('!HH', query.options.edns_options[index:index + 4])
-                    index += 4
-                    opt = dns.edns.option_from_wire(otype, query.options.edns_options, index, olen)
-                    edns_options.append(opt)
-                    index += olen
-            else:
-                edns = -1
-                edns_max_udp_payload = None
-                edns_flags = None
-                edns_options = []
-
-            query1 = Query.DNSQuery(query.qname, query.rdtype, query.rdclass, query.options.flags, edns, edns_max_udp_payload, edns_flags, edns_options, query.options.tcp_first)
-
-            # add the responses
-            for response in query.responses.all():
-                history = []
-                if response.history_serialized:
-                    history_vals = map(int, response.history_serialized.split(','))
-                    for i in range(0, len(history_vals), 5):
-                        response_time = history_vals[i]/1000.0
-                        cause = history_vals[i+1]
-                        cause_arg = history_vals[i+2]
-                        action = history_vals[i+3]
-                        action_arg = history_vals[i+4]
-                        if cause_arg < 0:
-                            cause_arg = None
-                        if action_arg < 0:
-                            action_arg = None
-                        history.append(Query.DNSQueryRetryAttempt(response_time, cause, cause_arg, action, action_arg))
-                server = IPAddr(response.server)
-                client = IPAddr(response.client)
-                response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time)
-                bailiwick = bailiwick_map.get(server, default_bailiwick)
-                query1.add_response(server, client, response1, bailiwick)
-
-            if query1.rdtype in delegation_types:
+            elif query1.rdtype in delegation_types:
                 delegation_queries.append(query1)
             else:
                 other_queries.append(query1)
