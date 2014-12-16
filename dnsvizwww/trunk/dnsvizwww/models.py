@@ -272,6 +272,31 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         return None
 
+    def rrset_has_changed(self, rdtype):
+        '''Query the DNS (using the default resolver) for the current name and
+        specified type.  Return False if at least one RRset returned from an
+        authoritative server matches the contents received in the response;
+        return True otherwise.'''
+
+        try:
+            ans = _resolver.query(self.name, rdtype, dns.rdataclass.IN)
+            try:
+                rrset = ans.response.find_rrset(ans.response.answer, self.name, dns.rdataclass.IN, rdtype)
+            except KeyError:
+                rrset = dns.rrset.RRset(self.name, dns.rdataclass.IN, rdtype)
+        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.exception.DNSException):
+            rrset = dns.rrset.RRset(self.name, dns.rdataclass.IN, rdtype)
+
+        rrset_info_list = self.queries[(self.name, rdtype)].rrset_answer_info
+        if not rrset_info_list and not rrset:
+            return False
+        
+        for rrset_info in rrset_info_list:
+            if rrset_info.rrset == rrset:
+                return False
+
+        return True
+
     def min_ttl(self, *rdtypes):
         min_ttl = None
         for rdtype in rdtypes:
@@ -283,6 +308,23 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                 pass
 
         return min_ttl
+
+    def earliest_rrsig_expiration(self, *rdtypes):
+        earliest = None
+        for rdtype in rdtypes:
+            if (self.name, rdtype) in self.queries:
+                for rrset_info in self.queries[(self.name, rdtype)].rrset_answer_info:
+                    for rrsig in rrset_info.rrsig_info:
+                        expire_in_cache = rrsig.expiration - rrset_info.rrset.ttl
+                        if earliest is None or expire_in_cache < earliest:
+                            earliest = expire_in_cache
+
+        if earliest is not None:
+            earliest = fmt.timestamp_to_datetime(earliest)
+        return earliest
+
+    def rdtypes_queried(self):
+        return set(self.queries_db.filter(qname=self.name).values_list('rdtype', flat=True))
 
     def save_all(self):
         if self.pk is not None:
