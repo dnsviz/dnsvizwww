@@ -279,7 +279,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         return True otherwise.'''
 
         try:
-            ans = _resolver.query(self.name, rdtype, dns.rdataclass.IN)
+            ans = dnsviz.analysis._resolver.query(self.name, rdtype, dns.rdataclass.IN)
             try:
                 rrset = ans.response.find_rrset(ans.response.answer, self.name, dns.rdataclass.IN, rdtype)
             except KeyError:
