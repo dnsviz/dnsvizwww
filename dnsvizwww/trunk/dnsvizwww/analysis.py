@@ -228,15 +228,7 @@ class Analyst(dnsviz.analysis.Analyst):
         force_analysis = self.force_self and (self.force_ancestry or self.name == name_obj.name)
         updated_since_analysis_start = name_obj.analysis_end >= reference_time
 
-        min_ttl = None
-        for rdtype in (dns.rdatatype.NS, -dns.rdatatype.NS, dns.rdatatype.DS, dns.rdatatype.DNSKEY):
-            if rdtype in name_obj.ttl_mapping:
-                if min_ttl is None or name_obj.ttl_mapping[rdtype] < min_ttl:
-                    min_ttl = name_obj.ttl_mapping[rdtype]
-            else:
-                #TODO handle negative TTL
-                pass
-
+        min_ttl = name_obj.min_ttl(dns.rdatatype.NS, -dns.rdatatype.NS, dns.rdatatype.DS, dns.rdatatype.DNSKEY)
         if min_ttl is None or min_ttl < MIN_ANALYSIS_INTERVAL:
             min_ttl = MIN_ANALYSIS_INTERVAL
 
