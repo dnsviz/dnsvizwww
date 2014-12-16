@@ -272,6 +272,18 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         return None
 
+    def min_ttl(self, *rdtypes):
+        min_ttl = None
+        for rdtype in rdtypes:
+            if rdtype in self.ttl_mapping:
+                if min_ttl is None or self.ttl_mapping[rdtype] < min_ttl:
+                    min_ttl = self.ttl_mapping[rdtype]
+            else:
+                #TODO handle negative TTL
+                pass
+
+        return min_ttl
+
     def save_all(self):
         if self.pk is not None:
             return
