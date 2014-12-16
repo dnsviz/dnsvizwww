@@ -217,18 +217,10 @@ class Analyst(dnsviz.analysis.Analyst):
         if name_obj is None:
             return True
 
-        if self.name == name_obj.name and self.trace and self.trace[-1][1] in (dns.rdatatype.CNAME, dns.rdatatype.NS):
-            # check for a loop
-            if self.name in [n.name for n, r in self.trace]:
-                return False
-            reference_time = self.trace[-1][0].analysis_end
-        else:
-            reference_time = self.start_time
-
         # If force and analysis has not been performed since reference time,
         # then return True.
-        force_analysis = self.force_self and (self.force_ancestry or self.name == name_obj.name)
-        updated_since_analysis_start = name_obj.analysis_end >= reference_time
+        force_analysis = self.force_self and (self.force_ancestry or self.name == name_obj.name or filter(lambda x: name_obj.name.is_subdomain(x), self._cname_chain))
+        updated_since_analysis_start = name_obj.analysis_end >= self.start_time
         if force_analysis and not updated_since_analysis_start:
             return True
 
