@@ -225,19 +225,45 @@ class Analyst(dnsviz.analysis.Analyst):
         else:
             reference_time = self.start_time
 
+        # If force and analysis has not been performed since reference time,
+        # then return True.
         force_analysis = self.force_self and (self.force_ancestry or self.name == name_obj.name)
         updated_since_analysis_start = name_obj.analysis_end >= reference_time
+        if force_analysis and not updated_since_analysis_start:
+            return True
 
+        now = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+
+        # If min TTL of pertinent RRsets has elapsed since last analysis
+        # (considering MIN_ANALYSIS_INTERVAL), then return True
         min_ttl = name_obj.min_ttl(dns.rdatatype.NS, -dns.rdatatype.NS, dns.rdatatype.DS, dns.rdatatype.DNSKEY)
         if min_ttl is None or min_ttl < MIN_ANALYSIS_INTERVAL:
             min_ttl = MIN_ANALYSIS_INTERVAL
-
-        time_since_analysis = datetime.datetime.now(fmt.utc).replace(microsecond=0) - name_obj.analysis_end
+        time_since_analysis = now - name_obj.analysis_end
         maximum_time_allowed = datetime.timedelta(seconds=max(min_ttl, MIN_ANALYSIS_INTERVAL))
         analysis_due = time_since_analysis > maximum_time_allowed
+        if time_since_analysis > maximum_time_allowed:
+            return True
 
-        if force_analysis and not updated_since_analysis_start:
+        # If RRSIG is expiring (or will expire in cache) since last analysis
+        # end, then return True
+        earliest_rrsig_expiration = name_obj.earliest_rrsig_expiration(dns.rdatatype.DS, dns.rdatatype.DNSKEY)
+        if earliest_rrsig_expiration is not None and \
+                name_obj.analysis_end <= earliest_rrsig_expiration <= now:
             return True
-        if analysis_due:
+
+        # If the contents of pertinent RRsets have changed since last analysis,
+        # then return True
+        for rdtype in (dns.rdatatype.NS, dns.rdatatype.DS, dns.rdatatype.DNSKEY):
+            if (name_obj.name, rdtype) in name_obj.queries and \
+                    name_obj.rrset_has_changed(rdtype):
+                return True
+
+        # If not all queries were included in the last analysis, then
+        # return True.
+        rdtypes_to_query = self._rdtypes_to_query(name_obj.name)
+        rdtypes_queried = name_obj.rdtypes_queried()
+        if set(rdtypes_to_query).difference(rdtypes_queried):
             return True
+
         return False
