@@ -88,7 +88,7 @@ class DNSSECOptionsForm(forms.Form):
     ta = forms.MultipleChoiceField(label='Trust anchors:', choices=ANCHOR_CHOICES, initial=['.','dlv.isc.org.'], required=False, widget=forms.CheckboxSelectMultiple(attrs={'class': 'no-border'}),
             help_text='Use KSKs from the following zones as trust anchors for the DNSSEC analysis: the root zone; and/or the KSK for ISC\'s DNSSEC-lookaside validation (DLV) service.')
     tk = forms.CharField(label='Additional trusted keys:', initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
-            help_text='Use the following DNSKEY(s) as additional trust anchors for the DNSSEC analysis.  DNSKEYs should be entered one per line, the same format as would go in BIND\'s named.conf trusted-keys format.')
+            help_text='Use the following DNSKEY(s) as additional trust anchors for the DNSSEC analysis.  DNSKEYs should be entered one per line, in zone file format.')
 
     def clean_rr(self):
         if 'all' in self.cleaned_data['rr']:
