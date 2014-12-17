@@ -92,11 +92,23 @@ class Analyst(dnsviz.analysis.Analyst):
         DomainName.objects.filter(name=name_obj.name).update(analysis_start=None)
 
     def _save_analysis(self, name_obj):
-        # if this object hasn't been saved already (it might have been
-        # retrieved from the database) and it either has records, is the name in
-        # question, or is referenced by the name in question, then save it.
-        if name_obj.pk is not None or not \
-                (name_obj.ttl_mapping or name_obj.name == self.name or (len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp,', '_udp', '_sctp'))):
+
+        # if this object has already been saved (e.g., it might have been
+        # retrieved from the database), then no need to save it.
+        if name_obj.pk is not None:
+            return
+
+        # whether this object is the nxdomain_ancestor of the name in question
+        is_nxdomain_ancestor = \
+                name_obj.nxdomain_ancestor is None and \
+                name_obj.referral_rdtype is not None and \
+                name_obj.queries[(name_obj.name, name_obj.referral_rdtype)].is_nxdomain_all()
+
+        if not (name_obj.ttl_mapping or \
+                name_obj.name == self.name or \
+                name_obj.name in self._cname_chain or \
+                (self._ask_tlsa_queries(self.name) and len(name_obj.name) == len(self.name) - 2) or \
+                is_nxdomain_ancestor):
             return
 
         # check for cyclic dependencies.  if there are no unsaved
