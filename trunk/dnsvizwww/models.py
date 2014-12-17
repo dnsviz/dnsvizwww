@@ -146,6 +146,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     name = fields.DomainNameField(max_length=2048)
     stub = models.BooleanField()
     follow_ns = models.BooleanField(default=False)
+    follow_mx = models.BooleanField(default=False)
 
     analysis_start = models.DateTimeField()
     analysis_end = models.DateTimeField(db_index=True)
@@ -155,6 +156,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
     parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
     dlv_parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
+    nxdomain_ancestor_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
 
     referral_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
     explicit_delegation = models.BooleanField()
@@ -333,6 +335,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         # set the parent name, and save this object
         self.parent_name_db = self.parent_name()
         self.dlv_parent_name_db = self.dlv_parent_name()
+        self.nxdomain_ancestor_name_db = self.nxdomain_ancestor_name()
         self.save()
         self.schedule_refresh()
 
@@ -558,6 +561,17 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         else:
             parent = None
 
+        if self.nxdomain_ancestor_name_db is not None:
+            nxdomain_ancestor = self.__class__.objects.latest(self.nxdomain_ancestor_name_db, self.analysis_end)
+            if nxdomain_ancestor.pk in cache:
+                nxdomain_ancestor, code = cache[nxdomain_ancestor.pk]
+            if nxdomain_ancestor.pk not in cache or code > level:
+                cache[nxdomain_ancestor.pk] = nxdomain_ancestor, level
+                nxdomain_ancestor.retrieve_ancestry(level, follow_dependencies=False, force_stub=True, cache=cache)
+                nxdomain_ancestor.retrieve_related(level)
+        else:
+            nxdomain_ancestor = None
+
         if level > self.RDTYPES_SECURE_DELEGATION:
             dlv_parent = None
         elif self.name != dns.name.root and self.dlv_parent_name_db is not None:
@@ -574,6 +588,8 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         self.parent = parent
         if dlv_parent is not None:
             self.dlv_parent = dlv_parent
+        if nxdomain_ancestor is not None:
+            self.nxdomain_ancestor = nxdomain_ancestor
 
     def retrieve_dependencies(self, cache=None):
         if cache is None:
