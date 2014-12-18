@@ -267,7 +267,7 @@ class Analyst(dnsviz.analysis.Analyst):
         # return True.
         rdtypes_to_query = self._rdtypes_to_query(name_obj.name)
         rdtypes_queried = name_obj.rdtypes_queried()
-        if set(rdtypes_to_query).difference(rdtypes_queried):
+        if set(rdtypes_to_query).difference(rdtypes_queried) and self.dlv_domain != name_obj.name:
             return True
 
         return False
