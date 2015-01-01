@@ -18,9 +18,9 @@ import dns.name
 
 from django.conf import settings
 
-from dnsvizwww.analysis import Analyst, DomainNameAnalysis
+from dnsvizwww.analysis import Analyst, OnlineDomainNameAnalysis
 from dnsvizwww.models import DomainName
-from dnsviz.analysis import get_client_addresses, NetworkConnectivityException, _resolver
+from dnsviz.analysis import get_client_addresses, NetworkConnectivityException, resolver
 import dnsviz.format as fmt
 
 logger = logging.getLogger('dnsviz.analysis')
@@ -83,7 +83,7 @@ class BulkAnalyst(object):
             logger.warning('Terminating analysis.')
 
 class MultiProcessAnalyst(Analyst):
-    analysis_model = DomainNameAnalysis
+    analysis_model = OnlineDomainNameAnalysis
 
 class ParallelAnalyst(BulkAnalyst):
     analyst_cls = MultiProcessAnalyst

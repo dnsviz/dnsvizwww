@@ -48,7 +48,7 @@ from dnsviz.util import get_trusted_keys
 from django.views.decorators.cache import cache_page
 from dnsviz.viz.dnssec import DNSAuthGraph
 
-from dnsvizwww.analysis import Analyst, DomainNameAnalysis
+from dnsvizwww.analysis import Analyst, OfflineDomainNameAnalysis
 from dnsvizwww import log
 from dnsvizwww import util
 
@@ -68,7 +68,7 @@ def domain_last_modified(request, name, *args, **kwargs):
 
     name = util.name_url_decode(name)
     date = util.datetime_url_decode(timestamp)
-    name_obj = DomainNameAnalysis.objects.get(name, date)
+    name_obj = OfflineDomainNameAnalysis.objects.get(name, date)
     if name_obj is None:
         return None
 
@@ -96,10 +96,10 @@ def domain_view(request, name, timestamp=None, url_subdir='', **kwargs):
         date_form = None
 
     if timestamp is None:
-        name_obj = DomainNameAnalysis.objects.latest(name)
+        name_obj = OfflineDomainNameAnalysis.objects.latest(name)
     else:
         date = util.datetime_url_decode(timestamp)
-        name_obj = DomainNameAnalysis.objects.get(name, date)
+        name_obj = OfflineDomainNameAnalysis.objects.get(name, date)
 
     if not url_subdir:
         url_subdir = ''
@@ -175,7 +175,7 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
 
         # queries with positive responses or error responses (yxrrset)
         yxnamestypes = name_obj.yxrrset.intersection(qnamestypes)
-        errnamestypes = set(filter(lambda x: name_obj.response_errors_rcode[x] or name_obj.response_errors[x], qnamestypes))
+        errnamestypes = set(filter(lambda x: name_obj.queries[x].error_info, qnamestypes))
 
         # if no rrsets exist, and there were no response errors, then force denial_of_existence 
         if not yxnamestypes and not errnamestypes:
@@ -187,10 +187,11 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
             if not denial_of_existence:
                 has_pos_response = qname in name_obj.yxdomain and (qname, rdtype) in name_obj.yxrrset
                 has_cname_response = (qname, dns.rdatatype.CNAME) in name_obj.yxrrset
-                has_neg_response = (qname, rdtype) in name_obj.nxdomain_servers_clients or (qname, rdtype) in name_obj.noanswer_servers_clients
+                has_neg_response = bool(filter(lambda x: x.qname == qname and x.rdtype == rdtype, name_obj.nodata_status) or \
+                        filter(lambda x: x.qname == qname and x.rdtype == rdtype, name_obj.nxdomain_status))
                 # If there is no positive response, but there is a negative
-                # response or CNAME response for the qname/qtype in question,
-                # then don't show it.  This way the default display (i.e., when
+                # response or CNAME response for the qname/qtype in question, then
+                # don't show it.  This way the default display (i.e., when
                 # denial_of_existence is
                 if not has_pos_response and (has_neg_response or has_cname_response):
                     continue
@@ -213,10 +214,10 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
 def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, format=None, **kwargs):
     name = util.name_url_decode(name)
     if timestamp is None:
-        name_obj = DomainNameAnalysis.objects.latest(name)
+        name_obj = OfflineDomainNameAnalysis.objects.latest(name)
     else:
         date = util.datetime_url_decode(timestamp)
-        name_obj = DomainNameAnalysis.objects.get(name, date)
+        name_obj = OfflineDomainNameAnalysis.objects.get(name, date)
 
     if name_obj is None:
         raise Http404
@@ -260,7 +261,7 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
 
     # queries with positive responses or error responses (yxrrset)
     yxnamestypes = name_obj.yxrrset.intersection(qnamestypes)
-    errnamestypes = set(filter(lambda x: name_obj.response_errors_rcode[x] or name_obj.response_errors[x], qnamestypes))
+    errnamestypes = set(filter(lambda x: name_obj.queries[x].error_info, qnamestypes))
 
     # if no rrsets exist, and there were no response errors, then force denial_of_existence 
     if not yxnamestypes and not errnamestypes:
@@ -272,7 +273,8 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
         if not denial_of_existence:
             has_pos_response = qname in name_obj.yxdomain and (qname, rdtype) in name_obj.yxrrset
             has_cname_response = (qname, dns.rdatatype.CNAME) in name_obj.yxrrset
-            has_neg_response = (qname, rdtype) in name_obj.nxdomain_servers_clients or (qname, rdtype) in name_obj.noanswer_servers_clients
+            has_neg_response = bool(filter(lambda x: x.qname == qname and x.rdtype == rdtype, name_obj.nodata_status) or \
+                    filter(lambda x: x.qname == qname and x.rdtype == rdtype, name_obj.nxdomain_status))
             # If there is no positive response, but there is a negative
             # response or CNAME response for the qname/qtype in question, then
             # don't show it.  This way the default display (i.e., when
@@ -656,13 +658,13 @@ def domain_search(request):
 @transaction.autocommit
 def analyze(request, name, url_subdir=None):
     name = util.name_url_decode(name)
-    name_obj = DomainNameAnalysis.objects.latest(name)
+    name_obj = OfflineDomainNameAnalysis.objects.latest(name)
 
     if not url_subdir:
         url_subdir = ''
 
     if name_obj is None:
-        name_obj = DomainNameAnalysis(name)
+        name_obj = OfflineDomainNameAnalysis(name)
         form_class = DomainNameAnalysisInitialForm
     else:
         form_class = DomainNameAnalysisForm

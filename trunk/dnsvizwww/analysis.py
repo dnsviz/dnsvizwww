@@ -30,14 +30,14 @@ from django.db import DatabaseError, transaction
 
 import dnsviz.analysis
 import dnsviz.format as fmt
-from models import DomainName, DomainNameAnalysis
+from models import DomainName, OnlineDomainNameAnalysis, OfflineDomainNameAnalysis
 
 MIN_ANALYSIS_INTERVAL = 14400
 MAX_ANALYSIS_TIME = 300
 
 class Analyst(dnsviz.analysis.Analyst):
     qname_only = False
-    analysis_model = DomainNameAnalysis
+    analysis_model = OnlineDomainNameAnalysis
 
     clone_attrnames = dnsviz.analysis.Analyst.clone_attrnames + ['force_ancestry','start_time']
 
@@ -164,8 +164,8 @@ class Analyst(dnsviz.analysis.Analyst):
                     f_stub = None
                 else:
                     f_stub = False
-                # retrieve the freshest DomainNameAnalysis from the DB
-                fresh_name_obj = self.analysis_model.objects.latest(name, stub=f_stub)
+                # retrieve the freshest OfflineDomainNameAnalysis from the DB
+                fresh_name_obj = OfflineDomainNameAnalysis.objects.latest(name, stub=f_stub)
 
                 # if no analysis is necessary
                 if not self._analyze_or_not(fresh_name_obj):
@@ -186,7 +186,6 @@ class Analyst(dnsviz.analysis.Analyst):
                     if not self._analyze_or_not(fresh_name_obj):
                         if level <= fresh_name_obj.RDTYPES_NS_TARGET:
                             fresh_name_obj.retrieve_dependencies()
-                        fresh_name_obj._populate_name_status(level)
                         self.analysis_cache[name] = fresh_name_obj
                         return fresh_name_obj
 
