@@ -41,7 +41,6 @@ import dnsviz.format as fmt
 from dnsviz.ipaddr import IPAddr
 import dnsviz.query as Query
 import dnsviz.response as Response
-import dnsviz.status as Status
 
 import fields
 import util
@@ -80,7 +79,7 @@ class DomainName(models.Model):
         return fmt.humanize_name(self.name)
 
     def latest_analysis(self, date=None):
-        return DomainNameAnalysis.objects.latest(self.name, date)
+        return OfflineDomainNameAnalysis.objects.latest(self.name, date)
 
     def clear_refresh(self):
         if (self.refresh_interval, self.refresh_offset) != (None, None):
@@ -142,7 +141,7 @@ class DomainNameAnalysisManager(models.Manager):
         except self.model.DoesNotExist:
             return None
 
-class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
+class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models.Model):
     name = fields.DomainNameField(max_length=2048)
     stub = models.BooleanField()
     follow_ns = models.BooleanField(default=False)
@@ -170,13 +169,15 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
     objects = DomainNameAnalysisManager()
 
+    QUERY_CLASS = Query.MultiQuery
+
     def __init__(self, *args, **kwargs):
         if args:
             if kwargs:
                 # since args and kwargs were both supplied to __init__, this was
-                # intended for dnsviz.analysis.DomainNameAnalysis, so we need to
+                # intended for dnsviz.analysis.OfflineDomainNameAnalysis, so we need to
                 # convert the args to kwargs for models.Model.__init__.
-                dnsviz.analysis.DomainNameAnalysis.__init__(self, *args[:2], **kwargs)
+                dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, *args[:2], **kwargs)
                 kwargs['name'] = args[0]
                 if len(args) > 1: kwargs['stub'] = args[1]
                 args = ()
@@ -192,15 +193,15 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
                     kwargs['name'] = args[0]
                     if len(args) > 1: kwargs['stub'] = args[1]
                     args = ()
-                dnsviz.analysis.DomainNameAnalysis.__init__(self, *args_modified)
+                dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, *args_modified)
         else:
             # only kwargs, so this was intended only for models.Model.__init__.  We
-            # create args for dnsviz.analysis.DomainNameAnalysis.__init__ by pulling
+            # create args for dnsviz.analysis.OfflineDomainNameAnalysis.__init__ by pulling
             # the 'name' kwarg from kwargs.
             kwargs_modified = {}
             if 'stub' in kwargs:
                 kwargs_modified['stub'] = kwargs['stub']
-            dnsviz.analysis.DomainNameAnalysis.__init__(self, (kwargs['name'],), **kwargs_modified)
+            dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, (kwargs['name'],), **kwargs_modified)
         models.Model.__init__(self, *args, **kwargs)
 
     def __eq__(self, other):
@@ -258,7 +259,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         # Find the most recent version of the DANE host name
         dane_host_name = dns.name.Name(self.name.labels[2:])
-        dane_host_obj = DomainNameAnalysis.objects.latest(dane_host_name, self.analysis_end)
+        dane_host_obj = self.__class__.objects.latest(dane_host_name, self.analysis_end)
 
         #XXX not sure if this check (i.e., the rest of this method) is necessary for versions >= 19
         if dane_host_obj is None:
@@ -281,7 +282,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         return True otherwise.'''
 
         try:
-            ans = dnsviz.analysis._resolver.query(self.name, rdtype, dns.rdataclass.IN)
+            ans = dnsviz.analysis.resolver.query(self.name, rdtype, dns.rdataclass.IN)
             try:
                 rrset = ans.response.find_rrset(ans.response.answer, self.name, dns.rdataclass.IN, rdtype)
             except KeyError:
@@ -289,7 +290,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.exception.DNSException):
             rrset = dns.rrset.RRset(self.name, dns.rdataclass.IN, rdtype)
 
-        rrset_info_list = self.queries[(self.name, rdtype)].rrset_answer_info
+        rrset_info_list = self.queries[(self.name, rdtype)].answer_info
         if not rrset_info_list and not rrset:
             return False
         
@@ -315,7 +316,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         earliest = None
         for rdtype in rdtypes:
             if (self.name, rdtype) in self.queries:
-                for rrset_info in self.queries[(self.name, rdtype)].rrset_answer_info:
+                for rrset_info in self.queries[(self.name, rdtype)].answer_info:
                     for rrsig in rrset_info.rrsig_info:
                         expire_in_cache = rrsig.expiration - rrset_info.rrset.ttl
                         if earliest is None or expire_in_cache < earliest:
@@ -355,7 +356,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
         d = {}
         self._serialize_related(d)
-        Cache.add('dnsvizwww.models.DomainNameAnalysis.%d.related.%d' % (self.pk, level), d, timeout)
+        Cache.add('dnsvizwww.models.OnlineDomainNameAnalysis.%d.related.%d' % (self.pk, level), d, timeout)
 
     def store_related(self):
         self._store_related_cache(self.RDTYPES_ALL)
@@ -422,7 +423,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
     def _retrieve_related_cache(self, level):
         for i in range(level+1):
-            d = Cache.get('dnsvizwww.models.DomainNameAnalysis.%d.related.%d' % (self.pk, i))
+            d = Cache.get('dnsvizwww.models.OnlineDomainNameAnalysis.%d.related.%d' % (self.pk, i))
             if d is not None:
                 self._deserialize_related(d)
                 return True
@@ -473,7 +474,7 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
 
             server = IPAddr(response.server)
             client = IPAddr(response.client)
-            response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time)
+            response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time, query1)
             bailiwick = bailiwick_map.get(server, default_bailiwick)
             query1.add_response(server, client, response1, bailiwick)
 
@@ -649,15 +650,8 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
     def schedule_refresh(self):
         dname_obj = DomainName.objects.get(name=self.name)
 
-        self._populate_name_status(self.RDTYPES_ALL_SAME_NAME)
-        # don't schedule names that don't exist
-        if self.status != Status.NAME_STATUS_YXDOMAIN:
-            dname_obj.clear_refresh()
-            return
-
-        # don't schedule names that don't have any records
-        # (or for which they couldn't be retrieved)
-        if not self.ttl_mapping:
+        # only schedule refresh for zones
+        if not (self.name == dns.name.root or self.is_zone()):
             dname_obj.clear_refresh()
             return
 
@@ -676,24 +670,22 @@ class DomainNameAnalysis(dnsviz.analysis.DomainNameAnalysis, models.Model):
         elif len(self.name) <= 2:
             refresh_interval = 21600
 
-        # if delegation records were received, but
-        # other records were not, try again in two days
-        elif max(self.ttl_mapping.keys()) < 0:
-            refresh_interval = 172800
+        # if we are a signed zone, then re-analyze every eight hours
+        elif self.signed:
+            refresh_interval = 28800
 
-        elif self.is_zone():
-            # if we are a signed zone, then re-analyze every eight hours
-            if self.signed:
-                refresh_interval = 28800
-            # if we are an unsigned zone, then re-analyze every two days
-            else:
-                refresh_interval = 172800
+        # if we are an unsigned zone, then re-analyze every two days
         else:
-            dname_obj.clear_refresh()
-            return
+            refresh_interval = 172800
 
         refresh_offset = uuid.uuid5(uuid.NAMESPACE_DNS, self.name.canonicalize().to_text()).int % refresh_interval
         dname_obj.set_refresh(refresh_interval, refresh_offset)
+
+class OfflineDomainNameAnalysis(OnlineDomainNameAnalysis):
+    QUERY_CLASS = Query.MultiQueryAggregateDNSResponse
+
+    class Meta:
+        proxy = True
 
 class NSMapping(models.Model):
     name = fields.DomainNameField(max_length=2048)
@@ -902,7 +894,7 @@ class DNSQuery(models.Model):
     response_options = fields.UnsignedSmallIntegerField(default=0)
 
     options = models.ForeignKey(DNSQueryOptions, related_name='queries')
-    analysis = models.ForeignKey(DomainNameAnalysis, related_name='queries_db')
+    analysis = models.ForeignKey(OnlineDomainNameAnalysis, related_name='queries_db')
 
     version = models.PositiveSmallIntegerField(default=3)
 
