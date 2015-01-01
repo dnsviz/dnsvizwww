@@ -35,7 +35,7 @@ from django.utils.timezone import utc
 import dnsviz.format as fmt
 from dnsviz.util import get_trusted_keys
 
-from dnsvizwww.models import DomainNameAnalysis
+from dnsvizwww.models import OfflineDomainNameAnalysis
 
 _implicit_tk_str = '''
 .			IN	DNSKEY	257 3 8 AwEAAagAIKlVZrpC6Ia7gEzahOR+9W29euxhJhVVLOyQbSEW0O8gcCjF FVQUTf6v58fLjwBd0YI0EzrAcQqBGCzh/RStIoO8g0NfnfL2MTJRkxoX bfDaUeVPQuYEhg37NZWAJQ9VnMVDxP/VHL496M/QZxkjf5/Efucp2gaD X6RS6CXpoY68LsvPVjR0ZSwzz1apAzvN9dlzEheX7ICJBBtuA6G3LQpz W5hOA2hzCTMjJPJ8LbqF6dsV6DoBQzgul0sGIcGOYl7OyQdXfZ57relS Qageu+ipAdTTJ25AsRTAoub8ONGcLmqrAmRLKBP1dfwhYB4N7knNnulq QxA+Uk1ihz0=
@@ -165,7 +165,7 @@ def domain_date_search_form(name):
         def clean_date(self):
             dt = datetime.datetime(self.cleaned_data['date'].year, self.cleaned_data['date'].month, self.cleaned_data['date'].day, \
                     23, 59, 59, 999999, tzinfo=utc)
-            self.name_obj = DomainNameAnalysis.objects.latest(name, dt)
+            self.name_obj = OfflineDomainNameAnalysis.objects.latest(name, dt)
             if self.name_obj is None:
                 del self.name_obj
                 raise forms.ValidationError('No analysis for %s known prior to %s!' % (fmt.humanize_name(name), self.cleaned_data['date']))
