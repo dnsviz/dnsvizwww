@@ -292,7 +292,7 @@ def main():
         else:
             analysis_structured = json.loads(analysis_str)
         for name in names:
-            name_objs.append(DomainNameAnalysis.deserialize(name, analysis_structured))
+            name_objs.append(OnlineDomainNameAnalysis.deserialize(name, analysis_structured))
     elif '-R' in opts:
         a = ParallelAnalyst(force_ancestry, dlv_domain, processes)
         a.refresh()
