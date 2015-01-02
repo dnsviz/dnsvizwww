@@ -42,7 +42,7 @@ def _init_interrupt_handler():
 
 def _analyze((cls, name, dlv_domain, client_ipv4, client_ipv6, force_ancestry, start_time)):
     a = cls(name, dlv_domain=dlv_domain, client_ipv4=client_ipv4, client_ipv6=client_ipv6, start_time=start_time, force_ancestry=force_ancestry)
-    return a.analyze()
+    a.analyze()
 
 def _analyze_with_eof_handler(*args, **kwargs):
     try:
