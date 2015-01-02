@@ -390,18 +390,18 @@ def responses_view(request, name_obj, timestamp, url_subdir, date_form):
         query = my_name_obj.queries[(name, rdtype)]
 
         servers_pos_responses = set()
-        servers_neg_responses = set()
+        #servers_neg_responses = set()
         servers_error_responses = set()
-        for rrset_info in query.rrset_answer_info:
+        for rrset_info in query.answer_info:
             servers_pos_responses.update([s[0] for s in rrset_info.servers_clients])
-        if (name, rdtype) in name_obj.nxdomain_servers_clients:
-            servers_neg_responses.update([s[0] for s in name_obj.nxdomain_servers_clients[(name, rdtype)]])
-        if (name, rdtype) in name_obj.noanswer_servers_clients:
-            servers_neg_responses.update([s[0] for s in name_obj.noanswer_servers_clients[(name, rdtype)]])
+        #if (name, rdtype) in name_obj.nxdomain_servers_clients:
+        #    servers_neg_responses.update([s[0] for s in name_obj.nxdomain_servers_clients[(name, rdtype)]])
+        #if (name, rdtype) in name_obj.noanswer_servers_clients:
+        #    servers_neg_responses.update([s[0] for s in name_obj.noanswer_servers_clients[(name, rdtype)]])
         #TODO error responses
         #TODO NSEC responses
 
-        for rrset_info in query.rrset_answer_info:
+        for rrset_info in query.answer_info:
             rrset_servers = set([s[0] for s in rrset_info.servers_clients])
             row_grouping = []
             row = []
