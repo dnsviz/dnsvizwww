@@ -186,19 +186,14 @@ Options:
     -f <filename>  - read names from a file (one name per line), instead of from command line
     -d <level>     - set debug level to a value from 0 to 3, with increasing verbosity (default: 2 or INFO)
     -l <dlv>       - use dlv as a domain for DNSSEC look-aside validation
-    -r <filename>  - read analysis from a file, instead of querying servers (use "-" for stdin)
     -R             - refresh names on a periodic basis
     -t <threads>   - use multiple threads for analysis
     -F             - force analysis of ancestry, instead of relying on cached versions
-    -p             - make json output pretty instead of minimal
-    -y             - read in yaml, instead of json
-    -Y             - write in yaml, instead of json
-    -o <filename>  - write the analysis to file instead of to stdout
 ''' % sys.argv[0])
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'f:d:l:r:Rt:pyYo:F')
+        opts, args = getopt.getopt(sys.argv[1:], 'f:d:l:Rt:F')
     except getopt.GetoptError:
         usage()
         sys.exit(1)
@@ -281,19 +276,7 @@ def main():
         names = map(dns.name.from_text, args)
 
     name_objs = []
-    if '-r' in opts:
-        if opts['-r'] == '-':
-            analysis_str = sys.stdin.read()
-        else:
-            analysis_str = open(opts['-r']).read()
-        if '-y' in opts:
-            import yaml
-            analysis_structured = yaml.load(analysis_str)
-        else:
-            analysis_structured = json.loads(analysis_str)
-        for name in names:
-            name_objs.append(OnlineDomainNameAnalysis.deserialize(name, analysis_structured))
-    elif '-R' in opts:
+    if '-R' in opts:
         a = ParallelAnalyst(force_ancestry, dlv_domain, processes)
         a.refresh()
     else:
@@ -302,30 +285,6 @@ def main():
         else:
             a = BulkAnalyst(force_ancestry, dlv_domain)
         name_objs = a.analyze(names)
-
-    sys.exit(0)
-
-    d = collections.OrderedDict()
-    for name_obj in name_objs:
-        if name_obj is None:
-            continue
-        name_obj.serialize(d)
-
-    if '-p' in opts:
-        kwargs = { 'indent': 4, 'separators': (',', ': ') }
-    else:
-        kwargs = {}
-
-    if '-o' not in opts or opts['-o'] == '-':
-        fh = sys.stdout
-    else:
-        fh = open(opts['-o'], 'w')
-
-    if '-Y' in opts:
-        import yaml
-        fh.write(yaml.dump(d))
-    else:
-        fh.write(json.dumps(d, **kwargs))
 
 if __name__ == "__main__":
     main()
