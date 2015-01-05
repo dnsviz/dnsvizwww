@@ -25,7 +25,6 @@
 import logging
 import Queue
 
-from django.conf import settings
 from django.utils.html import escape
 
 class QueueForIteratorHandler(logging.Handler):
@@ -84,7 +83,3 @@ class IsolatedLogger(object):
 
     def close(self):
         self.logger.debug('<EOF>')
-
-class RequireDebugTrue(logging.Filter):
-    def filter(self, record):
-        return settings.DEBUG
