@@ -124,20 +124,18 @@ class Analyst(dnsviz.analysis.Analyst):
             attempts = 0
             while True:
                 attempts += 1
-                with transaction.commit_manually():
-                    try:
+                try:
+                    with transaction.atomic():
                         name_obj.save_all()
-                    except Exception, e:
-                        transaction.rollback()
-                        # retry if this is a database error and we tried
-                        # less than three times
-                        if isinstance(e, DatabaseError) and attempts <= 2:
-                            pass
-                        else:
-                            raise
+                except Exception, e:
+                    # retry if this is a database error and we tried
+                    # less than three times
+                    if isinstance(e, DatabaseError) and attempts <= 2:
+                        pass
                     else:
-                        transaction.commit()
-                        break
+                        raise
+                else:
+                    break
                 time.sleep(random.randint(1,2000)/1000.0)
                 
         self.analysis_cache[name_obj.name] = name_obj
