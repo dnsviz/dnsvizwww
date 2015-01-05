@@ -304,20 +304,20 @@ def dnssec_auth_graph(request, name_obj, G, format):
     if format not in ('png', 'jpg'):
         img = img.replace(os.path.join(DNSVIZ_SHARE_PATH, 'icons'), os.path.join(settings.STATIC_URL, 'images', 'dnssec_legend'))
     if format == 'dot':
-        mimetype = 'text/plain'
+        content_type = 'text/plain'
     elif format == 'jpg':
-        mimetype = 'image/jpeg'
+        content_type = 'image/jpeg'
     elif format == 'png':
-        mimetype = 'image/png'
+        content_type = 'image/png'
     elif format == 'svg':
-        mimetype = 'image/svg+xml'
+        content_type = 'image/svg+xml'
     elif format == 'js':
-        mimetype = 'application/javascript'
+        content_type = 'application/javascript'
         img += notices_to_javascript(get_notices(G.node_info))
     else:
         raise Exception('Unknown file type!')
 
-    response = HttpResponse(img, mimetype=mimetype)
+    response = HttpResponse(img, content_type=content_type)
     if 'download' in request.GET:
         filename_base = name_obj.name.canonicalize().to_text().rstrip('.')
         if not filename_base:
