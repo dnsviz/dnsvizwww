@@ -34,7 +34,7 @@ import dns.name, dns.rdatatype
 
 from django.conf import settings
 from django.db import transaction
-from django.http import HttpResponse, HttpResponseRedirect, Http404
+from django.http import HttpResponse, StreamingHttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.views.decorators.csrf import csrf_exempt
@@ -688,7 +688,7 @@ def analyze(request, name, url_subdir=None):
             a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), logger=analysis_logger.logger, start_time=start_time, force_ancestry=force_ancestry)
             a.analyze_async(analysis_logger.success_callback, analysis_logger.exc_callback)
             #TODO set alarm here for too long waits
-            return HttpResponse(analysis_logger.handler)
+            return StreamingHttpResponse(analysis_logger.handler)
         else:
             a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), start_time=start_time, force_ancestry=force_ancestry)
             try:
