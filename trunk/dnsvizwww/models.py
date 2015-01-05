@@ -687,33 +687,6 @@ class OfflineDomainNameAnalysis(OnlineDomainNameAnalysis):
     class Meta:
         proxy = True
 
-class NSMapping(models.Model):
-    name = fields.DomainNameField(max_length=2048)
-    server = models.ForeignKey(DNSServer)
-
-    class Meta:
-        unique_together = (('name', 'server'),)
-
-    def __unicode__(self):
-        return '%s -> %s' % (self.name.to_unicode(), self.server)
-
-    def __str__(self):
-        return '%s -> %s' % (self.name.to_text(), self.server)
-
-class DomainNameAnalysisManager(models.Manager):
-    def latest(self, name, date=None):
-        f = Q(pk=name, analysis_end__isnull=False)
-
-class DNSServer(models.Model):
-    ip_address = models.GenericIPAddressField(unique=True)
-
-    def __unicode__(self):
-        return self.ip_address
-
-class NSMapping(models.Model):
-    name = fields.DomainNameField(max_length=2048)
-    server = models.ForeignKey(DNSServer)
-
 class ResourceRecord(models.Model):
     name = fields.DomainNameField(max_length=2048)
     rdtype = fields.UnsignedSmallIntegerField()
