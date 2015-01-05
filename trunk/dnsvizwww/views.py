@@ -655,7 +655,6 @@ def domain_search(request):
     return HttpResponseRedirect('../d/%s/' % name)
 
 @csrf_exempt
-@transaction.autocommit
 def analyze(request, name, url_subdir=None):
     name = util.name_url_decode(name)
     name_obj = OfflineDomainNameAnalysis.objects.latest(name)
