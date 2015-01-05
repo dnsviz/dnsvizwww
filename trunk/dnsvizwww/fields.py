@@ -97,30 +97,3 @@ class DomainNameField(models.CharField):
         if self.canonicalize:
             name = name.canonicalize()
         return name.to_text()
-
-class BinaryField(models.Field):
-    #XXX no longer needed as of django 1.6
-    __metaclass__ = models.SubfieldBase
-
-    def db_type(self, connection):
-        if connection.settings_dict['ENGINE'] in ('django.db.backends.postgresql_psycopg2', 'django.db.backends.postgresql'):
-            return 'bytea'
-        elif connection.settings_dict['ENGINE'] == 'django.db.backends.mysql':
-            return 'blob'
-        elif connection.settings_dict['ENGINE'] == 'django.db.backends.sqlite3':
-            return 'BLOB'
-        raise Exception('Binary data type not known for %s db backend' % connection.settings_dict['ENGINE'])
-
-    def to_python(self, value):
-        if value is None:
-            return None
-        if isinstance(value, basestring):
-            return value
-        return str(value)
-
-    def get_prep_value(self, value):
-        if value is None:
-            return None
-        if isinstance(value, bytearray):
-            return value
-        return bytearray(value)
