@@ -691,7 +691,7 @@ class ResourceRecord(models.Model):
     name = fields.DomainNameField(max_length=2048)
     rdtype = fields.UnsignedSmallIntegerField()
     rdclass = fields.UnsignedSmallIntegerField()
-    rdata_wire = fields.BinaryField()
+    rdata_wire = models.BinaryField()
 
     rdata_name = fields.DomainNameField(max_length=2048, blank=True, null=True, db_index=True)
     rdata_address = models.GenericIPAddressField(blank=True, null=True, db_index=True)
@@ -854,7 +854,7 @@ class DNSQueryOptions(models.Model):
     flags = fields.UnsignedSmallIntegerField()
     edns_max_udp_payload = fields.UnsignedSmallIntegerField(blank=True, null=True)
     edns_flags = fields.UnsignedIntegerField(blank=True, null=True)
-    edns_options = fields.BinaryField(blank=True, null=True)
+    edns_options = models.BinaryField(blank=True, null=True)
     tcp_first = models.BooleanField(default=False)
 
     class Meta:
@@ -890,7 +890,7 @@ class DNSResponse(models.Model):
 
     edns_max_udp_payload = fields.UnsignedSmallIntegerField(blank=True, null=True)
     edns_flags = fields.UnsignedIntegerField(blank=True, null=True)
-    edns_options = fields.BinaryField(blank=True, null=True)
+    edns_options = models.BinaryField(blank=True, null=True)
 
     error = models.PositiveSmallIntegerField(blank=True, null=True)
     errno = models.PositiveSmallIntegerField(blank=True, null=True)
