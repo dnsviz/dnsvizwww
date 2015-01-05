@@ -24,6 +24,9 @@
 
 from django.conf.urls import patterns, url
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from django.views.generic.base import TemplateView, RedirectView
+
+from dnsvizwww import views
 
 _encoded_slash = r'S'
 _dns_label_first_char = r'[_a-z0-9]'
@@ -38,25 +41,26 @@ timestamp = r'[a-zA-Z0-9-_]{6}'
 
 ip_chars = r'[0-9a-fA-F:\.]{,39}'
 
-urlpatterns = patterns('dnsvizwww.views',
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % dns_name, 'domain_view'),
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>dnssec)/(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, 'dnssec_info'),
+urlpatterns = patterns('',
+        url(r'^$', TemplateView.as_view(template_name='main.html')),
 
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>analyze/)$' % dns_name, 'analyze'),
+        url(r'^search/$', views.domain_search),
+        url(r'^d/$', RedirectView.as_view(url='/')),
 
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % (dns_name, timestamp), 'domain_view_cacheable'),
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % (dns_name, timestamp), 'dnssec_info_cacheable'),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % dns_name, views.domain_view),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>dnssec)/(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, views.dnssec_info),
 
-        url(r'^contact/$', 'contact'),
-        url(r'^search/$', 'domain_search'),
-)
-urlpatterns += patterns('django.views.generic.simple',
-        url(r'^$', 'direct_to_template', { 'template': 'main.html' } ),
-        url(r'^d/$', 'redirect_to', { 'url': '/'}),
-        url(r'^doc/$', 'direct_to_template', { 'template': 'doc.html' } ),
-        url(r'^doc/faq/$', 'direct_to_template', { 'template': 'faq.html' } ),
-        url(r'^doc/dnssec/$', 'direct_to_template', { 'template': 'dnssec_legend.html' } ),
-        url(r'^message_submitted/$', 'direct_to_template', { 'template': 'message_submitted.html' } ),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>analyze/)$' % dns_name, views.analyze),
+
+        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % (dns_name, timestamp), views.domain_view_cacheable),
+        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % (dns_name, timestamp), views.dnssec_info_cacheable),
+
+        url(r'^contact/$', views.contact),
+        url(r'^message_submitted/$', TemplateView.as_view(template_name='message_submitted.html')),
+
+        url(r'^doc/$', TemplateView.as_view(template_name='doc.html')),
+        url(r'^doc/faq/$', TemplateView.as_view(template_name='faq.html')),
+        url(r'^doc/dnssec/$', TemplateView.as_view(template_name='dnssec_legend.html')),
 )
 
 urlpatterns += staticfiles_urlpatterns()
