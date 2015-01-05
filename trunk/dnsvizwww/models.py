@@ -143,7 +143,7 @@ class DomainNameAnalysisManager(models.Manager):
 
 class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models.Model):
     name = fields.DomainNameField(max_length=2048)
-    stub = models.BooleanField()
+    stub = models.BooleanField(default=False)
     follow_ns = models.BooleanField(default=False)
     follow_mx = models.BooleanField(default=False)
 
@@ -158,7 +158,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     nxdomain_ancestor_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
 
     referral_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
-    explicit_delegation = models.BooleanField()
+    explicit_delegation = models.BooleanField(default=False)
 
     nxdomain_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     nxdomain_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
@@ -855,7 +855,7 @@ class DNSQueryOptions(models.Model):
     edns_max_udp_payload = fields.UnsignedSmallIntegerField(blank=True, null=True)
     edns_flags = fields.UnsignedIntegerField(blank=True, null=True)
     edns_options = fields.BinaryField(blank=True, null=True)
-    tcp_first = models.BooleanField()
+    tcp_first = models.BooleanField(default=False)
 
     class Meta:
         unique_together = (('flags', 'edns_max_udp_payload', 'edns_flags', 'edns_options', 'tcp_first'),)
