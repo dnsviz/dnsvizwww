@@ -10,8 +10,12 @@ import sys
 
 import dns.message, dns.name 
 
+import django
+
 from dnsvizwww.analysis import DomainNameAnalysis
 from dnsviz.util import get_trusted_keys
+
+django.setup()
 
 def usage():
     sys.stderr.write( '''Usage: %s [ options ] ( -f <filename> | <domain name> [... ] )

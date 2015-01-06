@@ -9,10 +9,14 @@ import sys
 
 import dns.message, dns.name 
 
+import django
+
 from dnsvizwww.analysis import DomainNameAnalysis
 from dnsviz.config import DNSVIZ_SHARE_PATH
 from dnsviz.viz.dnssec import DNSAuthGraph
 from dnsviz.util import get_trusted_keys
+
+django.setup()
 
 MEDIA_URL = 'file://' + DNSVIZ_SHARE_PATH
 DNSSEC_TEMPLATE_FILE = os.path.join(DNSVIZ_SHARE_PATH, 'html', 'dnssec-template.html')
