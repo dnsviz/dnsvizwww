@@ -12,7 +12,7 @@ import dns.message, dns.name
 
 import django
 
-from dnsvizwww.analysis import DomainNameAnalysis
+from dnsvizwww.analysis import OfflineDomainNameAnalysis
 from dnsviz.util import get_trusted_keys
 
 django.setup()
@@ -71,7 +71,7 @@ def main():
     cache = {}
     name_objs = []
     for name in names:
-        name_obj = DomainNameAnalysis.objects.filter(name=name, stub=False).latest()
+        name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
         name_obj.retrieve_all(cache=cache)
         name_objs.append(name_obj)
 
