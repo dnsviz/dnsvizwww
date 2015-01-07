@@ -32,7 +32,6 @@ import json
 import logging
 import os
 import re
-import urllib
 
 import dns.name, dns.rdatatype
 
