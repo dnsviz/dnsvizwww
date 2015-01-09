@@ -116,6 +116,15 @@ class NSMapping(models.Model):
     def __str__(self):
         return '%s -> %s' % (self.name.to_text(), self.server)
 
+class NSNameNegativeResponse(models.Model):
+    name = fields.DomainNameField(max_length=2048, unique=True)
+
+    def __unicode__(self):
+        return '%s' % (self.name.to_unicode(), self.server)
+
+    def __str__(self):
+        return '%s' % (self.name.to_text(), self.server)
+
 class DomainNameAnalysisManager(models.Manager):
     def latest(self, name, date=None, stub=False):
         f = Q(name=name)
@@ -155,7 +164,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     analysis_end = models.DateTimeField(db_index=True)
     dep_analysis_end = models.DateTimeField()
 
-    version = models.PositiveSmallIntegerField(default=21)
+    version = models.PositiveSmallIntegerField(default=22)
 
     parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
     dlv_parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
@@ -170,6 +179,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     nxrrset_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
 
     auth_ns_ip_mapping_db = models.ManyToManyField(NSMapping, related_name='s+')
+    auth_ns_negative_response_db = models.ManyToManyField(NSNameNegativeResponse, related_name='s+')
 
     objects = DomainNameAnalysisManager()
 
@@ -367,8 +377,11 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
         # add the auth NS to IP mapping
         for name in self._auth_ns_ip_mapping:
-            for ip in self._auth_ns_ip_mapping[name]:
-                self.auth_ns_ip_mapping_db.add(NSMapping.objects.get_or_create(name=name, server=DNSServer.objects.get_or_create(ip_address=str(ip))[0])[0])
+            if self._auth_ns_ip_mapping[name]:
+                for ip in self._auth_ns_ip_mapping[name]:
+                    self.auth_ns_ip_mapping_db.add(NSMapping.objects.get_or_create(name=name, server=DNSServer.objects.get_or_create(ip_address=str(ip))[0])[0])
+            else:
+                self.auth_ns_negative_response_db.add(NSNameNegativeResponse.objects.get_or_create(name=name)[0])
 
         # add the queries
         for (qname, rdtype) in self.queries:
@@ -493,6 +506,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         # add the auth NS to IP mapping
         for name, ip in self.auth_ns_ip_mapping_db.values_list('name', 'server__ip_address'):
             self.add_auth_ns_ip_mappings((dns.name.from_text(name), IPAddr(ip)))
+        for name in self.auth_ns_negative_response_db.values_list('name', flat=True):
+            self.add_auth_ns_ip_mappings((dns.name.from_text(name), None))
 
         if self.stub:
             return
