@@ -156,6 +156,9 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
 
         G = DNSAuthGraph()
 
+        if not name_obj.zone.get_auth_or_designated_servers():
+            G.graph_zone_auth(name_obj.zone, False)
+
         # if DANE, then graph the A/AAAA records for the DANE host
         if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
             dane_host_obj = name_obj.get_dane_hostname()
@@ -241,6 +244,9 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
     name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
 
     G = DNSAuthGraph()
+
+    if not name_obj.zone.get_auth_or_designated_servers():
+        G.graph_zone_auth(name_obj.zone, False)
 
     # if DANE, then graph the A/AAAA records for the DANE host
     if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
