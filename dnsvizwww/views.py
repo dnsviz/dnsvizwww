@@ -577,9 +577,9 @@ def servers_view(request, name_obj, timestamp, url_subdir, date_form):
         if zone_obj.get_ns_names_in_parent():
             glue_mapping = zone_obj.get_glue_ip_mapping()
             parent_status['in_parent'] = name in glue_mapping
-            glue_ips_v4 = filter(lambda x: ':' not in x, glue_mapping.get(name, set()))
+            glue_ips_v4 = filter(lambda x: x.version == 4, glue_mapping.get(name, set()))
             glue_ips_v4.sort()
-            glue_ips_v6 = filter(lambda x: ':' in x, glue_mapping.get(name, set()))
+            glue_ips_v6 = filter(lambda x: x.version == 6, glue_mapping.get(name, set()))
             glue_ips_v6.sort()
         else:
             glue_ips_v4 = []
@@ -603,9 +603,9 @@ def servers_view(request, name_obj, timestamp, url_subdir, date_form):
             in_child = False
 
         auth_mapping = zone_obj.get_auth_ns_ip_mapping()
-        auth_ips_v4 = filter(lambda x: ':' not in x, auth_mapping.get(name, set()))
+        auth_ips_v4 = filter(lambda x: x.version == 4, auth_mapping.get(name, set()))
         auth_ips_v4.sort()
-        auth_ips_v6 = filter(lambda x: ':' in x, auth_mapping.get(name, set()))
+        auth_ips_v6 = filter(lambda x: x.version == 6, auth_mapping.get(name, set()))
         auth_ips_v6.sort()
 
         row.append({ 'in_child': in_child, 'auth_ips_v4': auth_ips_v4, 'auth_ips_v6': auth_ips_v6 })
