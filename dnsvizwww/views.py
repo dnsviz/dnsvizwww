@@ -37,12 +37,10 @@ import re
 import dns.name, dns.rdatatype
 
 from django.conf import settings
-from django.db import transaction
 from django.http import HttpResponse, StreamingHttpResponse, HttpResponseRedirect, Http404
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import condition
 
 from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
@@ -59,24 +57,6 @@ from dnsvizwww import util
 import urls
 from forms import *
 from notices import get_notices, notices_to_javascript
-
-def domain_last_modified(request, name, *args, **kwargs): 
-    timestamp = kwargs.get('timestamp', None)
-
-    if settings.DEBUG:
-        return None
-
-    # only use last-modified if a timestamp was specified
-    if timestamp is None:
-        return None
-
-    name = util.name_url_decode(name)
-    date = util.datetime_url_decode(timestamp)
-    name_obj = OfflineDomainNameAnalysis.objects.get(name, date)
-    if name_obj is None:
-        return None
-
-    return name_obj.analysis_end
 
 def reset_query_string(request):
     return HttpResponseRedirect(request.path)
