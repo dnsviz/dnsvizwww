@@ -33,6 +33,8 @@ import urllib
 
 import dns.dnssec, dns.name, dns.rdatatype, dns.rdataclass
 
+from django.core.cache.backends.base import DEFAULT_TIMEOUT
+
 import dnsviz.format as fmt
 
 def datetime_url_encode(dt):
@@ -80,3 +82,11 @@ def target_for_rrset(rrset, section, rdata=None):
 
 def ip_name_cmp((addr1, namelist1), (addr2, namelist2)):
     return cmp((namelist1[0], addr1), (namelist2[0], addr2))
+
+def touch_cache(cache, key, timeout=DEFAULT_TIMEOUT, version=None):
+    try:
+        cache._cache.touch
+    except AttributeError:
+        pass
+    else:
+        cache._cache.touch(cache.make_key(key, version=version), cache.get_backend_timeout(timeout))

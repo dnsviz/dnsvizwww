@@ -443,9 +443,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             key = 'dnsvizwww.models.OnlineDomainNameAnalysis.%d.related.%d' % (self.pk, i)
             d = Cache.get(key)
             if d is not None:
-                # touch the entry, if possible
-                if hasattr(Cache._cache, 'touch'):
-                    Cache._cache.touch(Cache.make_key(key), Cache.get_backend_timeout())
+                util.touch_cache(Cache, key) 
                 self._deserialize_related(d)
                 return True
         return False
