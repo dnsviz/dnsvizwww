@@ -648,7 +648,7 @@ def rest_view(request, name_obj, timestamp, url_subdir, date_form, rest_dir=None
     name_obj.retrieve_all()
 
     d = collections.OrderedDict()
-    if rest_dir == 'analysis/all/':
+    if rest_dir == 'analysis/':
         name_obj.populate_status(trusted_keys)
         name_obj.serialize_status(d, loglevel=loglevel)
     elif rest_dir == 'raw/':
