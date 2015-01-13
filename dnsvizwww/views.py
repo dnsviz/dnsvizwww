@@ -81,12 +81,6 @@ def domain_last_modified(request, name, *args, **kwargs):
 def reset_query_string(request):
     return HttpResponseRedirect(request.path)
 
-#XXX don't cache this page for 2 weeks until prev/next links are figured out
-@cache_page(600, cache='dbcache')
-#@condition(last_modified_func=domain_last_modified)
-def domain_view_cacheable(request, name, timestamp, url_subdir='', **kwargs):
-    return domain_view(request, name, timestamp, url_subdir, **kwargs)
-
 def domain_view(request, name, timestamp=None, url_subdir='', **kwargs):
     if 'reset_query' in request.GET:
         return reset_query_string(request)
@@ -303,11 +297,6 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
         return dnssec_auth_graph(request, name_obj, G, format)
     else:
         raise Http404
-
-@cache_page(86400, cache='dbcache')
-#@condition(last_modified_func=domain_last_modified)
-def dnssec_info_cacheable(request, name, timestamp, url_subdir=None, url_file=None, format=None, **kwargs):
-    return dnssec_info(request, name, timestamp, url_subdir, url_file, format, **kwargs)
 
 def dnssec_auth_graph(request, name_obj, G, format):
     img = G.draw(format)

@@ -28,6 +28,7 @@
 
 from django.conf.urls import patterns, url
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from django.views.decorators.cache import never_cache
 from django.views.generic.base import TemplateView, RedirectView
 
 from dnsvizwww import views
@@ -51,14 +52,14 @@ urlpatterns = patterns('',
         url(r'^search/$', views.domain_search),
         url(r'^d/$', RedirectView.as_view(url='/')),
 
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % dns_name, views.domain_view),
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>dnssec)/(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, views.dnssec_info),
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|analysis/all)/)$' % dns_name, views.domain_view),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % dns_name, never_cache(views.domain_view)),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>dnssec)/(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, never_cache(views.dnssec_info)),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|analysis/all)/)$' % dns_name, never_cache(views.domain_view)),
 
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>analyze/)$' % dns_name, views.analyze),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>analyze/)$' % dns_name, never_cache(views.analyze)),
 
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % (dns_name, timestamp), views.domain_view_cacheable),
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % (dns_name, timestamp), views.dnssec_info_cacheable),
+        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % (dns_name, timestamp), views.domain_view),
+        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % (dns_name, timestamp), views.dnssec_info),
         url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|analysis/all)/)$' % (dns_name, timestamp), views.domain_view),
 
         url(r'^contact/$', views.contact),
