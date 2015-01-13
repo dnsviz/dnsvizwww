@@ -27,6 +27,7 @@
 #
 
 from cgi import escape
+import collections
 import datetime
 import json
 import logging
@@ -125,6 +126,8 @@ def domain_view(request, name, timestamp=None, url_subdir='', **kwargs):
         return responses_view(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
     elif url_subdir == 'servers/':
         return servers_view(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
+    elif url_subdir == 'REST/':
+        return rest_view(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
     #XXX
     else:
         raise Http404
@@ -630,6 +633,41 @@ def servers_view(request, name_obj, timestamp, url_subdir, date_form):
                 'date_form': date_form, 'zone_obj': zone_obj, 'delegation': delegation_matrix, 'stealth': stealth_matrix, 'no_non_auth_parent_msg': no_non_auth_parent_msg, 'show_msg': show_msg,
                 'ips_from_parent': ips_from_parent, 'ips_from_child': ips_from_child },
             context_instance=RequestContext(request))
+
+def rest_view(request, name_obj, timestamp, url_subdir, date_form, rest_dir=None):
+    options_form, values = get_dnssec_options_form_data({})
+
+    trusted_keys_explicit = values['tk']
+    trusted_zones = values['ta']
+    trusted_keys = trusted_keys_explicit + trusted_zones
+
+    loglevel = request.GET.get('l', '')
+    if loglevel == 'error':
+        loglevel = logging.ERROR
+    elif loglevel == 'warning':
+        loglevel = logging.WARNING
+    elif loglevel == 'info':
+        loglevel = logging.INFO
+    else:
+        loglevel = logging.DEBUG
+
+    if request.GET.get('p', False):
+        kwargs = { 'indent': 4, 'separators': (',', ': ') }
+    else:
+        kwargs = {}
+
+    name_obj.retrieve_all()
+
+    d = collections.OrderedDict()
+    if rest_dir == 'analysis/all/':
+        name_obj.populate_status(trusted_keys)
+        name_obj.serialize_status(d, loglevel=loglevel)
+    elif rest_dir == 'raw/':
+        name_obj.serialize(d)
+    else:
+        raise Http404
+
+    return HttpResponse(json.dumps(d, **kwargs), content_type='application/json')
 
 def domain_search(request):
     name = request.GET.get('d', '')

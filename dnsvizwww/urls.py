@@ -53,11 +53,13 @@ urlpatterns = patterns('',
 
         url(r'^d/(?P<name>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % dns_name, views.domain_view),
         url(r'^d/(?P<name>%s)/(?P<url_subdir>dnssec)/(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, views.dnssec_info),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|analysis/all)/)$' % dns_name, views.domain_view),
 
         url(r'^d/(?P<name>%s)/(?P<url_subdir>analyze/)$' % dns_name, views.analyze),
 
         url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>(dnssec|responses|servers)/)?$' % (dns_name, timestamp), views.domain_view_cacheable),
         url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % (dns_name, timestamp), views.dnssec_info_cacheable),
+        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|analysis/all)/)$' % (dns_name, timestamp), views.domain_view),
 
         url(r'^contact/$', views.contact),
         url(r'^message_submitted/$', TemplateView.as_view(template_name='message_submitted.html')),
