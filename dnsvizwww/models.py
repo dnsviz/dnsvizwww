@@ -127,6 +127,13 @@ class NSNameNegativeResponse(models.Model):
 
 class DomainNameAnalysisManager(models.Manager):
     def latest(self, name, date=None, stub=False):
+        if date is None:
+            key = 'dnsvizwww.models.OnlineDomainNameAnalysis.name.%slatest.pk' % (name.canonicalize().to_text())
+            pk = Cache.get(key)
+            if pk is not None:
+                util.touch_cache(Cache, key) 
+                return self.filter(pk=pk).get()
+
         f = Q(name=name)
         if date is not None:
             f &= Q(analysis_end__lte=date)
@@ -360,17 +367,13 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         # recursively save the dependent names
         self.save_dependencies()
 
-    def _store_related_cache(self, level):
-        if self.name == dns.name.root:
-            timeout = 7200
-        elif len(self.name) <= 2:
-            timeout = 3600
-        else:
-            timeout = 60
+        # store the latest pk associated with the name
+        Cache.set('dnsvizwww.models.OnlineDomainNameAnalysis.name.%slatest.pk' % (self.name.canonicalize().to_text()), self.pk)
 
+    def _store_related_cache(self, level):
         d = {}
         self._serialize_related(d)
-        Cache.add('dnsvizwww.models.OnlineDomainNameAnalysis.%d.related.%d' % (self.pk, level), d, timeout)
+        Cache.add('dnsvizwww.models.OnlineDomainNameAnalysis.pk.%d.related.%d' % (self.pk, level), d)
 
     def store_related(self):
         self._store_related_cache(self.RDTYPES_ALL)
@@ -440,7 +443,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
     def _retrieve_related_cache(self, level):
         for i in range(level+1):
-            key = 'dnsvizwww.models.OnlineDomainNameAnalysis.%d.related.%d' % (self.pk, i)
+            key = 'dnsvizwww.models.OnlineDomainNameAnalysis.pk.%d.related.%d' % (self.pk, i)
             d = Cache.get(key)
             if d is not None:
                 util.touch_cache(Cache, key) 
