@@ -367,7 +367,6 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         for rdtype in rdtypes:
             if rdtype in self.rrsig_expiration_mapping:
                 expires = fmt.timestamp_to_datetime(self.rrsig_expiration_mapping[rdtype])
-                print self.name,dns.rdatatype.to_text(rdtype),expires
                 if start <= expires <= end:
                     return True
                 try:
@@ -375,7 +374,6 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 except KeyError:
                     continue
                 expires_in_cache = expires - datetime.timedelta(seconds=ttl)
-                print self.name,dns.rdatatype.to_text(rdtype),expires_in_cache
                 if start <= expires_in_cache <= end:
                     return True
         return False
