@@ -27,6 +27,7 @@
 #
 
 import datetime
+import hashlib
 import StringIO
 import struct
 import uuid
@@ -128,11 +129,13 @@ class NSNameNegativeResponse(models.Model):
 class DomainNameAnalysisManager(models.Manager):
     def latest(self, name, date=None, stub=False):
         if date is None:
-            key = 'dnsvizwww.models.OnlineDomainNameAnalysis.name.%slatest.pk' % (name.canonicalize().to_text())
+            key = 'dnsvizwww.models.OnlineDomainNameAnalysis.name.%s.latest.pk' % (hashlib.md5(name.canonicalize().to_text()).hexdigest())
             pk = Cache.get(key)
             if pk is not None:
                 util.touch_cache(Cache, key) 
-                return self.filter(pk=pk).get()
+                obj = self.filter(pk=pk).get()
+                if obj.name == name:
+                    return obj
 
         f = Q(name=name)
         if date is not None:
@@ -368,7 +371,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         self.save_dependencies()
 
         # store the latest pk associated with the name
-        Cache.set('dnsvizwww.models.OnlineDomainNameAnalysis.name.%slatest.pk' % (self.name.canonicalize().to_text()), self.pk)
+        Cache.set('dnsvizwww.models.OnlineDomainNameAnalysis.name.%s.latest.pk' % (hashlib.md5(self.name.canonicalize().to_text()).hexdigest()), self.pk)
 
     def _store_related_cache(self, level):
         d = {}
