@@ -237,6 +237,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
         self.ttl_mapping = {}
         self.rrsig_expiration_mapping = {}
+        self.dnskey_algs_ids = set()
 
     def __eq__(self, other):
         return self.name == other.name and self.pk == other.pk
@@ -244,6 +245,11 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     class Meta:
         unique_together = (('name', 'analysis_end'),)
         get_latest_by = 'analysis_end'
+
+    def _handle_dnskey_response(self, rrset):
+        for dnskey in rrset:
+            self.dnssec_algorithms_in_dnskey.add(dnskey.algorithm)
+            self.dnskey_algs_ids.add((dnskey.algorithm, Response.DNSKEYMeta.calc_key_tag(dnskey)))
 
     def _add_glue_ip_mapping(self, response):
         super(OnlineDomainNameAnalysis, self)._add_glue_ip_mapping(response)
