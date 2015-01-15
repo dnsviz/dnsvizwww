@@ -363,15 +363,22 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
         return min_ttl
 
-    def earliest_rrsig_expiration(self, *rdtypes):
-        earliest = None
+    def has_rrsig_expirations_between(self, start, end, rdtypes):
         for rdtype in rdtypes:
             if rdtype in self.rrsig_expiration_mapping:
-                if earliest is None or self.rrsig_expiration_mapping[rdtype] < earliest:
-                    earliest = self.rrsig_expiration_mapping[rdtype]
-        if earliest is not None:
-            earliest = fmt.timestamp_to_datetime(earliest)
-        return earliest
+                expires = fmt.timestamp_to_datetime(self.rrsig_expiration_mapping[rdtype])
+                print self.name,dns.rdatatype.to_text(rdtype),expires
+                if start <= expires <= end:
+                    return True
+                try:
+                    ttl = self.ttl_mapping[rdtype]
+                except KeyError:
+                    continue
+                expires_in_cache = expires - datetime.timedelta(seconds=ttl)
+                print self.name,dns.rdatatype.to_text(rdtype),expires_in_cache
+                if start <= expires_in_cache <= end:
+                    return True
+        return False
 
     def rdtypes_queried(self):
         return set(self.queries_db.filter(qname=self.name).values_list('rdtype', flat=True))

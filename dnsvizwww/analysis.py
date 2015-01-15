@@ -254,9 +254,7 @@ class Analyst(dnsviz.analysis.Analyst):
 
         # If RRSIG is expiring (or will expire in cache) since last analysis
         # end, then return True
-        earliest_rrsig_expiration = name_obj.earliest_rrsig_expiration(dns.rdatatype.DS, dns.rdatatype.DNSKEY)
-        if earliest_rrsig_expiration is not None and \
-                name_obj.analysis_end <= earliest_rrsig_expiration <= now:
+        if name_obj.has_rrsig_expirations_between(name_obj.analysis_end, now, (dns.rdatatype.DS, dns.rdatatype.DNSKEY)):
             return True
 
         # If the contents of pertinent RRsets have changed since last analysis,
