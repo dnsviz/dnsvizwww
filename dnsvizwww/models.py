@@ -30,7 +30,6 @@ import datetime
 import hashlib
 import StringIO
 import struct
-import uuid
 
 import dns.edns, dns.exception, dns.flags, dns.message, dns.name, dns.rcode, dns.rdataclass, dns.rdata, dns.rdatatype, dns.rrset
 
@@ -737,7 +736,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         else:
             refresh_interval = 172800
 
-        refresh_offset = uuid.uuid5(uuid.NAMESPACE_DNS, self.name.canonicalize().to_text()).int % refresh_interval
+        refresh_offset = util.uuid_for_name(self.name).int % refresh_interval
         dname_obj.set_refresh(refresh_interval, refresh_offset)
 
 class OfflineDomainNameAnalysis(OnlineDomainNameAnalysis):

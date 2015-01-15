@@ -30,6 +30,7 @@ import base64
 from cgi import escape
 import struct
 import urllib
+import uuid
 
 import dns.dnssec, dns.name, dns.rdatatype, dns.rdataclass
 
@@ -90,3 +91,6 @@ def touch_cache(cache, key, timeout=DEFAULT_TIMEOUT, version=None):
         pass
     else:
         cache._cache.touch(cache.make_key(key, version=version), cache.get_backend_timeout(timeout))
+
+def uuid_for_name(name):
+    return uuid.uuid5(uuid.NAMESPACE_DNS, name.canonicalize().to_text())
