@@ -133,9 +133,15 @@ class DomainNameAnalysisManager(models.Manager):
             pk = Cache.get(key)
             if pk is not None:
                 util.touch_cache(Cache, key) 
-                obj = self.filter(pk=pk).get()
-                if obj.name == name:
-                    return obj
+                try:
+                    obj = self.filter(pk=pk).get()
+                except OnlineDomainNameAnalysis.DoesNotExist:
+                    # sometimes the cache has a view of it before the database
+                    # does
+                    pass
+                else:
+                    if obj.name == name:
+                        return obj
 
         f = Q(name=name)
         if date is not None:
