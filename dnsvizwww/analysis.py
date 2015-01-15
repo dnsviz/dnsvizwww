@@ -257,12 +257,10 @@ class Analyst(dnsviz.analysis.Analyst):
         if name_obj.has_rrsig_expirations_between(name_obj.analysis_end, now, (dns.rdatatype.DS, dns.rdatatype.DNSKEY)):
             return True
 
-        # If the contents of pertinent RRsets have changed since last analysis,
-        # then return True
-        for rdtype in (dns.rdatatype.NS, dns.rdatatype.DS, dns.rdatatype.DNSKEY):
-            if (name_obj.name, rdtype) in name_obj.queries and \
-                    name_obj.rrset_has_changed(rdtype):
-                return True
+        # If the  of the NS or DNSKEY RRset have changed since last
+        # analysis, then return True
+        if name_obj.has_new_ns_name(bool(self.client_ipv4), bool(self.client_ipv6)):
+            return True
 
         # If not all queries were included in the last analysis, then
         # return True.

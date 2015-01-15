@@ -30,7 +30,7 @@ import datetime
 import StringIO
 import struct
 
-import dns.edns, dns.exception, dns.flags, dns.message, dns.name, dns.rcode, dns.rdataclass, dns.rdata, dns.rdatatype, dns.rrset
+import dns.edns, dns.exception, dns.flags, dns.message, dns.name, dns.rcode, dns.rdataclass, dns.rdata, dns.rdatatype, dns.resolver, dns.rrset
 
 from django.conf import settings
 from django.core.cache import cache as Cache
@@ -43,6 +43,7 @@ import dnsviz.analysis
 import dnsviz.format as fmt
 from dnsviz.ipaddr import IPAddr
 import dnsviz.query as Query
+import dnsviz.resolver as Resolver
 import dnsviz.response as Response
 
 import fields
@@ -326,30 +327,27 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
         return None
 
-    def rrset_has_changed(self, rdtype):
-        '''Query the DNS (using the default resolver) for the current name and
-        specified type.  Return False if at least one RRset returned from an
-        authoritative server matches the contents received in the response;
-        return True otherwise.'''
+    def has_new_ns_name(self, use_ipv4, use_ipv6):
+        servers = self.get_designated_servers(no_cache=True)
+        if not use_ipv4:
+            servers = filter(lambda x: x.version != 4, servers)
+        if not use_ipv6:
+            servers = filter(lambda x: x.version != 6, servers)
 
-        try:
-            ans = dnsviz.analysis.resolver.query(self.name, rdtype, dns.rdataclass.IN)
-            try:
-                rrset = ans.response.find_rrset(ans.response.answer, self.name, dns.rdataclass.IN, rdtype)
-            except KeyError:
-                rrset = dns.rrset.RRset(self.name, dns.rdataclass.IN, rdtype)
-        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.exception.DNSException):
-            rrset = dns.rrset.RRset(self.name, dns.rdataclass.IN, rdtype)
-
-        rrset_info_list = self.queries[(self.name, rdtype)].answer_info
-        if not rrset_info_list and not rrset:
+        if not servers:
             return False
-        
-        for rrset_info in rrset_info_list:
-            if rrset_info.rrset == rrset:
-                return False
 
-        return True
+        # check for NS names
+        resolver = Resolver.Resolver(list(servers), Query.StandardQuery, max_attempts=1, shuffle=True)
+        try:
+            ans = resolver.query(self.name, dns.rdatatype.NS)
+        except (dns.resolver.NoNameservers, dns.exception.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            return False
+
+        ns_names = set([n.target for n in ans.rrset])
+        if ns_names.difference(self.get_ns_names()):
+            return True
+        return False
 
     def min_ttl(self, *rdtypes):
         min_ttl = None
