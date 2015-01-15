@@ -237,6 +237,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         models.Model.__init__(self, *args, **kwargs)
 
         self.ttl_mapping = {}
+        self.rrsig_expiration_mapping = {}
 
     def __eq__(self, other):
         return self.name == other.name and self.pk == other.pk
@@ -253,6 +254,14 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     def _process_response_answer_rrset(self, rrset, query, response):
         super(OnlineDomainNameAnalysis, self)._process_response_answer_rrset(rrset, query, response)
         if query.qname in (self.name, self.dlv_name):
+            try:
+                rrsig_rrset = response.message.find_rrset(response.message.answer, query.qname, query.rdclass, dns.rdatatype.RRSIG, rrset.rdtype)
+            except KeyError:
+                pass
+            else:
+                for rrsig in rrsig_rrset:
+                    if rrset.rdtype not in self.rrsig_expiration_mapping or rrsig.expiration < self.rrsig_expiration_mapping[rrset.rdtype]:
+                        self.rrsig_expiration_mapping[rrset.rdtype] = rrsig.expiration
             self.ttl_mapping[rrset.rdtype] = min(self.ttl_mapping.get(rrset.rdtype, MAX_TTL), rrset.ttl)
 
     def to_text(self):
