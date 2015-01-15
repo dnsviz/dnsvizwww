@@ -50,6 +50,8 @@ import dnsviz.response as Response
 import fields
 import util
 
+MAX_TTL = 100000000
+
 class DomainNameManager(models.Manager):
     def offset_for_interval(self, interval):
         if interval > 604800:
@@ -234,12 +236,24 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, (kwargs['name'],), **kwargs_modified)
         models.Model.__init__(self, *args, **kwargs)
 
+        self.ttl_mapping = {}
+
     def __eq__(self, other):
         return self.name == other.name and self.pk == other.pk
 
     class Meta:
         unique_together = (('name', 'analysis_end'),)
         get_latest_by = 'analysis_end'
+
+    def _add_glue_ip_mapping(self, response):
+        super(OnlineDomainNameAnalysis, self)._add_glue_ip_mapping(response)
+        rrset = response.message.find_rrset(response.message.authority, self.name, dns.rdataclass.IN, dns.rdatatype.NS)
+        self.ttl_mapping[-dns.rdatatype.NS] = min(self.ttl_mapping.get(-dns.rdatatype.NS, MAX_TTL), rrset.ttl)
+
+    def _process_response_answer_rrset(self, rrset, query, response):
+        super(OnlineDomainNameAnalysis, self)._process_response_answer_rrset(rrset, query, response)
+        if query.qname in (self.name, self.dlv_name):
+            self.ttl_mapping[rrset.rdtype] = min(self.ttl_mapping.get(rrset.rdtype, MAX_TTL), rrset.ttl)
 
     def to_text(self):
         return str(self)
