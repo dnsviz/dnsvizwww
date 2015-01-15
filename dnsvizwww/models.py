@@ -366,13 +366,9 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     def earliest_rrsig_expiration(self, *rdtypes):
         earliest = None
         for rdtype in rdtypes:
-            if (self.name, rdtype) in self.queries:
-                for rrset_info in self.queries[(self.name, rdtype)].answer_info:
-                    for rrsig in rrset_info.rrsig_info:
-                        expire_in_cache = rrsig.expiration - rrset_info.rrset.ttl
-                        if earliest is None or expire_in_cache < earliest:
-                            earliest = expire_in_cache
-
+            if rdtype in self.rrsig_expiration_mapping:
+                if earliest is None or self.rrsig_expiration_mapping[rdtype] < earliest:
+                    earliest = self.rrsig_expiration_mapping[rdtype]
         if earliest is not None:
             earliest = fmt.timestamp_to_datetime(earliest)
         return earliest
