@@ -333,28 +333,6 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
         return None
 
-    def has_new_ns_name(self, use_ipv4, use_ipv6):
-        servers = self.get_designated_servers(no_cache=True)
-        if not use_ipv4:
-            servers = filter(lambda x: x.version != 4, servers)
-        if not use_ipv6:
-            servers = filter(lambda x: x.version != 6, servers)
-
-        if not servers:
-            return False
-
-        # check for NS names
-        resolver = Resolver.Resolver(list(servers), Query.StandardQuery, max_attempts=1, shuffle=True)
-        try:
-            ans = resolver.query(self.name, dns.rdatatype.NS)
-        except (dns.resolver.NoNameservers, dns.exception.Timeout, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-            return False
-
-        ns_names = set([n.target for n in ans.rrset])
-        if ns_names.difference(self.get_ns_names()):
-            return True
-        return False
-
     def min_ttl(self, *rdtypes):
         min_ttl = None
         for rdtype in rdtypes:
