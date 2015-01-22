@@ -111,7 +111,8 @@ def detail_view(request, name_obj, timestamp, url_subdir, date_form):
 
 def _graph_dane_related_name(G, name_obj, trusted_keys, rdtypes, denial_of_existence):
     # if DANE, then graph the A/AAAA records for the DANE host
-    if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
+    if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp') and \
+            (dns.rdatatype.A in rdtypes or dns.rdatatype.AAAA in rdtypes):
         dane_host_obj = name_obj.get_dane_hostname()
         if dane_host_obj is not None:
             dane_host_obj.retrieve_all()
