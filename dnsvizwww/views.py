@@ -109,12 +109,7 @@ def domain_view(request, name, timestamp=None, url_subdir='', **kwargs):
 def detail_view(request, name_obj, timestamp, url_subdir, date_form):
     return HttpResponseRedirect('dnssec/')
 
-def _graph_name(name_obj, rdtypes, denial_of_existence):
-    G = DNSAuthGraph()
-
-    if not name_obj.zone.get_auth_or_designated_servers():
-        G.graph_zone_auth(name_obj.zone, False)
-
+def _graph_dane_related_name(G, name_obj, trusted_keys, rdtypes, denial_of_existence):
     # if DANE, then graph the A/AAAA records for the DANE host
     if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
         dane_host_obj = name_obj.get_dane_hostname()
@@ -124,6 +119,14 @@ def _graph_name(name_obj, rdtypes, denial_of_existence):
             for rdtype in (dns.rdatatype.A, dns.rdatatype.AAAA):
                 if rdtype in rdtypes and (denial_of_existence or (dane_host_obj.name, rdtype) in dane_host_obj.yxrrset):
                     G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, rdtype)
+
+def _graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence):
+    G = DNSAuthGraph()
+
+    if not name_obj.zone.get_auth_or_designated_servers():
+        G.graph_zone_auth(name_obj.zone, False)
+
+    _graph_dane_related_name(G, name_obj, trusted_keys, rdtypes, denial_of_existence)
 
     # get all the names/types associated with the analysis
     qnamestypes = set(filter(lambda x: x[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.queries))
@@ -182,7 +185,7 @@ def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
     else:
         name_obj.retrieve_all()
         name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
-        G = _graph_name(name_obj, rdtypes, denial_of_existence)
+        G = _graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
         #G.remove_extra_edges(redundant_edges)
         notices = get_notices(G.node_info)
@@ -221,7 +224,7 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
 
     name_obj.retrieve_all()
     name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
-    G = _graph_name(name_obj, rdtypes, denial_of_existence)
+    G = _graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
     G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
     G.remove_extra_edges(redundant_edges)
 
