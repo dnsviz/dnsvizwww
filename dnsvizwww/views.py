@@ -109,117 +109,7 @@ def domain_view(request, name, timestamp=None, url_subdir='', **kwargs):
 def detail_view(request, name_obj, timestamp, url_subdir, date_form):
     return HttpResponseRedirect('dnssec/')
 
-def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
-    options_form, values = get_dnssec_options_form_data(request.GET)
-    rdtypes = set(values['rr'])
-    denial_of_existence = values['doe']
-    dnssec_algorithms = set(values['a'])
-    ds_algorithms = set(values['ds'])
-    trusted_keys_explicit = values['tk']
-    trusted_zones = values['ta']
-    redundant_edges = values['red']
-
-    trusted_keys = trusted_keys_explicit + trusted_zones
-
-    use_js = 'no_js' not in request.GET
-
-    G = DNSAuthGraph()
-        
-    if use_js:
-        notices = {}
-    else:
-        name_obj.retrieve_all()
-        name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
-
-        G = DNSAuthGraph()
-
-        if not name_obj.zone.get_auth_or_designated_servers():
-            G.graph_zone_auth(name_obj.zone, False)
-
-        # if DANE, then graph the A/AAAA records for the DANE host
-        if len(name_obj.name) > 2 and name_obj.name[1] in ('_tcp', '_udp', '_sctp'):
-            dane_host_obj = name_obj.get_dane_hostname()
-            if dane_host_obj is not None:
-                dane_host_obj.retrieve_all()
-                dane_host_obj.populate_status(trusted_keys)
-                for rdtype in (dns.rdatatype.A, dns.rdatatype.AAAA):
-                    if rdtype in rdtypes and (denial_of_existence or (dane_host_obj.name, rdtype) in dane_host_obj.yxrrset):
-                        G.graph_rrset_auth(dane_host_obj, dane_host_obj.name, rdtype)
-
-        # get all the names/types associated with the analysis
-        qnamestypes = set(filter(lambda x: x[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.queries))
-
-        # if denial of existence was not specified, don't include the
-        # explicit nxdomain/nxrrset queries
-        if not denial_of_existence:
-            qnamestypes.difference_update(
-                    [(name_obj.nxdomain_name, name_obj.nxdomain_rdtype),
-                        (name_obj.nxrrset_name, name_obj.nxrrset_rdtype)])
-
-        # queries with positive responses or error responses (yxrrset)
-        yxnamestypes = name_obj.yxrrset.intersection(qnamestypes)
-        errnamestypes = set(filter(lambda x: name_obj.queries[x].error_info, qnamestypes))
-
-        # if no rrsets exist, and there were no response errors, then force denial_of_existence 
-        if not yxnamestypes and not errnamestypes:
-            denial_of_existence = True
-
-        for qname, rdtype in qnamestypes:
-            if rdtype not in rdtypes:
-                continue
-            if not denial_of_existence:
-                has_pos_response = qname in name_obj.yxdomain and (qname, rdtype) in name_obj.yxrrset
-                has_cname_response = (qname, dns.rdatatype.CNAME) in name_obj.yxrrset
-                has_neg_response = bool(filter(lambda x: x.qname == qname and x.rdtype == rdtype, name_obj.nodata_status) or \
-                        filter(lambda x: x.qname == qname and x.rdtype == rdtype, name_obj.nxdomain_status))
-                # If there is no positive response, but there is a negative
-                # response or CNAME response for the qname/qtype in question, then
-                # don't show it.  This way the default display (i.e., when
-                # denial_of_existence is
-                if not has_pos_response and (has_neg_response or has_cname_response):
-                    continue
-
-            G.graph_rrset_auth(name_obj, qname, rdtype)
-
-        G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
-        #G.remove_extra_edges(redundant_edges)
-        notices = get_notices(G.node_info)
-
-    analyzed_name_obj = name_obj
-    template = 'dnssec.html'
-
-    return render_to_response(template,
-            { 'name_obj': name_obj, 'analyzed_name_obj': analyzed_name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
-                'options_form': options_form, 'date_form': date_form,
-                'notices': notices, 'use_js': use_js, 'query_string': request.META['QUERY_STRING'] },
-            context_instance=RequestContext(request))
-
-def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, format=None, **kwargs):
-    name = util.name_url_decode(name)
-    if timestamp is None:
-        name_obj = OfflineDomainNameAnalysis.objects.latest(name)
-    else:
-        date = util.datetime_url_decode(timestamp)
-        name_obj = OfflineDomainNameAnalysis.objects.get(name, date)
-
-    if name_obj is None:
-        raise Http404
-
-    options_form, values = get_dnssec_options_form_data(request.GET)
-
-    rdtypes = set(values['rr'])
-    denial_of_existence = values['doe']
-    dnssec_algorithms = set(values['a'])
-    ds_algorithms = set(values['ds'])
-    trusted_keys_explicit = values['tk']
-    trusted_zones = values['ta']
-    redundant_edges = values['red']
-
-    trusted_keys = trusted_keys_explicit + trusted_zones
-
-    name_obj.retrieve_all()
-    name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
-
+def _graph_name(name_obj, rdtypes, denial_of_existence):
     G = DNSAuthGraph()
 
     if not name_obj.zone.get_auth_or_designated_servers():
@@ -269,7 +159,69 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
                 continue
 
         G.graph_rrset_auth(name_obj, qname, rdtype)
+    return G
 
+def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
+    options_form, values = get_dnssec_options_form_data(request.GET)
+    rdtypes = set(values['rr'])
+    denial_of_existence = values['doe']
+    dnssec_algorithms = set(values['a'])
+    ds_algorithms = set(values['ds'])
+    trusted_keys_explicit = values['tk']
+    trusted_zones = values['ta']
+    redundant_edges = values['red']
+
+    trusted_keys = trusted_keys_explicit + trusted_zones
+
+    use_js = 'no_js' not in request.GET
+
+    G = DNSAuthGraph()
+        
+    if use_js:
+        notices = {}
+    else:
+        name_obj.retrieve_all()
+        name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
+        G = _graph_name(name_obj, rdtypes, denial_of_existence)
+        G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
+        #G.remove_extra_edges(redundant_edges)
+        notices = get_notices(G.node_info)
+
+    analyzed_name_obj = name_obj
+    template = 'dnssec.html'
+
+    return render_to_response(template,
+            { 'name_obj': name_obj, 'analyzed_name_obj': analyzed_name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
+                'options_form': options_form, 'date_form': date_form,
+                'notices': notices, 'use_js': use_js, 'query_string': request.META['QUERY_STRING'] },
+            context_instance=RequestContext(request))
+
+def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, format=None, **kwargs):
+    name = util.name_url_decode(name)
+    if timestamp is None:
+        name_obj = OfflineDomainNameAnalysis.objects.latest(name)
+    else:
+        date = util.datetime_url_decode(timestamp)
+        name_obj = OfflineDomainNameAnalysis.objects.get(name, date)
+
+    if name_obj is None:
+        raise Http404
+
+    options_form, values = get_dnssec_options_form_data(request.GET)
+
+    rdtypes = set(values['rr'])
+    denial_of_existence = values['doe']
+    dnssec_algorithms = set(values['a'])
+    ds_algorithms = set(values['ds'])
+    trusted_keys_explicit = values['tk']
+    trusted_zones = values['ta']
+    redundant_edges = values['red']
+
+    trusted_keys = trusted_keys_explicit + trusted_zones
+
+    name_obj.retrieve_all()
+    name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
+    G = _graph_name(name_obj, rdtypes, denial_of_existence)
     G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
     G.remove_extra_edges(redundant_edges)
 
