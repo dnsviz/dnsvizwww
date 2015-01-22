@@ -129,40 +129,43 @@ def _graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence):
 
     _graph_dane_related_name(G, name_obj, trusted_keys, rdtypes, denial_of_existence)
 
-    # get all the names/types associated with the analysis
-    qnamestypes = set(filter(lambda x: x[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV), name_obj.queries))
+    # get names/types queried in conjunction with the analysis, other than
+    # DNSSEC-related types and those not explicitly requested in the options
+    # form.
+    qnamestypes = set(filter(lambda x: x[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV) and x[1] in rdtypes, name_obj.queries))
 
-    # if denial of existence was not specified, don't include the
-    # explicit nxdomain/nxrrset queries
+    # if no qnames/qtypes resulted, it is possible that this is the result of
+    # an NXDOMAIN found by querying for the referral_rdtype, which might not have
+    # been among the rdtypes explicitly requested for view.
+    if not qnamestypes and name_obj.referral_rdtype is not None and name_obj.queries[(name_obj.name, name_obj.referral_rdtype)].is_nxdomain_all():
+        qnamestypes.add((name_obj.name, name_obj.referral_rdtype))
+
+    # if denial of existence was not specified, don't include the explicit
+    # nxdomain/nxrrset queries
     if not denial_of_existence:
         qnamestypes.difference_update(
                 [(name_obj.nxdomain_name, name_obj.nxdomain_rdtype),
                     (name_obj.nxrrset_name, name_obj.nxrrset_rdtype)])
 
-    # queries with positive responses or error responses (yxrrset)
-    yxnamestypes = name_obj.yxrrset.intersection(qnamestypes)
-    errnamestypes = set(filter(lambda x: name_obj.queries[x].error_info, qnamestypes))
+    # identify queries with positive responses, negative responses or error responses
+    pos_namestypes = name_obj.yxrrset.intersection(qnamestypes)
+    neg_namestypes = name_obj.nxrrset.intersection(qnamestypes)
+    err_namestypes = set(filter(lambda x: name_obj.queries[x].error_info, qnamestypes))
 
-    # if no rrsets exist, and there were no response errors, then force denial_of_existence 
-    if not yxnamestypes and not errnamestypes:
-        denial_of_existence = True
+    # if denial_of_existence is selected, then graph everything
+    if denial_of_existence:
+        qnamestypes_to_graph = qnamestypes
+    else:
+        # otherwise graph only positive responses and errors not associated
+        # with negative responses
+        qnamestypes_to_graph = pos_namestypes.union(err_namestypes.difference(neg_namestypes))
+        # if nothing matches, then graph everything
+        if not qnamestypes_to_graph:
+            qnamestypes_to_graph = qnamestypes
 
-    for qname, rdtype in qnamestypes:
-        if rdtype not in rdtypes:
-            continue
-        if not denial_of_existence:
-            has_pos_response = qname in name_obj.yxdomain and (qname, rdtype) in name_obj.yxrrset
-            has_cname_response = (qname, dns.rdatatype.CNAME) in name_obj.yxrrset
-            has_neg_response = bool(filter(lambda x: x.qname == qname and x.rdtype == rdtype, name_obj.nodata_status) or \
-                    filter(lambda x: x.qname == qname and x.rdtype == rdtype, name_obj.nxdomain_status))
-            # If there is no positive response, but there is a negative
-            # response or CNAME response for the qname/qtype in question, then
-            # don't show it.  This way the default display (i.e., when
-            # denial_of_existence is
-            if not has_pos_response and (has_neg_response or has_cname_response):
-                continue
-
+    for qname, rdtype in qnamestypes_to_graph:
         G.graph_rrset_auth(name_obj, qname, rdtype)
+
     return G
 
 def dnssec_view(request, name_obj, timestamp, url_subdir, date_form):
