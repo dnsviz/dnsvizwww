@@ -498,3 +498,6 @@ fieldset { border: 0; }
 .dnsviz-invalid-target { background-color: #f17b7b; }
 .dnsviz-invalid { background-color: #f17b7b; }
 .dnsviz-match-pre-revoke { background-color: #fffa8f; }
+
+.ui-tooltip-content ul { list-style:none; margin: 0; padding: 0; }
+.ui-tooltip-content ul li { margin: 0; padding: 0; }
