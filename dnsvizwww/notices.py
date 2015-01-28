@@ -147,12 +147,10 @@ def _populate_notices(notices, obj, label=None):
                 l = label
                 if node_name in ('errors', 'warnings'):
                     for e in val:
-                        if isinstance(val, dict):
-                            servers = list(val[e])
-                            servers.sort()
-                            bisect.insort(notices['notices'][node_name], '%s: %s (%s)' % (l, e, ', '.join(servers)))
-                        else:
-                            bisect.insort(notices['notices'][node_name], '%s: %s' % (l, e))
+                        description = e['description']
+                        if 'servers' in e:
+                            description += ' (%s)' % (', '.join(e['servers']))
+                        bisect.insort(notices['notices'][node_name], '%s: %s' % (l, description))
             _populate_notices(notices, val, l)
     elif isinstance(obj, (list, tuple, set)):
         if label is not None:
