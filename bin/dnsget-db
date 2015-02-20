@@ -258,28 +258,32 @@ def main():
             logger.addHandler(handler)
         logger.setLevel(debug_level)
 
+        names = []
         if '-f' in opts:
-            names = []
-            with codecs.open(opts['-f'], 'r', 'utf-8') as f:
-                for line in f:
-                    try:
-                        name = dns.name.from_unicode(line.strip())
-                    except UnicodeDecodeError, e:
-                        logger.warning('%s: %s' % (line.strip(), e))
-                        continue
-
-                    # check against refresh blacklist
-                    blacklisted = False
-                    for black in settings.BLACKLIST_FROM_REFRESH:
-                        if name.is_subdomain(black):
-                            blacklisted = True
-                            break
-                    if blacklisted:
-                        continue
-
+            try:
+                f = codecs.open(opts['-f'], 'r', 'utf-8')
+            except IOError, e:
+                logger.error('%s: "%s"' % (e.strerror, opts['-f']))
+                sys.exit(2)
+            for line in f:
+                name = line.strip()
+                try:
+                    name = dns.name.from_unicode(name)
+                except UnicodeDecodeError, e:
+                    logger.error('%s: "%s"' % (e, name))
+                except dns.exception.DNSException:
+                    logger.error('The domain name was invalid: "%s"' % name)
+                else:
                     names.append(name)
+            f.close()
         else:
-            names = map(dns.name.from_text, args)
+            for name in args:
+                try:
+                    name = dns.name.from_text(name)
+                except dns.exception.DNSException:
+                    logger.error('The domain name was invalid: "%s"' % name)
+                else:
+                    names.append(name)
 
         name_objs = []
         if '-R' in opts:
