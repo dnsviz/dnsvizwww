@@ -78,77 +78,82 @@ def finish_graph(G, trusted_keys, fmt, filename):
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'f:t:Oo:T:')
-    except getopt.GetoptError:
-        usage()
-        sys.exit(1)
+        try:
+            opts, args = getopt.getopt(sys.argv[1:], 'f:t:Oo:T:')
+        except getopt.GetoptError:
+            usage()
+            sys.exit(1)
 
-    opts = dict(opts)
-    if ('-f' in opts and args) or not ('-f' in opts or args):
-        usage()
-        sys.exit(1)
+        opts = dict(opts)
+        if ('-f' in opts and args) or not ('-f' in opts or args):
+            usage()
+            sys.exit(1)
 
-    if '-T' in opts:
-        fmt = opts['-T']
-    elif '-o' in opts:
-        fmt = opts['-o'].split('.')[-1]
-    else:
-        fmt = 'dot'
-    if fmt not in ('dot','png','jpg','svg','html'):
-        usage()
-        sys.exit(1)
-
-    if '-o' in opts and '-O' in opts:
-        usage()
-        sys.exit(1)
-
-    if '-f' in opts:
-        names = []
-        with codecs.open(opts['-f'], 'r', 'utf-8') as f:
-            for line in f:
-                names.append(dns.name.from_unicode(line.strip()))
-    else:
-        names = map(dns.name.from_text, args)
-
-    if '-t' in opts:
-        trusted_keys = get_trusted_keys(open(opts['-t']).read())
-    else:
-        trusted_keys = ()
-
-    name_objs = []
-    cache = {}
-    for name in names:
-        name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
-        name_obj.retrieve_all(cache=cache)
-        name_objs.append(name_obj)
-
-    G = DNSAuthGraph()
-    for name_obj in name_objs:
-        name_obj.populate_status(trusted_keys)
-        for qname, rdtype in name_obj.queries:
-            if rdtype in (dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
-                continue
-            #XXX filter negative responses
-            #if (qname, rdtype) in name_obj.nxdomain_servers_clients or \
-            #        (qname, rdtype) in name_obj.noanswer_servers_clients:
-            #    continue
-            G.graph_rrset_auth(name_obj, qname, rdtype)
-
-        if '-O' in opts:
-            if name_obj.name == dns.name.root:
-                name = 'root'
-            else:
-                name = name_obj.name.canonicalize().to_text().rstrip('.')
-            finish_graph(G, trusted_keys, fmt, '%s.%s' % (name, fmt))
-            G = DNSAuthGraph()
-
-    if '-O' not in opts:
-        if '-o' not in opts or opts['-o'] == '-':
-            filename = None
-            img = finish_graph(G, trusted_keys, fmt, filename)
-            sys.stdout.write(img)
+        if '-T' in opts:
+            fmt = opts['-T']
+        elif '-o' in opts:
+            fmt = opts['-o'].split('.')[-1]
         else:
-            finish_graph(G, trusted_keys, fmt, opts['-o'])
+            fmt = 'dot'
+        if fmt not in ('dot','png','jpg','svg','html'):
+            usage()
+            sys.exit(1)
+
+        if '-o' in opts and '-O' in opts:
+            usage()
+            sys.exit(1)
+
+        if '-f' in opts:
+            names = []
+            with codecs.open(opts['-f'], 'r', 'utf-8') as f:
+                for line in f:
+                    names.append(dns.name.from_unicode(line.strip()))
+        else:
+            names = map(dns.name.from_text, args)
+
+        if '-t' in opts:
+            trusted_keys = get_trusted_keys(open(opts['-t']).read())
+        else:
+            trusted_keys = ()
+
+        name_objs = []
+        cache = {}
+        for name in names:
+            name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
+            name_obj.retrieve_all(cache=cache)
+            name_objs.append(name_obj)
+
+        G = DNSAuthGraph()
+        for name_obj in name_objs:
+            name_obj.populate_status(trusted_keys)
+            for qname, rdtype in name_obj.queries:
+                if rdtype in (dns.rdatatype.NS, dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV):
+                    continue
+                #XXX filter negative responses
+                #if (qname, rdtype) in name_obj.nxdomain_servers_clients or \
+                #        (qname, rdtype) in name_obj.noanswer_servers_clients:
+                #    continue
+                G.graph_rrset_auth(name_obj, qname, rdtype)
+
+            if '-O' in opts:
+                if name_obj.name == dns.name.root:
+                    name = 'root'
+                else:
+                    name = name_obj.name.canonicalize().to_text().rstrip('.')
+                finish_graph(G, trusted_keys, fmt, '%s.%s' % (name, fmt))
+                G = DNSAuthGraph()
+
+        if '-O' not in opts:
+            if '-o' not in opts or opts['-o'] == '-':
+                filename = None
+                img = finish_graph(G, trusted_keys, fmt, filename)
+                sys.stdout.write(img)
+            else:
+                finish_graph(G, trusted_keys, fmt, opts['-o'])
+
+    except KeyboardInterrupt:
+        logger.error('Interrupted.')
+        sys.exit(4)
 
 if __name__ == "__main__":
     main()
