@@ -54,71 +54,76 @@ Options:
 
 def main():
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'f:t:Yo:l:')
-    except getopt.GetoptError, e:
-        usage(str(e))
-        sys.exit(1)
-
-    opts = dict(opts)
-    if not ('-f' in opts or args):
-        usage('Either -f must be used or domain names must be supplied as command line arguments.')
-        sys.exit(1)
-    if '-f' in opts and args:
-        usage('If -f is used, then domain names may not supplied as command line arguments.')
-        sys.exit(1)
-
-    if '-l' in opts:
-        if opts['-l'] == 'error':
-            loglevel = logging.ERROR
-        elif opts['-l'] == 'warning':
-            loglevel = logging.WARNING
-        elif opts['-l'] == 'info':
-            loglevel = logging.INFO
-        elif opts['-l'] == 'debug':
-            loglevel = logging.DEBUG
-        else:
-            usage()
+        try:
+            opts, args = getopt.getopt(sys.argv[1:], 'f:t:Yo:l:')
+        except getopt.GetoptError, e:
+            usage(str(e))
             sys.exit(1)
-    else:
-        loglevel = logging.DEBUG
 
-    if '-f' in opts:
-        names = []
-        with codecs.open(opts['-f'], 'r', 'utf-8') as f:
-            for line in f:
-                names.append(dns.name.from_unicode(line.strip()))
-    else:
-        names = map(dns.name.from_text, args)
+        opts = dict(opts)
+        if not ('-f' in opts or args):
+            usage('Either -f must be used or domain names must be supplied as command line arguments.')
+            sys.exit(1)
+        if '-f' in opts and args:
+            usage('If -f is used, then domain names may not supplied as command line arguments.')
+            sys.exit(1)
 
-    if '-t' in opts:
-        trusted_keys = get_trusted_keys(open(opts['-t']).read())
-    else:
-        trusted_keys = ()
-
-    cache = {}
-    name_objs = []
-    for name in names:
-        name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
-        name_obj.retrieve_all(cache=cache)
-        name_objs.append(name_obj)
-
-    d = collections.OrderedDict()
-    for name_obj in name_objs:
-        name_obj.populate_status(trusted_keys)
-        name_obj.serialize_status(d, loglevel=loglevel)
-
-    if '-o' not in opts or opts['-o'] == '-':
-        fh = sys.stdout
-    else:
-        fh = open(opts['-o'], 'w')
-
-    if d:
-        kwargs = { 'indent': 4, 'separators': (',', ': ') }
-        if '-Y' in opts:
-            import yaml
-            fh.write(yaml.dump(d))
+        if '-l' in opts:
+            if opts['-l'] == 'error':
+                loglevel = logging.ERROR
+            elif opts['-l'] == 'warning':
+                loglevel = logging.WARNING
+            elif opts['-l'] == 'info':
+                loglevel = logging.INFO
+            elif opts['-l'] == 'debug':
+                loglevel = logging.DEBUG
+            else:
+                usage()
+                sys.exit(1)
         else:
-            fh.write(json.dumps(d, **kwargs))
+            loglevel = logging.DEBUG
+
+        if '-f' in opts:
+            names = []
+            with codecs.open(opts['-f'], 'r', 'utf-8') as f:
+                for line in f:
+                    names.append(dns.name.from_unicode(line.strip()))
+        else:
+            names = map(dns.name.from_text, args)
+
+        if '-t' in opts:
+            trusted_keys = get_trusted_keys(open(opts['-t']).read())
+        else:
+            trusted_keys = ()
+
+        cache = {}
+        name_objs = []
+        for name in names:
+            name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
+            name_obj.retrieve_all(cache=cache)
+            name_objs.append(name_obj)
+
+        d = collections.OrderedDict()
+        for name_obj in name_objs:
+            name_obj.populate_status(trusted_keys)
+            name_obj.serialize_status(d, loglevel=loglevel)
+
+        if '-o' not in opts or opts['-o'] == '-':
+            fh = sys.stdout
+        else:
+            fh = open(opts['-o'], 'w')
+
+        if d:
+            kwargs = { 'indent': 4, 'separators': (',', ': ') }
+            if '-Y' in opts:
+                import yaml
+                fh.write(yaml.dump(d))
+            else:
+                fh.write(json.dumps(d, **kwargs))
+
+    except KeyboardInterrupt:
+        logger.error('Interrupted.')
+        sys.exit(4)
 
 if __name__ == "__main__":
     main()
