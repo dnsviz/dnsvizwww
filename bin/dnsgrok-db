@@ -47,7 +47,6 @@ def usage(err=None):
 Options:
     -f <filename>  - read names from a file (one name per line), instead of from command line
     -t <filename>  - use filename as a file containing trusted keys, each as DNSKEY RRs in zone file format
-    -Y             - write in yaml, instead of json
     -o <filename>  - save the output to filename instead of to stdout
     -l <loglevel>  - set log level to one of: error, warning, info, debug
 ''' % (err, sys.argv[0]))
@@ -63,7 +62,7 @@ def main():
         test_m2crypto()
 
         try:
-            opts, args = getopt.getopt(sys.argv[1:], 'f:t:Yo:l:')
+            opts, args = getopt.getopt(sys.argv[1:], 'f:t:o:l:')
         except getopt.GetoptError, e:
             usage(str(e))
             sys.exit(1)
@@ -123,11 +122,7 @@ def main():
 
         if d:
             kwargs = { 'indent': 4, 'separators': (',', ': ') }
-            if '-Y' in opts:
-                import yaml
-                fh.write(yaml.dump(d))
-            else:
-                fh.write(json.dumps(d, **kwargs))
+            fh.write(json.dumps(d, **kwargs))
 
     except KeyboardInterrupt:
         logger.error('Interrupted.')
