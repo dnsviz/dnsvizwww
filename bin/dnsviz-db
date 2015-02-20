@@ -24,11 +24,12 @@
 import codecs
 import getopt
 import json
+import logging
 import os
 import re
 import sys
 
-import dns.message, dns.name 
+import dns.exception, dns.message, dns.name
 
 import django
 
@@ -42,12 +43,14 @@ django.setup()
 MEDIA_URL = 'file://' + DNSVIZ_SHARE_PATH
 DNSSEC_TEMPLATE_FILE = os.path.join(DNSVIZ_SHARE_PATH, 'html', 'dnssec-template.html')
 
+logger = logging.getLogger('dnsviz.analysis.offline')
+
 def usage(err=None):
     if err is not None:
         err += '\n\n'
     else:
         err = ''
-    sys.stderr.write( '''%sUsage: %s [ options ] ( -f <filename> | <domain name> [... ] )
+    sys.stderr.write('''%sUsage: %s [ options ] ( -f <filename> | <domain name> [... ] )
 Options:
     -f <filename>  - read names from a file (one name per line), instead of from command line
     -t <filename>  - use filename as a file containing trusted keys, each as DNSKEY RRs in zone file format
@@ -69,24 +72,34 @@ def finish_graph(G, trusted_keys, fmt, filename):
         if filename is None:
             return template_str
         else:
-            codecs.open(filename, 'w', 'utf-8').write(template_str)
+            try:
+                codecs.open(filename, 'w', 'utf-8').write(template_str)
+            except IOError, e:
+                logger.error('%s: "%s"' % (e.strerror, filename))
     else:
         if filename is None:
             return G.draw(fmt)
         else:
-            G.draw(fmt, path=filename)
+            try:
+                G.draw(fmt, path=filename)
+            except IOError, e:
+                logger.error('%s: "%s"' % (e.strerror, filename))
+
 
 def main():
     try:
         try:
             opts, args = getopt.getopt(sys.argv[1:], 'f:t:Oo:T:')
-        except getopt.GetoptError:
-            usage()
+        except getopt.GetoptError, e:
+            usage(str(e))
             sys.exit(1)
 
         opts = dict(opts)
-        if ('-f' in opts and args) or not ('-f' in opts or args):
-            usage()
+        if not ('-f' in opts or args):
+            usage('Either -f must be used or domain names must be supplied as command line arguments.')
+            sys.exit(1)
+        if '-f' in opts and args:
+            usage('If -f is used, then domain names may not supplied as command line arguments.')
             sys.exit(1)
 
         if '-T' in opts:
@@ -96,32 +109,74 @@ def main():
         else:
             fmt = 'dot'
         if fmt not in ('dot','png','jpg','svg','html'):
-            usage()
+            usage('Format unrecognized: "%s"' % fmt)
             sys.exit(1)
 
         if '-o' in opts and '-O' in opts:
-            usage()
+            usage('The -o and -O options may not be used together.')
             sys.exit(1)
 
+        loglevel = logging.WARNING
+        handler = logging.StreamHandler()
+        handler.setLevel(loglevel)
+        logger.addHandler(handler)
+        logger.setLevel(loglevel)
+
+        names = []
         if '-f' in opts:
-            names = []
-            with codecs.open(opts['-f'], 'r', 'utf-8') as f:
-                for line in f:
-                    names.append(dns.name.from_unicode(line.strip()))
+            try:
+                f = codecs.open(opts['-f'], 'r', 'utf-8')
+            except IOError, e:
+                logger.error('%s: "%s"' % (e.strerror, opts['-f']))
+                sys.exit(2)
+            for line in f:
+                name = line.strip()
+                try:
+                    name = dns.name.from_unicode(name)
+                except UnicodeDecodeError, e:
+                    logger.error('%s: "%s"' % (e, name))
+                except dns.exception.DNSException:
+                    logger.error('The domain name was invalid: "%s"' % name)
+                else:
+                    names.append(name)
+            f.close()
         else:
-            names = map(dns.name.from_text, args)
+            for name in args:
+                try:
+                    name = dns.name.from_text(name)
+                except dns.exception.DNSException:
+                    logger.error('The domain name was invalid: "%s"' % name)
+                else:
+                    names.append(name)
+
 
         if '-t' in opts:
-            trusted_keys = get_trusted_keys(open(opts['-t']).read())
+            try:
+                tk_str = open(opts['-t']).read()
+            except IOError, e:
+                logger.error('%s: "%s"' % (e.strerror, opts['-t']))
+                sys.exit(2)
+            try:
+                trusted_keys = get_trusted_keys(tk_str)
+            except dns.exception.DNSException:
+                logger.error('There was an error parsing the trusted keys file: "%s"' % opts['-t'])
+                sys.exit(2)
         else:
             trusted_keys = ()
 
         name_objs = []
         cache = {}
         for name in names:
-            name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
+            try:
+                name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
+            except OfflineDomainNameAnalysis.DoesNotExist:
+                logger.error('The domain name analysis was not found in the database: "%s"' % name.to_text())
+                continue
             name_obj.retrieve_all(cache=cache)
             name_objs.append(name_obj)
+
+        if not name_objs:
+            sys.exit(2)
 
         G = DNSAuthGraph()
         for name_obj in name_objs:
