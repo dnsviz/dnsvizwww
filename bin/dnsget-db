@@ -248,7 +248,6 @@ def main():
         except ValueError:
             usage('The debug value must be an integer between 0 and 3.')
             sys.exit(1)
-
         if val < 0 or val > 3:
             usage('The debug value must be an integer between 0 and 3.')
             sys.exit(1)
