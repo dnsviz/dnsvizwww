@@ -195,7 +195,7 @@ def main():
             try:
                 name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
             except OfflineDomainNameAnalysis.DoesNotExist:
-                logger.error('The domain name analysis was not found in the database: "%s"' % name.to_text())
+                logger.error('The analysis of "%s" was not found in the database.' % name.to_text())
                 continue
             name_obj.retrieve_all(cache=cache)
             name_objs.append(name_obj)
