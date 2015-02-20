@@ -184,34 +184,51 @@ class ParallelAnalyst(BulkAnalyst):
         pool.close()
         pool.join()
 
-def usage():
-    sys.stderr.write('''Usage: %s [ options ] ( -R | -f <filename> | <domain name> [... ] )
-
+def usage(err=None):
+    if err is not None:
+        err += '\n\n'
+    else:
+        err = ''
+    sys.stderr.write('''%sUsage: %s [ options ] ( -R | -f <filename> | <domain name> [... ] )
 Options:
-    -f <filename>  - read names from a file (one name per line), instead of from command line
-    -d <level>     - set debug level to a value from 0 to 3, with increasing verbosity (default: 2 or INFO)
-    -l <dlv>       - use dlv as a domain for DNSSEC look-aside validation
-    -R             - refresh names on a periodic basis
-    -t <threads>   - use multiple threads for analysis
-    -F             - force analysis of ancestry, instead of relying on cached versions
-''' % sys.argv[0])
+    -f <filename>  - read names from a file (one name per line), instead of
+                     from command line.
+    -d <level>     - set debug level to a value from 0 to 3, with increasing
+                     verbosity (default: 2 or INFO).
+    -l <dlv>       - use dlv as a domain for DNSSEC look-aside validation.
+    -R             - refresh names on a periodic basis.
+    -t <threads>   - use multiple threads for analysis.
+    -F             - force analysis of ancestry, instead of relying on cached
+                     versions.
+''' % (err, sys.argv[0]))
 
 def main():
     try:
         try:
             opts, args = getopt.getopt(sys.argv[1:], 'f:d:l:Rt:F')
-        except getopt.GetoptError:
-            usage()
+        except getopt.GetoptError, e:
+            usage(str(e))
             sys.exit(1)
 
         opts = dict(opts)
-        if ('-f' in opts and args) or ('-R' in opts and args) or ('-f' in opts and '-R' in opts) or \
-                not ('-f' in opts or '-R' in opts or args):
-            usage()
+        if not ('-f' in opts or '-R' in opts or args):
+            usage('Either -f or -R must be used or domain names must be supplied as command line arguments.')
+            sys.exit(1)
+        if '-f' in opts and args:
+            usage('If -f is used, then domain names may not supplied as command line arguments.')
+            sys.exit(1)
+        if '-R' in opts and args:
+            usage('If -R is used, then domain names may not supplied as command line arguments.')
+            sys.exit(1)
+        if '-f' in opts and '-R' in opts:
+            usage('If -f is used, then -R may not be used.')
             sys.exit(1)
 
         if '-l' in opts:
-            dlv_domain = dns.name.from_text(opts['-l'])
+            try:
+                dlv_domain = dns.name.from_text(opts['-l'])
+            except dns.exception.DNSException:
+                usage('The domain name was invalid: "%s"' % opts['-l'])
         else:
             dlv_domain = None
 
@@ -220,20 +237,20 @@ def main():
         try:
             processes = int(opts.get('-t', 1))
         except ValueError:
-            usage()
+            usage('The number of threads used must be greater than 0.')
             sys.exit(1)
         if processes < 1:
-            usage()
+            usage('The number of threads used must be greater than 0.')
             sys.exit(1)
 
         try:
             val = int(opts.get('-d', 2))
         except ValueError:
-            usage()
+            usage('The debug value must be an integer between 0 and 3.')
             sys.exit(1)
 
         if val < 0 or val > 3:
-            usage()
+            usage('The debug value must be an integer between 0 and 3.')
             sys.exit(1)
 
         if val > 2:
