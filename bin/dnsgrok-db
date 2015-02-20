@@ -50,6 +50,7 @@ Options:
     -f <filename>  - read names from a file (one name per line), instead of from command line
     -t <filename>  - use filename as a file containing trusted keys, each as DNSKEY RRs in zone file format
     -o <filename>  - save the output to filename instead of to stdout
+    -p             - make json output pretty instead of minimal.
     -l <loglevel>  - set log level to one of: error, warning, info, debug
 ''' % (err, sys.argv[0]))
 
@@ -64,7 +65,7 @@ def main():
         test_m2crypto()
 
         try:
-            opts, args = getopt.getopt(sys.argv[1:], 'f:t:o:l:')
+            opts, args = getopt.getopt(sys.argv[1:], 'f:t:o:pl:')
         except getopt.GetoptError, e:
             usage(str(e))
             sys.exit(1)
@@ -132,6 +133,11 @@ def main():
                 else:
                     names.append(name)
 
+        if '-p' in opts:
+            kwargs = { 'indent': 4, 'separators': (',', ': ') }
+        else:
+            kwargs = {}
+
         if '-o' not in opts or opts['-o'] == '-':
             fh = sys.stdout
         else:
@@ -176,7 +182,6 @@ def main():
             name_obj.serialize_status(d, loglevel=loglevel)
 
         if d:
-            kwargs = { 'indent': 4, 'separators': (',', ': ') }
             fh.write(json.dumps(d, **kwargs))
 
     except KeyboardInterrupt:
