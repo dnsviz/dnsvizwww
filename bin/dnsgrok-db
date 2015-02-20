@@ -29,7 +29,7 @@ import logging
 import re
 import sys
 
-import dns.message, dns.name 
+import dns.exception, dns.message, dns.name
 
 import django
 
@@ -37,6 +37,8 @@ from dnsvizwww.analysis import OfflineDomainNameAnalysis
 from dnsviz.util import get_trusted_keys
 
 django.setup()
+
+logger = logging.getLogger('dnsviz.analysis.offline')
 
 def usage(err=None):
     if err is not None:
@@ -85,40 +87,93 @@ def main():
             elif opts['-l'] == 'debug':
                 loglevel = logging.DEBUG
             else:
-                usage()
+                usage('Invalid log level: "%s"' % opts['-l'])
                 sys.exit(1)
         else:
             loglevel = logging.DEBUG
+        has_handler = False
+        # check if there's already a StreamHandler that allows messages through the
+        # filters by default
+        for handler in logger.handlers:
+            if isinstance(handler, logging.StreamHandler):
+                if False not in [f.filter(None) for f in handler.filters]:
+                    has_handler = True
+                    break
+        if not has_handler:
+            handler = logging.StreamHandler()
+            handler.setLevel(loglevel)
+            logger.addHandler(handler)
+        logger.setLevel(loglevel)
 
+        names = []
         if '-f' in opts:
-            names = []
-            with codecs.open(opts['-f'], 'r', 'utf-8') as f:
-                for line in f:
-                    names.append(dns.name.from_unicode(line.strip()))
+            try:
+                f = codecs.open(opts['-f'], 'r', 'utf-8')
+            except IOError, e:
+                logger.error('%s: "%s"' % (e.strerror, opts['-f']))
+                sys.exit(2)
+            for line in f:
+                name = line.strip()
+                try:
+                    name = dns.name.from_unicode(name)
+                except UnicodeDecodeError, e:
+                    logger.error('%s: "%s"' % (e, name))
+                except dns.exception.DNSException:
+                    logger.error('The domain name was invalid: "%s"' % name)
+                else:
+                    names.append(name)
+            f.close()
         else:
-            names = map(dns.name.from_text, args)
+            for name in args:
+                try:
+                    name = dns.name.from_text(name)
+                except dns.exception.DNSException:
+                    logger.error('The domain name was invalid: "%s"' % name)
+                else:
+                    names.append(name)
+
+        if '-o' not in opts or opts['-o'] == '-':
+            fh = sys.stdout
+        else:
+            try:
+                fh = open(opts['-o'], 'w')
+            except IOError, e:
+                logger.error('%s: "%s"' % (e.strerror, opts['-o']))
+                sys.exit(2)
+
 
         if '-t' in opts:
-            trusted_keys = get_trusted_keys(open(opts['-t']).read())
+            try:
+                tk_str = open(opts['-t']).read()
+            except IOError, e:
+                logger.error('%s: "%s"' % (e.strerror, opts['-t']))
+                sys.exit(2)
+            try:
+                trusted_keys = get_trusted_keys(tk_str)
+            except dns.exception.DNSException:
+                logger.error('There was an error parsing the trusted keys file: "%s"' % opts['-t'])
+                sys.exit(2)
         else:
             trusted_keys = ()
 
         cache = {}
         name_objs = []
         for name in names:
-            name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
+            try:
+                name_obj = OfflineDomainNameAnalysis.objects.filter(name=name, stub=False).latest()
+            except OfflineDomainNameAnalysis.DoesNotExist:
+                logger.error('The domain name analysis was not found in the database: "%s"' % name.to_text())
+                continue
             name_obj.retrieve_all(cache=cache)
             name_objs.append(name_obj)
+
+        if not name_objs:
+            sys.exit(2)
 
         d = collections.OrderedDict()
         for name_obj in name_objs:
             name_obj.populate_status(trusted_keys)
             name_obj.serialize_status(d, loglevel=loglevel)
-
-        if '-o' not in opts or opts['-o'] == '-':
-            fh = sys.stdout
-        else:
-            fh = open(opts['-o'], 'w')
 
         if d:
             kwargs = { 'indent': 4, 'separators': (',', ': ') }
