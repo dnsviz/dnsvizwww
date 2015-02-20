@@ -52,8 +52,16 @@ Options:
     -l <loglevel>  - set log level to one of: error, warning, info, debug
 ''' % (err, sys.argv[0]))
 
+def test_m2crypto():
+    try:
+        import M2Crypto
+    except ImportError:
+        sys.stderr.write('''Warning: M2Crypto is not installed; cryptographic validation of signatures and digests will not be available.\n''')
+
 def main():
     try:
+        test_m2crypto()
+
         try:
             opts, args = getopt.getopt(sys.argv[1:], 'f:t:Yo:l:')
         except getopt.GetoptError, e:
