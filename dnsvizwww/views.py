@@ -124,7 +124,7 @@ def _graph_dane_related_name(G, name_obj, trusted_keys, rdtypes, denial_of_exist
 def _graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence):
     G = DNSAuthGraph()
 
-    if not name_obj.zone.get_auth_or_designated_servers():
+    if not name_obj.zone.get_responsive_auth_or_designated_servers():
         G.graph_zone_auth(name_obj.zone, False)
 
     _graph_dane_related_name(G, name_obj, trusted_keys, rdtypes, denial_of_existence)
