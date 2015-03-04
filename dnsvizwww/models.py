@@ -516,7 +516,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
             server = IPAddr(response.server)
             client = IPAddr(response.client)
-            response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time, query1)
+            response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time/1000.0, query1)
             bailiwick = bailiwick_map.get(server, default_bailiwick)
             query1.add_response(server, client, response1, bailiwick)
 
