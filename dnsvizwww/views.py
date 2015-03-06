@@ -42,9 +42,9 @@ from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.views.decorators.csrf import csrf_exempt
 
+from dnsviz.analysis import status as Status
 from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
-import dnsviz.status as Status
 import dnsviz.response as Response
 from dnsviz.util import get_trusted_keys
 from django.views.decorators.cache import cache_page

@@ -33,7 +33,7 @@ import re
 
 import dns.name
 
-import dnsviz.status as Status
+from dnsviz.analysis import status as Status
 
 _rrset_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<rdtype>[A-Z]+)')
 _dnskey_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)')
