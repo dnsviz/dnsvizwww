@@ -515,7 +515,7 @@ def servers_view(request, name_obj, timestamp, url_subdir, date_form):
         else:
             glue_ips_v4 = []
             glue_ips_v6 = []
-            if zone_obj.delegation_status == Status.DELEGATION_ERROR_NO_NS_IN_PARENT:
+            if zone_obj.delegation_status == Status.DELEGATION_STATUS_INCOMPLETE:
                 parent_status['in_parent'] = False
             else:
                 parent_status['in_parent'] = None
