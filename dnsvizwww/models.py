@@ -385,7 +385,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
     def _store_related_cache(self, level):
         d = {}
-        self._serialize_related(d)
+        self._serialize_related(d, False)
         Cache.add('dnsvizwww.models.OnlineDomainNameAnalysis.pk.%d.related.%d' % (self.pk, level), d)
 
     def store_related(self):
