@@ -417,7 +417,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                     edns_options = None
 
                 query_options = DNSQueryOptions.objects.get_or_create(flags=query.flags, edns_max_udp_payload=edns_max_udp_payload,
-                        edns_flags=edns_flags, edns_options=edns_options, tcp_first=query.tcp_first)[0]
+                        edns_flags=edns_flags, edns_options=edns_options, tcp_first=query.tcp)[0]
 
                 query_obj = DNSQuery.objects.create(qname=query.qname, rdtype=query.rdtype, rdclass=query.rdclass,
                         options=query_options, analysis=self)
