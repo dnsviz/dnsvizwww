@@ -350,7 +350,7 @@ def responses_view(request, name_obj, timestamp, url_subdir, date_form):
             row.append((dns.rdatatype.to_text(rrset_info.rrset.rdtype), 'not-styled'))
             rrset_str = ''
             rrset_list = list(rrset_info.rrset)
-            rrset_list.sort(cmp=Response._rr_cmp)
+            rrset_list.sort(cmp=rrset_info.rdata_cmp)
             for rr in rrset_list:
                 rr_str = escape(rr.to_text(), quote=True)
                 if rrset_info.rrset.rdtype == dns.rdatatype.DNSKEY:
