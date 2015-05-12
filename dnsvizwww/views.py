@@ -669,11 +669,14 @@ def analyze(request, name, url_subdir=None):
     error_msg = None
     if request.POST:
         force_ancestry = False
+        extra_rdtypes = None
         if request.POST:
             analyze_form = form_class(request.POST)
             if analyze_form.is_valid():
                 if analyze_form.cleaned_data['analysis_depth'] == 2:
                     force_ancestry = True
+                if analyze_form.cleaned_data['extra_types']:
+                    extra_rdtypes = analyze_form.cleaned_data['extra_types']
         else:
             analyze_form = form_class()
 
@@ -682,12 +685,12 @@ def analyze(request, name, url_subdir=None):
         start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
         if request.is_ajax():
             analysis_logger = log.IsolatedLogger(logging.DEBUG, request_logger, 'Error analyzing %s' % name_obj)
-            a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), logger=analysis_logger.logger, start_time=start_time, force_ancestry=force_ancestry)
+            a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), logger=analysis_logger.logger, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestry=force_ancestry)
             a.analyze_async(analysis_logger.success_callback, analysis_logger.exc_callback)
             #TODO set alarm here for too long waits
             return StreamingHttpResponse(analysis_logger.handler)
         else:
-            a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), start_time=start_time, force_ancestry=force_ancestry)
+            a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestry=force_ancestry)
             try:
                 a.analyze()
                 return HttpResponseRedirect('../')

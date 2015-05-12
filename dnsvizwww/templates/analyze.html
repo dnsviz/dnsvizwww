@@ -80,7 +80,9 @@
 		<ol id="options-list" class="analysis-options">
 			{% for field in analyze_form %}
 			<li>
-				{{ field }}
+			<a class="form-tooltip" title="{{ field.help_text }}">|?|</a>
+			{{ field.label_tag }}
+			{{ field }}
 			</li>
 			{% endfor %}
 		</ol>
