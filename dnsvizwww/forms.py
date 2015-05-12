@@ -160,13 +160,13 @@ class DomainNameAnalysisForm(forms.Form):
             (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
             (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
 
-    def clean_analysis_depth(self):
-        return int(self.cleaned_data['analysis_depth'])
-
     analysis_depth = forms.ChoiceField(choices=ANALYSIS_DEPTH_CHOICES, initial=1, required=True,
             widget=forms.RadioSelect(attrs={'class': 'no-border'}), help_text='Usually it is sufficient to select \'Only the name itself\'. In this case cached values will be used for the analysis of any ancestor names, unless it is determined that they are out of date.  Occasionally it is useful to to analyze the entire ancesry, in which case \'The name\'s entire ancestry\' can be selected.  Because more names are analyzed with this option, the overall analysis will take longer.')
     extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES_TO_QUERY, initial=(), required=False,
             help_text='Select any extra RR types to query as part of this analysis.  A default set of types will be queried based on the nature of the name, but any types selected here will be queried regardless.')
+
+    def clean_analysis_depth(self):
+        return int(self.cleaned_data['analysis_depth'])
 
     def clean_extra_types(self):
         return map(int, self.cleaned_data['extra_types'])
