@@ -149,7 +149,8 @@ class ContactForm(forms.Form):
 class DomainNameAnalysisForm(forms.Form):
     ANALYSIS_DEPTH_CHOICES = ((1, 'Only the name itself'),
             (2, 'The name\'s entire ancestry (slower)'))
-    EXTRA_TYPES_TO_QUERY = ((dns.rdatatype.AAAA, dns.rdatatype.to_text(dns.rdatatype.AAAA)),
+    EXTRA_TYPES_TO_QUERY = ((dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
+            (dns.rdatatype.AAAA, dns.rdatatype.to_text(dns.rdatatype.AAAA)),
             (dns.rdatatype.TXT, dns.rdatatype.to_text(dns.rdatatype.TXT)),
             (dns.rdatatype.PTR, dns.rdatatype.to_text(dns.rdatatype.PTR)),
             (dns.rdatatype.MX, dns.rdatatype.to_text(dns.rdatatype.MX)),
