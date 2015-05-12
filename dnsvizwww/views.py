@@ -455,6 +455,29 @@ def responses_view(request, name_obj, timestamp, url_subdir, date_form):
         row_grouping.append(row)
         pos_matrix.append(row_grouping)
 
+        row_grouping = []
+        row = []
+        row.append(('Response time (ms)', 'not-styled', None, None, 4))
+        row.append(('OK', 'valid'))
+        for server, names in slist:
+            server_queried = False
+            response = None
+            for q in query.queries.values():
+                if server in q.responses:
+                    server_queried = True
+                    r = q.responses[server].values()[0]
+                    if r.is_complete_response():
+                        response = r
+                        break
+            if server_queried and response is not None:
+                row.append((int(response.response_time*1e3), 'valid'))
+            elif not server_queried:
+                row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype))))
+            elif server:
+                row.append(('', 'not-styled'))
+        row_grouping.append(row)
+        pos_matrix.append(row_grouping)
+
         if pos_matrix:
             response_consistency.append(('Responses for %s/%s' % (fmt.humanize_name(name, True), dns.rdatatype.to_text(rdtype)), slist, pos_matrix))
 
