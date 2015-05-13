@@ -51,14 +51,14 @@ class DNSSECOptionsForm(forms.Form):
             (dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
             (dns.rdatatype.AAAA, dns.rdatatype.to_text(dns.rdatatype.AAAA)),
             (dns.rdatatype.TXT, dns.rdatatype.to_text(dns.rdatatype.TXT)),
-            (dns.rdatatype.PTR, dns.rdatatype.to_text(dns.rdatatype.PTR)+'*'),
+            (dns.rdatatype.PTR, dns.rdatatype.to_text(dns.rdatatype.PTR)),
             (dns.rdatatype.MX, dns.rdatatype.to_text(dns.rdatatype.MX)),
-            #(dns.rdatatype.NS, dns.rdatatype.to_text(dns.rdatatype.NS)+'*'),
-            (dns.rdatatype.SOA, dns.rdatatype.to_text(dns.rdatatype.SOA)+'*'),
-            (dns.rdatatype.CNAME, dns.rdatatype.to_text(dns.rdatatype.CNAME)+'*'),
-            (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)+'*'),
-            (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)+'*'),
-            (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)+'*'))
+            #(dns.rdatatype.NS, dns.rdatatype.to_text(dns.rdatatype.NS)),
+            (dns.rdatatype.SOA, dns.rdatatype.to_text(dns.rdatatype.SOA)),
+            (dns.rdatatype.CNAME, dns.rdatatype.to_text(dns.rdatatype.CNAME)),
+            (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
+            (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
+            (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
 
     A_CHOICES = (('all', '--All--'),
             (1, '1 - RSA/MD5'),
@@ -82,7 +82,7 @@ class DNSSECOptionsForm(forms.Form):
             ('dlv.isc.org.', 'ISC DLV KSK'),)
 
     rr = forms.MultipleChoiceField(label='RR types:', choices=RR_CHOICES, initial=['all'], required=True,
-            help_text='Select the RR types to be considered in the analysis.  Note that RR types followed by \'*\' may not be available for some names.')
+            help_text='Select the RR types to be considered in the analysis (note that not all RR types are available for all names).')
     a = forms.MultipleChoiceField(label='DNSSEC algorithms:', choices=A_CHOICES, initial=['all'], required=False,
             help_text='Select the DNSSEC algorithms that should be considered in the analysis.  Selecting no algorithms is equivalent to evaluating a zone as if unsigned.')
     ds = forms.MultipleChoiceField(label='DS digest algorithms:', choices=DS_CHOICES, initial=['all'], required=False,
