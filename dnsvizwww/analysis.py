@@ -45,11 +45,11 @@ class Analyst(dnsviz.analysis.Analyst):
     qname_only = False
     analysis_model = OnlineDomainNameAnalysis
 
-    clone_attrnames = dnsviz.analysis.Analyst.clone_attrnames + ['force_ancestry','start_time']
+    clone_attrnames = dnsviz.analysis.Analyst.clone_attrnames + ['force_ancestor','start_time']
 
     def __init__(self, *args, **kwargs):
         self.start_time = kwargs.pop('start_time', datetime.datetime.now(fmt.utc).replace(microsecond=0))
-        self.force_ancestry = kwargs.pop('force_ancestry', False)
+        self.force_ancestor = kwargs.pop('force_ancestor', None)
         self.force_self = kwargs.pop('force_self', True)
         super(Analyst, self).__init__(*args, **kwargs)
 
@@ -234,7 +234,8 @@ class Analyst(dnsviz.analysis.Analyst):
 
         # If force and analysis has not been performed since reference time,
         # then return True.
-        force_analysis = self.force_self and (self.force_ancestry or self.name == name_obj.name or filter(lambda x: name_obj.name.is_subdomain(x), self._cname_chain))
+        force_ancestor = self.force_ancestor is not None and name_obj.name.is_subdomain(self.force_ancestor)
+        force_analysis = self.force_self and (force_ancestor or self.name == name_obj.name or filter(lambda x: name_obj.name.is_subdomain(x), self._cname_chain))
         updated_since_analysis_start = name_obj.analysis_end >= self.start_time
         if force_analysis and not updated_since_analysis_start:
             return True
