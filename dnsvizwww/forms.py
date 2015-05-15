@@ -158,7 +158,7 @@ def domain_analysis_form(name, zone=None):
         zone = name
 
     class DomainNameAnalysisForm(forms.Form):
-        EXTRA_TYPES_TO_QUERY = ((dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
+        EXTRA_TYPES = ((dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
                 (dns.rdatatype.AAAA, dns.rdatatype.to_text(dns.rdatatype.AAAA)),
                 (dns.rdatatype.TXT, dns.rdatatype.to_text(dns.rdatatype.TXT)),
                 (dns.rdatatype.PTR, dns.rdatatype.to_text(dns.rdatatype.PTR)),
@@ -171,7 +171,7 @@ def domain_analysis_form(name, zone=None):
 
         force_ancestor = forms.ChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, initial=zone.to_text(), required=True,
                 help_text='Usually it is sufficient to select the name itself (%s) or its zone (%s), in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True), fmt.humanize_name(zone, True)))
-        extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES_TO_QUERY, initial=(), required=False,
+        extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False,
                 help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
 
         def clean_force_ancestor(self):
