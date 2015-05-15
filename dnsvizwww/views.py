@@ -662,20 +662,24 @@ def analyze(request, name, url_subdir=None):
 
     if name_obj is None:
         name_obj = OfflineDomainNameAnalysis(name)
+        form_class = domain_analysis_form(name_obj.name)
+    else:
+        name_obj.retrieve_ancestry(name_obj.RDTYPES_DELEGATION)
+        name_obj.retrieve_related(name_obj.RDTYPES_DELEGATION)
+        form_class = domain_analysis_form(name_obj.name, name_obj.zone.name)
 
     error_msg = None
     if request.POST:
         force_ancestor = None
         extra_rdtypes = None
         if request.POST:
-            analyze_form = DomainNameAnalysisForm(request.POST)
+            analyze_form = form_class(request.POST)
             if analyze_form.is_valid():
-                if analyze_form.cleaned_data['analysis_depth'] == 2:
-                    force_ancestor = dns.name.root
+                force_ancestor = analyze_form.cleaned_data['force_ancestor']
                 if analyze_form.cleaned_data['extra_types']:
                     extra_rdtypes = analyze_form.cleaned_data['extra_types']
         else:
-            analyze_form = DomainNameAnalysisForm()
+            analyze_form = form_class()
 
         request_logger = logging.getLogger('django.request')
 
@@ -697,7 +701,7 @@ def analyze(request, name, url_subdir=None):
 
     return render_to_response('analyze.html',
             { 'name_obj': name_obj, 'url_subdir': url_subdir, 'title': name_obj,
-                'error_msg': error_msg, 'analyze_form': DomainNameAnalysisForm() },
+                'error_msg': error_msg, 'analyze_form': form_class() },
             context_instance=RequestContext(request))
 
 def contact(request):

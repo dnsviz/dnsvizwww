@@ -146,30 +146,41 @@ class ContactForm(forms.Form):
                 self.cleaned_data['reply_email'],
                 recipients)
 
-class DomainNameAnalysisForm(forms.Form):
-    ANALYSIS_DEPTH_CHOICES = ((1, 'Only the name itself'),
-            (2, 'The name\'s entire ancestry (slower)'))
-    EXTRA_TYPES_TO_QUERY = ((dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
-            (dns.rdatatype.AAAA, dns.rdatatype.to_text(dns.rdatatype.AAAA)),
-            (dns.rdatatype.TXT, dns.rdatatype.to_text(dns.rdatatype.TXT)),
-            (dns.rdatatype.PTR, dns.rdatatype.to_text(dns.rdatatype.PTR)),
-            (dns.rdatatype.MX, dns.rdatatype.to_text(dns.rdatatype.MX)),
-            (dns.rdatatype.SOA, dns.rdatatype.to_text(dns.rdatatype.SOA)),
-            (dns.rdatatype.CNAME, dns.rdatatype.to_text(dns.rdatatype.CNAME)),
-            (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
-            (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
-            (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
+def domain_analysis_form(name, zone=None):
+    ANCESTOR_CHOICES = [(name.to_text(), fmt.humanize_name(name, True))]
+    n = name
+    while n != dns.name.root:
+        n = n.parent()
+        ANCESTOR_CHOICES.append((n.to_text(), fmt.humanize_name(n, True)))
+    ANCESTOR_CHOICES.reverse()
 
-    analysis_depth = forms.ChoiceField(choices=ANALYSIS_DEPTH_CHOICES, initial=1, required=True,
-            widget=forms.RadioSelect(attrs={'class': 'no-border'}), help_text='Usually it is sufficient to select \'Only the name itself\'. In this case cached values will be used for the analysis of any ancestor names, unless it is determined that they are out of date.  Occasionally it is useful to to analyze the entire ancesry, in which case \'The name\'s entire ancestry\' can be selected.  Because more names are analyzed with this option, the overall analysis will take longer.')
-    extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES_TO_QUERY, initial=(), required=False,
-            help_text='Select any extra RR types to query as part of this analysis.  A default set of types will be queried based on the nature of the name, but any types selected here will be queried regardless.')
+    if zone is None:
+        zone = name
 
-    def clean_analysis_depth(self):
-        return int(self.cleaned_data['analysis_depth'])
+    class DomainNameAnalysisForm(forms.Form):
+        EXTRA_TYPES_TO_QUERY = ((dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
+                (dns.rdatatype.AAAA, dns.rdatatype.to_text(dns.rdatatype.AAAA)),
+                (dns.rdatatype.TXT, dns.rdatatype.to_text(dns.rdatatype.TXT)),
+                (dns.rdatatype.PTR, dns.rdatatype.to_text(dns.rdatatype.PTR)),
+                (dns.rdatatype.MX, dns.rdatatype.to_text(dns.rdatatype.MX)),
+                (dns.rdatatype.SOA, dns.rdatatype.to_text(dns.rdatatype.SOA)),
+                (dns.rdatatype.CNAME, dns.rdatatype.to_text(dns.rdatatype.CNAME)),
+                (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
+                (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
+                (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
 
-    def clean_extra_types(self):
-        return map(int, self.cleaned_data['extra_types'])
+        force_ancestor = forms.ChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, initial=zone.to_text(), required=True,
+                help_text='Usually it is sufficient to select the name itself (%s) or its zone (%s), in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True), fmt.humanize_name(zone, True)))
+        extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES_TO_QUERY, initial=(), required=False,
+                help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
+
+        def clean_force_ancestor(self):
+            return dns.name.from_text(self.cleaned_data['force_ancestor'])
+
+        def clean_extra_types(self):
+            return map(int, self.cleaned_data['extra_types'])
+
+    return DomainNameAnalysisForm
 
 class CalendarWidget(forms.TextInput):
     def __init__(self, attrs={}):
