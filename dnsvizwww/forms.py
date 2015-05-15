@@ -171,10 +171,6 @@ class DomainNameAnalysisForm(forms.Form):
     def clean_extra_types(self):
         return map(int, self.cleaned_data['extra_types'])
 
-class DomainNameAnalysisInitialForm(DomainNameAnalysisForm):
-    analysis_depth = forms.IntegerField(initial=1, required=True,
-            widget=forms.HiddenInput())
-
 class CalendarWidget(forms.TextInput):
     def __init__(self, attrs={}):
         super(CalendarWidget, self).__init__(attrs={'class': 'datepicker', 'size': '10'})

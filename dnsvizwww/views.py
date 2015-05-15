@@ -662,23 +662,20 @@ def analyze(request, name, url_subdir=None):
 
     if name_obj is None:
         name_obj = OfflineDomainNameAnalysis(name)
-        form_class = DomainNameAnalysisInitialForm
-    else:
-        form_class = DomainNameAnalysisForm
 
     error_msg = None
     if request.POST:
         force_ancestor = None
         extra_rdtypes = None
         if request.POST:
-            analyze_form = form_class(request.POST)
+            analyze_form = DomainNameAnalysisForm(request.POST)
             if analyze_form.is_valid():
                 if analyze_form.cleaned_data['analysis_depth'] == 2:
                     force_ancestor = dns.name.root
                 if analyze_form.cleaned_data['extra_types']:
                     extra_rdtypes = analyze_form.cleaned_data['extra_types']
         else:
-            analyze_form = form_class()
+            analyze_form = DomainNameAnalysisForm()
 
         request_logger = logging.getLogger('django.request')
 
@@ -700,7 +697,7 @@ def analyze(request, name, url_subdir=None):
 
     return render_to_response('analyze.html',
             { 'name_obj': name_obj, 'url_subdir': url_subdir, 'title': name_obj,
-                'error_msg': error_msg, 'analyze_form': form_class() },
+                'error_msg': error_msg, 'analyze_form': DomainNameAnalysisForm() },
             context_instance=RequestContext(request))
 
 def contact(request):
