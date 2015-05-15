@@ -670,35 +670,56 @@ def analyze(request, name, url_subdir=None):
 
     error_msg = None
     if request.POST:
-        force_ancestor = None
-        extra_rdtypes = None
+        request_logger = logging.getLogger('django.request')
+        analysis_logger = log.IsolatedLogger(logging.DEBUG, request_logger, 'Error analyzing %s' % name_obj)
+
+        # instantiate a bound form
         analyze_form = form_class(request.POST)
         if analyze_form.is_valid():
             force_ancestor = analyze_form.cleaned_data['force_ancestor']
-            if analyze_form.cleaned_data['extra_types']:
-                extra_rdtypes = analyze_form.cleaned_data['extra_types']
-
-            request_logger = logging.getLogger('django.request')
-
+            extra_rdtypes = analyze_form.cleaned_data['extra_types']
             start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+
+            # for ajax requests, analyze asynchronously, using a logger with
+            # callbacks and streaming output to the browser.  If there is an
+            # error with the analysis, it will be handled by the javascript.
             if request.is_ajax():
-                analysis_logger = log.IsolatedLogger(logging.DEBUG, request_logger, 'Error analyzing %s' % name_obj)
                 a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), logger=analysis_logger.logger, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
                 a.analyze_async(analysis_logger.success_callback, analysis_logger.exc_callback)
                 #TODO set alarm here for too long waits
                 return StreamingHttpResponse(analysis_logger.handler)
+
+            # for non-ajax requests analyze synchronously
             else:
                 a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
                 try:
                     a.analyze()
-                    return HttpResponseRedirect('../')
+
+                # if there is an error with the analysis, then return the bound form,
+                # so the errors will be rendered with the form.
                 except:
                     request_logger.exception('Error analyzing %s' % name_obj)
                     error_msg = u'There was an error analyzing %s.  We\'ve been notified of the problem and will look into fixing it.  Please try again later.' % name_obj
 
+                # if there were no errors, then return a redirect
+                else:
+                    return HttpResponseRedirect('../')
+
+        # if the form contents were invalid in an ajax request, then send a
+        # critical-level error, which will prompt the browser to re-issue a
+        # POST, so the errors are seen.
+        elif request.is_ajax():
+            analysis_logger.logger.critical('Form error')
+            analysis_logger.close()
+            return StreamingHttpResponse(analysis_logger.handler)
+
+    # instantiate an unbound form
+    else:
+        analyze_form = form_class()
+
     return render_to_response('analyze.html',
             { 'name_obj': name_obj, 'url_subdir': url_subdir, 'title': name_obj,
-                'error_msg': error_msg, 'analyze_form': form_class() },
+                'error_msg': error_msg, 'analyze_form': analyze_form },
             context_instance=RequestContext(request))
 
 def contact(request):

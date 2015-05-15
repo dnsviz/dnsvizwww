@@ -39,9 +39,15 @@
 					success: function() {
 						$('#progress-bar').hide();
 						var el = $('#progress-log div').last();
-						$('<p><form><input type="button" class="button" value="Continue"></form></p>').insertAfter($('#progress-log')).find('input.button').click(function() { document.location = '../dnssec/'; });
-						if (el.hasClass('loglevel-error') || el.hasClass('loglevel-critical')) {
-							$('<p class="form-error">There was an error analyzing {{ name_obj }}.  We\'ve been notified of the problem and will look into fixing it.</p>').insertAfter($('#progress-log'));
+						if (el.hasClass('loglevel-critical')) {
+							$('#progress-bar').show();
+							$('#progress-log').hide()
+							form.submit();
+						} else {
+							if (el.hasClass('loglevel-error')) {
+								$('<p class="form-error">There was an error analyzing {{ name_obj }}.  We\'ve been notified of the problem and will look into fixing it.</p>').insertAfter($('#progress-log'));
+							}
+							$('<p><form><input type="button" class="button" value="Continue"></form></p>').insertAfter($('#progress-log')).find('input.button').click(function() { document.location = '../dnssec/'; });
 						}
 					},
 					error: function() {
@@ -62,7 +68,7 @@
 	{% if error_msg %}
 		<p class="form-error">
 		{{ error_msg }}
-		</p> 
+		</p>
 	{% else %}
 		<p>
 		{% if name_obj.analysis_end %}
@@ -74,6 +80,12 @@
 	{% endif %}
 	<fieldset id="options">
 	<form action="" method="post">
+		{% if analyze_form.errors %}
+			<p class="form-error">
+			There were errors processing the analysis options.  Please correct below and re-submit.
+			</p>
+		{% endif %}
+
 		<p id="analysis-submit">
 			<input type="submit" class="button" value="Analyze" />
 		</p>
@@ -83,6 +95,13 @@
 			<a class="form-tooltip" title="{{ field.help_text }}">|?|</a>
 			{{ field.label_tag }}
 			{{ field }}
+			{% if field.errors %}
+				<ul class="formfield-error-list">
+				{% for err in field.errors %}
+					<li>{{ err }}</li>
+				{% endfor %}
+				</ul>
+			{% endif %}
 			</li>
 			{% endfor %}
 		</ol>

@@ -29,7 +29,7 @@
 import datetime
 import re
 
-import dns.message, dns.name, dns.rdatatype
+import dns.message, dns.name, dns.rdataclass, dns.rdatatype, dns.rrset
 
 from django import forms
 from django.conf import settings
@@ -37,6 +37,7 @@ from django.core.mail import send_mail
 from django.utils.timezone import utc
 
 import dnsviz.format as fmt
+from dnsviz.ipaddr import IPAddr
 from dnsviz.util import get_trusted_keys
 
 from dnsvizwww.models import OfflineDomainNameAnalysis
@@ -45,6 +46,87 @@ _implicit_tk_str = '''
 .			IN	DNSKEY	257 3 8 AwEAAagAIKlVZrpC6Ia7gEzahOR+9W29euxhJhVVLOyQbSEW0O8gcCjF FVQUTf6v58fLjwBd0YI0EzrAcQqBGCzh/RStIoO8g0NfnfL2MTJRkxoX bfDaUeVPQuYEhg37NZWAJQ9VnMVDxP/VHL496M/QZxkjf5/Efucp2gaD X6RS6CXpoY68LsvPVjR0ZSwzz1apAzvN9dlzEheX7ICJBBtuA6G3LQpz W5hOA2hzCTMjJPJ8LbqF6dsV6DoBQzgul0sGIcGOYl7OyQdXfZ57relS Qageu+ipAdTTJ25AsRTAoub8ONGcLmqrAmRLKBP1dfwhYB4N7knNnulq QxA+Uk1ihz0=
 dlv.isc.org.		IN	DNSKEY	257 3 5 BEAAAAPHMu/5onzrEE7z1egmhg/WPO0+juoZrW3euWEn4MxDCE1+lLy2 brhQv5rN32RKtMzX6Mj70jdzeND4XknW58dnJNPCxn8+jAGl2FZLK8t+ 1uq4W+nnA3qO2+DL+k6BD4mewMLbIYFwe0PG73Te9fZ2kJb56dhgMde5 ymX4BI/oQ+cAK50/xvJv00Frf8kw6ucMTwFlgPe+jnGxPPEmHAte/URk Y62ZfkLoBAADLHQ9IrS2tryAe7mbBZVcOwIeU/Rw/mRx/vwwMCTgNboM QKtUdvNXDrYJDSHZws3xiRXF1Rf+al9UmZfSav/4NWLKjHzpT59k/VSt TDN0YUuWrBNh
 '''
+
+ZONE_COMMENTS_RE = re.compile(r'\s*;.*', re.MULTILINE)
+BLANK_LINES_RE = re.compile(r'\n\s*\n')
+
+class ExplicitDelegationWidget(forms.MultiWidget):
+    def __init__(self, attrs=None, choices=()):
+        textarea_attrs = {'cols': 50, 'rows': 5}
+        if attrs is not None:
+            textarea_attrs.update(attrs)
+        widgets = (forms.Select(attrs=attrs, choices=choices),
+                forms.Textarea(attrs=textarea_attrs))
+        super(ExplicitDelegationWidget, self).__init__(widgets, attrs)
+
+    def decompress(self, value):
+        if not value:
+            return '', ''
+        elif not value[1]:
+            return value[0], ''
+
+        rrsets = {}
+        for n, a in value[1]:
+            if a.version == 4:
+                rdtype = dns.rdatatype.A
+            else:
+                rdtype = dns.rdatatype.AAAA
+            if (n, rdtype) not in rrsets:
+                rrsets[(n, rdtype)] = dns.rrset.RRset(n, dns.rdataclass.IN, rdtype)
+            rrsets[(n, rdtype)].add(a)
+
+        s = ''
+        for rrset in rrsets.values():
+            for rr in rrset:
+                s += '%s %s\n' % (rrset.name, rr.address.to_text())
+        return value[0].canonicalize().to_text(), s
+
+class ExplicitDelegationField(forms.MultiValueField):
+    def __init__(self, *args, **kwargs):
+        choices = kwargs.pop('choices', ())
+        fields = (
+            forms.ChoiceField(choices=choices),
+            forms.CharField(),
+        )
+        super(ExplicitDelegationField, self).__init__(
+            fields, *args, **kwargs)
+        self.widget = ExplicitDelegationWidget(choices=choices)
+
+    def compress(self, value):
+        zone, s = value
+        mappings = set()
+
+        # strip out comments, blank lines, and leading/trailing whitespace
+        s = ZONE_COMMENTS_RE.sub('', s)
+        s = BLANK_LINES_RE.sub(r'\n', s)
+        s = s.strip()
+        try:
+            m = dns.message.from_text(str(';ANSWER\n'+s))
+        except:
+            # if there was an exception processing the input as address records
+            # in zone file format, try again as whitespace-separated name/address
+            # pairs
+            try:
+                for line in s.splitlines():
+                    n, a = line.split()
+                    mappings.add((dns.name.from_text(n), IPAddr(a)))
+            # if that failed too, then raise a validation error because
+            # processing failed.
+            except (ValueError, dns.exception.DNSException):
+                raise forms.ValidationError('Unable to process address records!')
+        else:
+            for rrset in m.answer:
+                if rrset.rdtype not in (dns.rdatatype.A, dns.rdatatype.AAAA):
+                    continue
+                for rr in rrset:
+                    mappings.add((rrset.name, IPAddr(rr.to_text())))
+
+        # if there something in the box, yet no mappings resulted, then raise a
+        # validation error
+        if value[1] and not mappings:
+            raise forms.ValidationError('Unable to process address records!')
+
+        return zone, mappings
 
 class DNSSECOptionsForm(forms.Form):
     RR_CHOICES = (('all', '--All--'),
@@ -173,6 +255,8 @@ def domain_analysis_form(name, zone=None):
                 help_text='Usually it is sufficient to select the name itself (%s) or its zone (%s), in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True), fmt.humanize_name(zone, True)))
         extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False,
                 help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
+        explicit_delegation = ExplicitDelegationField(choices=ANCESTOR_CHOICES, initial=((zone.to_text(), ())), required=False,
+                help_text='If you wish to designate servers explicitly for a zone (rather than following delegation from the IANA root), select the zone, and enter the addresses, either as A/AAAA records or as space-separated name/address pairs.')
 
         def clean_force_ancestor(self):
             return dns.name.from_text(self.cleaned_data['force_ancestor'])
