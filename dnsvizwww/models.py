@@ -156,7 +156,7 @@ class DomainNameAnalysisManager(models.Manager):
             return None
 
     def earliest(self, name, date=None):
-        f = Q(name=name, stub=False, explicit_delegation_group=None)
+        f = Q(name=name, stub=False, explicit_delegation_group=None, cache_group=None)
         if date is not None:
             f &= Q(analysis_end__gte=date)
 
@@ -167,7 +167,7 @@ class DomainNameAnalysisManager(models.Manager):
 
     def get_by_date(self, name, date):
         try:
-            return self.get(name=name, analysis_end=date, stub=False, explicit_delegation_group=None)
+            return self.get(name=name, analysis_end=date, stub=False, explicit_delegation_group=None, cache_group=None)
         except self.model.DoesNotExist:
             return None
 
