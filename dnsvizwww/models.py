@@ -144,7 +144,7 @@ class DomainNameAnalysisManager(models.Manager):
                     if obj.name == name:
                         return obj
 
-        f = Q(name=name)
+        f = Q(name=name, explicit_delegation_group=None)
         if date is not None:
             f &= Q(analysis_end__lte=date)
         if stub is not None:
@@ -156,7 +156,7 @@ class DomainNameAnalysisManager(models.Manager):
             return None
 
     def earliest(self, name, date=None):
-        f = Q(name=name, stub=False)
+        f = Q(name=name, stub=False, explicit_delegation_group=None)
         if date is not None:
             f &= Q(analysis_end__gte=date)
 
@@ -167,7 +167,7 @@ class DomainNameAnalysisManager(models.Manager):
 
     def get_by_date(self, name, date):
         try:
-            return self.get(name=name, analysis_end=date, stub=False)
+            return self.get(name=name, analysis_end=date, stub=False, explicit_delegation_group=None)
         except self.model.DoesNotExist:
             return None
 
@@ -188,7 +188,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     nxdomain_ancestor_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
 
     referral_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
-    explicit_delegation = models.BooleanField(default=False)
+    explicit_delegation_group = models.ForeignKey('self', blank=True, null=True, related_name='explicit_delegation_members')
 
     nxdomain_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     nxdomain_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
@@ -243,7 +243,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         return self.name == other.name and self.pk == other.pk
 
     class Meta:
-        unique_together = (('name', 'analysis_end'),)
+        unique_together = (('name', 'analysis_end'), ('name', 'explicit_delegation_group'))
         get_latest_by = 'analysis_end'
 
     def _handle_dnskey_response(self, rrset):
@@ -371,7 +371,18 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         self.parent_name_db = self.parent_name()
         self.dlv_parent_name_db = self.dlv_parent_name()
         self.nxdomain_ancestor_name_db = self.nxdomain_ancestor_name()
+
+        # if the parent has an explicit delegation id, then match it
+        if self.parent is not None and self.parent.explicit_delegation_group is not None:
+            self.explicit_delegation_group = self.parent.explicit_delegation_group
+
         self.save()
+
+        # if this analysis was marked as using an explicit delegation, then
+        # set the explicit_delegation_group to the value of its own pk
+        if self.explicit_delegation:
+            self.explicit_delegation_group = self
+
         self.schedule_refresh()
 
         # now store the name/IP mapping, query/response, and other information
@@ -380,8 +391,14 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         # recursively save the dependent names
         self.save_dependencies()
 
-        # store the latest pk associated with the name
-        Cache.set('dnsvizwww.models.OnlineDomainNameAnalysis.name.%s.latest.pk' % (util.uuid_for_name(self.name).hex), self.pk)
+        # explicit_delegation_group might not be set to its "end" value (it
+        # will be eventually set to the name which was the first name in the
+        # dependency chain utilizing explicit delegations), but it will at this
+        # point be set to something (i.e., not None) if there was an explicit
+        # delegation used in this analysis.
+        if not self.explicit_delegation_group:
+            # store the latest pk associated with the name
+            Cache.set('dnsvizwww.models.OnlineDomainNameAnalysis.name.%s.latest.pk' % (util.uuid_for_name(self.name).hex), self.pk)
 
     def _store_related_cache(self, level):
         d = {}
@@ -676,6 +693,37 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         #            self.ns_dependencies[target].retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, follow_dependencies=True, cache=cache)
         #            self.ns_dependencies[target].retrieve_related(self.RDTYPES_NS_TARGET)
         #            self.ns_dependencies[target].retrieve_dependencies(cache=cache)
+
+    def analyses_for_explicit_delegation_group(self, explicit_delegations, trace=None):
+        if trace is None:
+            trace = []
+
+        result = []
+        if self.name in trace:
+            return result
+
+        # add all analyses in ancestry with explicit delegations to result
+        obj = self
+        while obj is not None and filter(lambda x: obj.name.is_subdomain(x), explicit_delegations):
+            result.append(obj)
+            obj = obj.parent
+        for cname in self.cname_targets:
+            for cname_obj in self.cname_targets[cname].values():
+                result.extend(cname_obj.analyses_for_explicit_delegation_group(explicit_delegations, trace + [self]))
+        for signer_obj in self.external_signers.values():
+            obj = signer_obj
+            result.extend(signer_obj.analyses_for_explicit_delegation_group(explicit_delegations, trace + [self]))
+        for ns_obj in self.ns_dependencies.values():
+            if ns_obj is not None:
+                result.extend(ns_obj.analyses_for_explicit_delegation_group(explicit_delegations, trace + [self]))
+        return result
+
+    def set_explicit_delegation_group(self, explicit_delegations):
+        if self.explicit_delegation_group is not None:
+            group = self.analyses_for_explicit_delegation_group(explicit_delegations)
+            if group:
+                group = [a.pk for a in group]
+                OnlineDomainNameAnalysis.objects.filter(pk__in=group).update(explicit_delegation_group=self.explicit_delegation_group)
 
     def save_dependencies(self):
         for cname in self.cname_targets:

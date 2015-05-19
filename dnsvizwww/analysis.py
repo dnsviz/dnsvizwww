@@ -133,6 +133,7 @@ class Analyst(dnsviz.analysis.Analyst):
                 try:
                     with transaction.atomic():
                         name_obj.save_all()
+                        name_obj.set_explicit_delegation_group(self.explicit_delegations)
                 except Exception, e:
                     # retry if this is a database error and we tried
                     # less than three times
