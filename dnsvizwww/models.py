@@ -144,7 +144,7 @@ class DomainNameAnalysisManager(models.Manager):
                     if obj.name == name:
                         return obj
 
-        f = Q(name=name, explicit_delegation_group=None)
+        f = Q(name=name, explicit_delegation_group=None, cache_group=None)
         if date is not None:
             f &= Q(analysis_end__lte=date)
         if stub is not None:
@@ -189,6 +189,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
     referral_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
     explicit_delegation_group = models.ForeignKey('self', blank=True, null=True, related_name='explicit_delegation_members')
+    cache_group = models.ForeignKey('self', blank=True, null=True, related_name='cache_members')
 
     nxdomain_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     nxdomain_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
@@ -243,7 +244,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         return self.name == other.name and self.pk == other.pk
 
     class Meta:
-        unique_together = (('name', 'analysis_end'), ('name', 'explicit_delegation_group'))
+        unique_together = (('name', 'analysis_end'), ('name', 'explicit_delegation_group'), ('name', 'cache_group'))
         get_latest_by = 'analysis_end'
 
     def _handle_dnskey_response(self, rrset):
