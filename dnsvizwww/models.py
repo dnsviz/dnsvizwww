@@ -135,7 +135,7 @@ class DomainNameAnalysisManager(models.Manager):
             if pk is not None:
                 util.touch_cache(Cache, key) 
                 try:
-                    obj = self.filter(pk=pk).get()
+                    obj = self.get(pk=pk)
                 except OnlineDomainNameAnalysis.DoesNotExist:
                     # sometimes the cache has a view of it before the database
                     # does
@@ -165,9 +165,9 @@ class DomainNameAnalysisManager(models.Manager):
         except IndexError:
             return None
 
-    def get(self, name, date):
+    def get_by_date(self, name, date):
         try:
-            return self.filter(name=name, analysis_end=date, stub=False).get()
+            return self.get(name=name, analysis_end=date, stub=False)
         except self.model.DoesNotExist:
             return None
 

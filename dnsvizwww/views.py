@@ -77,7 +77,7 @@ def domain_view(request, name, timestamp=None, url_subdir='', **kwargs):
         name_obj = OfflineDomainNameAnalysis.objects.latest(name)
     else:
         date = util.datetime_url_decode(timestamp)
-        name_obj = OfflineDomainNameAnalysis.objects.get(name, date)
+        name_obj = OfflineDomainNameAnalysis.objects.get_by_date(name, date)
 
     if not url_subdir:
         url_subdir = ''
@@ -209,7 +209,7 @@ def dnssec_info(request, name, timestamp=None, url_subdir=None, url_file=None, f
         name_obj = OfflineDomainNameAnalysis.objects.latest(name)
     else:
         date = util.datetime_url_decode(timestamp)
-        name_obj = OfflineDomainNameAnalysis.objects.get(name, date)
+        name_obj = OfflineDomainNameAnalysis.objects.get_by_date(name, date)
 
     if name_obj is None:
         raise Http404
