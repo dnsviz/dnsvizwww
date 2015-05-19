@@ -662,11 +662,10 @@ def analyze(request, name, url_subdir=None):
 
     if name_obj is None:
         name_obj = OfflineDomainNameAnalysis(name)
-        form_class = domain_analysis_form(name_obj.name)
     else:
         name_obj.retrieve_ancestry(name_obj.RDTYPES_DELEGATION)
         name_obj.retrieve_related(name_obj.RDTYPES_DELEGATION)
-        form_class = domain_analysis_form(name_obj.name, name_obj.zone.name)
+    form_class = domain_analysis_form(name_obj.name)
 
     error_msg = None
     if request.POST:
