@@ -128,12 +128,18 @@ class NSNameNegativeResponse(models.Model):
         return '%s' % (self.name.to_text(), self.server)
 
 class DomainNameAnalysisManager(models.Manager):
+    def get_by_explicit_delegation_group(self, name, explicit_delegation_group):
+        try:
+            return OfflineDomainNameAnalysis.objects.get(name=name, explicit_delegation_group=explicit_delegation_group)
+        except OfflineDomainNameAnalysis.DoesNotExist:
+            return None
+
     def latest(self, name, date=None, stub=False):
         if date is None:
             key = 'dnsvizwww.models.OnlineDomainNameAnalysis.name.%s.latest.pk' % (util.uuid_for_name(name).hex)
             pk = Cache.get(key)
             if pk is not None:
-                util.touch_cache(Cache, key) 
+                util.touch_cache(Cache, key)
                 try:
                     obj = self.get(pk=pk)
                 except OnlineDomainNameAnalysis.DoesNotExist:
@@ -154,6 +160,23 @@ class DomainNameAnalysisManager(models.Manager):
             return self.filter(f).latest()
         except self.model.DoesNotExist:
             return None
+
+    def latest_or_explicit(self, name, date=None, stub=False, explicit_delegation_group=None):
+        if explicit_delegation_group is not None:
+            obj = self.get_by_explicit_delegation_group(name, explicit_delegation_group)
+            # if there was no object, but there was a date, it might be that
+            # this is a name on which another name, with explicit delegation,
+            # is dependent, and this name had no explicit delegation.
+            if obj is None and date is not None:
+                obj = self.latest(name, date=date, stub=stub)
+                if obj is not None:
+                    # if this object exists, then mark the instance (won't be
+                    # saved to database), so further dependencies can be
+                    # tracked.
+                    obj.explicit_delegation_group = explicit_delegation_group
+            return obj
+        else:
+            return self.latest(name, date=date, stub=stub)
 
     def earliest(self, name, date=None):
         f = Q(name=name, stub=False, explicit_delegation_group=None, cache_group=None)
@@ -318,7 +341,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
         # Find the most recent version of the DANE host name
         dane_host_name = dns.name.Name(self.name.labels[2:])
-        dane_host_obj = self.__class__.objects.latest(dane_host_name, self.analysis_end)
+        dane_host_obj = self.__class__.objects.latest_or_explicit(dane_host_name, self.analysis_end,
+                explicit_delegation_group=self.explicit_delegation_group)
 
         #XXX not sure if this check (i.e., the rest of this method) is necessary for versions >= 19
         if dane_host_obj is None:
@@ -477,7 +501,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             key = 'dnsvizwww.models.OnlineDomainNameAnalysis.pk.%d.related.%d' % (self.pk, i)
             d = Cache.get(key)
             if d is not None:
-                util.touch_cache(Cache, key) 
+                util.touch_cache(Cache, key)
                 self._deserialize_related(d)
                 return True
         return False
@@ -602,7 +626,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 f_stub = None
             else:
                 f_stub = False
-            parent = self.__class__.objects.latest(self.parent_name_db, self.analysis_end, stub=f_stub)
+            parent = self.__class__.objects.latest_or_explicit(self.parent_name_db, self.analysis_end, stub=f_stub,
+                    explicit_delegation_group=self.explicit_delegation_group)
             # if force_stub, make it a stub (even if it isn't a stub in the
             # database) and don't cache it
             if force_stub:
@@ -621,7 +646,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             parent = None
 
         if self.nxdomain_ancestor_name_db is not None:
-            nxdomain_ancestor = self.__class__.objects.latest(self.nxdomain_ancestor_name_db, self.analysis_end)
+            nxdomain_ancestor = self.__class__.objects.latest_or_explicit(self.nxdomain_ancestor_name_db, self.analysis_end,
+                    explicit_delegation_group=self.explicit_delegation_group)
             if nxdomain_ancestor.pk in cache:
                 nxdomain_ancestor, code = cache[nxdomain_ancestor.pk]
             if nxdomain_ancestor.pk not in cache or code > level:
@@ -659,7 +685,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 if target == self.name:
                     self.cname_targets[cname][target] = self
                     continue
-                self.cname_targets[cname][target] = self.__class__.objects.latest(target, self.dep_analysis_end)
+                self.cname_targets[cname][target] = self.__class__.objects.latest_or_explicit(target, self.dep_analysis_end,
+                        explicit_delegation_group=self.explicit_delegation_group)
                 if self.cname_targets[cname][target].pk in cache:
                     self.cname_targets[cname][target], code = cache[self.cname_targets[cname][target].pk]
                 if self.cname_targets[cname][target].pk not in cache or code > self.RDTYPES_ALL_SAME_NAME:
@@ -671,7 +698,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             if signer == self.name:
                 self.external_signers[signer] = self
                 continue
-            self.external_signers[signer] = self.__class__.objects.latest(signer, self.dep_analysis_end)
+            self.external_signers[signer] = self.__class__.objects.latest_or_explicit(signer, self.dep_analysis_end,
+                    explicit_delegation_group=self.explicit_delegation_group)
             if self.external_signers[signer].pk in cache:
                 self.external_signers[signer], code = cache[self.external_signers[signer].pk]
             if self.external_signers[signer].pk not in cache or code > self.RDTYPES_SECURE_DELEGATION:
@@ -684,7 +712,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         #    if target == self.name:
         #        self.ns_dependencies[target] = self
         #        continue
-        #    self.ns_dependencies[target] = self.__class__.objects.latest(target, self.dep_analysis_end)
+        #    self.ns_dependencies[target] = self.__class__.objects.latest_or_explicit(target, self.dep_analysis_end,
+        #            explicit_delegation_group=self.explicit_delegation_group)
         #    #TODO also check freshness of retrieved object
         #    if self.ns_dependencies[target] is not None:
         #        if self.ns_dependencies[target].pk in cache:
