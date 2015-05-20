@@ -57,7 +57,7 @@ urlpatterns = patterns('',
         url(r'^d/(?P<name>%s)/(?P<url_subdir>servers/)$' % dns_name, never_cache(views.DomainNameServersView.as_view())),
         url(r'^d/(?P<name>%s)/(?P<url_subdir>responses/)$' % dns_name, never_cache(views.DomainNameResponsesView.as_view())),
         url(r'^d/(?P<name>%s)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, never_cache(views.DomainNameDNSSECGraphView.as_view())),
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|analysis)/)$' % dns_name, never_cache(views.DomainNameRESTView.as_view())),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|processed)/)$' % dns_name, never_cache(views.DomainNameRESTView.as_view())),
 
         url(r'^d/(?P<name>%s)/(?P<url_subdir>analyze/)$' % dns_name, never_cache(views.analyze)),
 
