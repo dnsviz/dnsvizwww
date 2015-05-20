@@ -150,77 +150,76 @@ class ContactForm(forms.Form):
                 self.cleaned_data['reply_email'],
                 recipients)
 
-class DomainNameAnalysisForm(forms.Form):
-    EXTRA_TYPES = ((dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
-            (dns.rdatatype.AAAA, dns.rdatatype.to_text(dns.rdatatype.AAAA)),
-            (dns.rdatatype.TXT, dns.rdatatype.to_text(dns.rdatatype.TXT)),
-            (dns.rdatatype.PTR, dns.rdatatype.to_text(dns.rdatatype.PTR)),
-            (dns.rdatatype.MX, dns.rdatatype.to_text(dns.rdatatype.MX)),
-            (dns.rdatatype.SOA, dns.rdatatype.to_text(dns.rdatatype.SOA)),
-            (dns.rdatatype.CNAME, dns.rdatatype.to_text(dns.rdatatype.CNAME)),
-            (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
-            (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
-            (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
+def domain_analysis_form(name):
+    ANCESTOR_CHOICES = [(name.to_text(), fmt.humanize_name(name, True))]
+    n = name
+    while n != dns.name.root:
+        n = n.parent()
+        ANCESTOR_CHOICES.append((n.to_text(), fmt.humanize_name(n, True)))
+    ANCESTOR_CHOICES.reverse()
 
-    force_ancestor = forms.ChoiceField(label='Force ancestor analysis', required=True,
-            help_text='Usually it is sufficient to select the name itself or its zone, in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.')
-    extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False,
-            help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
-    explicit_delegation = forms.CharField(initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
-            help_text='If you wish to designate servers explicitly for the "force ancestor" zone (rather than following delegation from the IANA root), enter the addresses, either as A/AAAA records or as space-separated name/address pairs.')
+    class DomainNameAnalysisForm(forms.Form):
+        EXTRA_TYPES = ((dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
+                (dns.rdatatype.AAAA, dns.rdatatype.to_text(dns.rdatatype.AAAA)),
+                (dns.rdatatype.TXT, dns.rdatatype.to_text(dns.rdatatype.TXT)),
+                (dns.rdatatype.PTR, dns.rdatatype.to_text(dns.rdatatype.PTR)),
+                (dns.rdatatype.MX, dns.rdatatype.to_text(dns.rdatatype.MX)),
+                (dns.rdatatype.SOA, dns.rdatatype.to_text(dns.rdatatype.SOA)),
+                (dns.rdatatype.CNAME, dns.rdatatype.to_text(dns.rdatatype.CNAME)),
+                (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
+                (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
+                (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
 
-    def __init__(self, name, *args, **kwargs):
-        super(DomainNameAnalysisForm, self).__init__(*args, **kwargs)
+        force_ancestor = forms.ChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, initial=name.to_text(), required=True,
+                help_text='Usually it is sufficient to select the name itself (%s) or its zone, in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True)))
+        extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False,
+                help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
+        explicit_delegation = forms.CharField(initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
+                help_text='If you wish to designate servers explicitly for the "force ancestor" zone (rather than following delegation from the IANA root), enter the addresses, either as A/AAAA records or as space-separated name/address pairs.')
 
-        ancestor_choices = [(name.to_text(), fmt.humanize_name(name, True))]
-        n = name
-        while n != dns.name.root:
-            n = n.parent()
-            ancestor_choices.append((n.to_text(), fmt.humanize_name(n, True)))
+        def clean_force_ancestor(self):
+            return dns.name.from_text(self.cleaned_data['force_ancestor'])
 
-        self.fields['force_ancestor'].choices = ancestor_choices
+        def clean_extra_types(self):
+            return map(int, self.cleaned_data['extra_types'])
 
-    def clean_force_ancestor(self):
-        return dns.name.from_text(self.cleaned_data['force_ancestor'])
+        def clean_explicit_delegation(self):
+            s = self.cleaned_data['explicit_delegation']
+            mappings = set()
 
-    def clean_extra_types(self):
-        return map(int, self.cleaned_data['extra_types'])
-
-    def clean_explicit_delegation(self):
-        s = self.cleaned_data['explicit_delegation']
-        mappings = set()
-
-        # strip out comments, blank lines, and leading/trailing whitespace
-        s = ZONE_COMMENTS_RE.sub('', s)
-        s = BLANK_LINES_RE.sub(r'\n', s)
-        s = s.strip()
-        try:
-            m = dns.message.from_text(str(';ANSWER\n'+s))
-        except:
-            # if there was an exception processing the input as address records
-            # in zone file format, try again as whitespace-separated name/address
-            # pairs
+            # strip out comments, blank lines, and leading/trailing whitespace
+            s = ZONE_COMMENTS_RE.sub('', s)
+            s = BLANK_LINES_RE.sub(r'\n', s)
+            s = s.strip()
             try:
-                for line in s.splitlines():
-                    n, a = line.split()
-                    mappings.add((dns.name.from_text(n), IPAddr(a)))
-            # if that failed too, then raise a validation error because
-            # processing failed.
-            except (ValueError, dns.exception.DNSException):
+                m = dns.message.from_text(str(';ANSWER\n'+s))
+            except:
+                # if there was an exception processing the input as address records
+                # in zone file format, try again as whitespace-separated name/address
+                # pairs
+                try:
+                    for line in s.splitlines():
+                        n, a = line.split()
+                        mappings.add((dns.name.from_text(n), IPAddr(a)))
+                # if that failed too, then raise a validation error because
+                # processing failed.
+                except (ValueError, dns.exception.DNSException):
+                    raise forms.ValidationError('Unable to process address records!')
+            else:
+                for rrset in m.answer:
+                    if rrset.rdtype not in (dns.rdatatype.A, dns.rdatatype.AAAA):
+                        continue
+                    for rr in rrset:
+                        mappings.add((rrset.name, IPAddr(rr.to_text())))
+
+            # if there something in the box, yet no mappings resulted, then raise a
+            # validation error
+            if self.cleaned_data['explicit_delegation'] and not mappings:
                 raise forms.ValidationError('Unable to process address records!')
-        else:
-            for rrset in m.answer:
-                if rrset.rdtype not in (dns.rdatatype.A, dns.rdatatype.AAAA):
-                    continue
-                for rr in rrset:
-                    mappings.add((rrset.name, IPAddr(rr.to_text())))
 
-        # if there something in the box, yet no mappings resulted, then raise a
-        # validation error
-        if self.cleaned_data['explicit_delegation'] and not mappings:
-            raise forms.ValidationError('Unable to process address records!')
+            return mappings
 
-        return mappings
+    return DomainNameAnalysisForm
 
 class CalendarWidget(forms.TextInput):
     def __init__(self, attrs={}):

@@ -610,7 +610,7 @@ class DomainNameRESTView(DomainNameView):
         name_obj.retrieve_all()
 
         d = collections.OrderedDict()
-        if rest_dir == 'processed/':
+        if rest_dir == 'analysis/':
             name_obj.populate_status(trusted_keys)
             name_obj.serialize_status(d, loglevel=loglevel)
         elif rest_dir == 'raw/':
@@ -665,6 +665,7 @@ def analyze(request, name, url_subdir=None):
     else:
         name_obj.retrieve_ancestry(name_obj.RDTYPES_DELEGATION)
         name_obj.retrieve_related(name_obj.RDTYPES_DELEGATION)
+    form_class = domain_analysis_form(name_obj.name)
 
     error_msg = None
     if request.POST:
@@ -672,7 +673,7 @@ def analyze(request, name, url_subdir=None):
         analysis_logger = log.IsolatedLogger(logging.DEBUG, request_logger, 'Error analyzing %s' % name_obj)
 
         # instantiate a bound form
-        analyze_form = DomainNameAnalysisForm(name_obj.name, request.POST)
+        analyze_form = form_class(request.POST)
         if analyze_form.is_valid():
             force_ancestor = analyze_form.cleaned_data['force_ancestor']
             extra_rdtypes = analyze_form.cleaned_data['extra_types']
@@ -713,7 +714,7 @@ def analyze(request, name, url_subdir=None):
 
     # instantiate an unbound form
     else:
-        analyze_form = DomainNameAnalysisForm(name_obj.name)
+        analyze_form = form_class()
 
     return render_to_response('analyze.html',
             { 'name_obj': name_obj, 'url_subdir': url_subdir, 'title': name_obj,
