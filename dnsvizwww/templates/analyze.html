@@ -8,6 +8,33 @@
 	<script type="text/javascript">
 		<!--
 		$(document).ready(function() {
+			// analysis options
+			$('#options .toggle').click(function() {
+				var tog = $(this);
+				$('#advanced-options').slideToggle({
+					'duration': 'slow',
+					'complete': function() {
+						if (tog.text() == 'Hide advanced options') {
+							tog.text('Show advanced options');
+							$('#advanced-options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
+						} else {
+							tog.text('Hide advanced options');
+						}
+					},
+					'start': function() {
+						if (tog.text() != 'Hide advanced options') {
+							$('#advanced-options').removeAttr("style");
+						}
+					}
+				});
+			});
+
+			{% if not analysis_form.errors %}
+			$('#advanced-options').hide();
+			$('#advanced-options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
+			$('#options .toggle').text('Show advanced options');
+			{% endif %}
+
 			// viz options tooltips
 			$('#options-list a.form-tooltip').tooltip({
 				track: true,
@@ -78,17 +105,22 @@
 		{% endif %}
 		</p>
 	{% endif %}
+
 	<fieldset id="options">
 	<form action="" method="post">
+		<p id="analysis-submit">
+			<input type="submit" class="button" value="Analyze" />
+		</p>
+
+		<p><a class="toggle">Advanced options</a></p>
+
+		<fieldset id="advanced-options">
 		{% if analyze_form.errors %}
 			<p class="form-error">
 			There were errors processing the analysis options.  Please correct below and re-submit.
 			</p>
 		{% endif %}
 
-		<p id="analysis-submit">
-			<input type="submit" class="button" value="Analyze" />
-		</p>
 		<ol id="options-list" class="analysis-options">
 			{% for field in analyze_form %}
 			<li>
@@ -105,6 +137,7 @@
 			</li>
 			{% endfor %}
 		</ol>
+		</fieldset>
 	</form>
 	</fieldset>
 	</div>
