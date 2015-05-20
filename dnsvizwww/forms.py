@@ -156,7 +156,6 @@ def domain_analysis_form(name):
     while n != dns.name.root:
         n = n.parent()
         ANCESTOR_CHOICES.append((n.to_text(), fmt.humanize_name(n, True)))
-    ANCESTOR_CHOICES.reverse()
 
     class DomainNameAnalysisForm(forms.Form):
         EXTRA_TYPES = ((dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
@@ -170,8 +169,8 @@ def domain_analysis_form(name):
                 (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
                 (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
 
-        force_ancestor = forms.ChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, initial=name.to_text(), required=True,
-                help_text='Usually it is sufficient to select the name itself (%s) or its zone, in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True)))
+        force_ancestor = forms.ChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, required=True,
+                help_text='Usually it is sufficient to select the name itself or its zone, in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.')
         extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False,
                 help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
         explicit_delegation = forms.CharField(initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
