@@ -316,7 +316,10 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         return '/d/%s/' % name
 
     def base_url_with_timestamp(self):
-        return '%s%s/' % (self.base_url(), self.timestamp_url_encoded())
+        if self.explicit_delegation_group is not None:
+            return '%se/%d/' % (self.base_url(), self.explicit_delegation_group.pk)
+        else:
+            return '%s%s/' % (self.base_url(), self.timestamp_url_encoded())
 
     def _get_previous(self, stub=False):
         if not hasattr(self, '_previous') or self._previous is None:

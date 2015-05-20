@@ -114,7 +114,28 @@ class DomainNameSimpleView(View):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form, **kwargs):
         raise Http404
 
-    def _get(self, request, name_obj, timestamp, url_subdir, date_form):
+class DomainNameExplicitDelegationView(View):
+    def get(self, request, name, explicit_delegation_group_id, url_subdir='', **kwargs):
+        if 'reset_query' in request.GET:
+            return reset_query_string(request)
+
+        name = util.name_url_decode(name)
+        try:
+            explicit_delegation_group = OfflineDomainNameAnalysis.objects.get(pk=int(explicit_delegation_group_id))
+        except OfflineDomainNameAnalysis.DoesNotExist:
+            name_obj = None
+        else:
+            name_obj = OfflineDomainNameAnalysis.objects.get_by_explicit_delegation_group(name, explicit_delegation_group=explicit_delegation_group)
+
+        if not url_subdir:
+            url_subdir = ''
+
+        if name_obj is None:
+            raise Http404
+
+        return self._get(request, name_obj, None, url_subdir, None, **kwargs)
+
+    def _get(self, request, name_obj, timestamp, url_subdir, date_form, **kwargs):
         raise Http404
 
 class DomainNameDetailMixin(object):
@@ -122,6 +143,9 @@ class DomainNameDetailMixin(object):
         return HttpResponseRedirect('dnssec/')
 
 class DomainNameDetailView(DomainNameDetailMixin, DomainNameView):
+    pass
+
+class DomainNameDetailExplicitDelegationView(DomainNameDetailMixin, DomainNameExplicitDelegationView):
     pass
 
 class DNSSECMixin(object):
@@ -223,6 +247,9 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
 class DomainNameDNSSECPageView(DomainNameDNSSECPageMixin, DomainNameView):
     pass
 
+class DomainNameDNSSECPageExplicitDelegationView(DomainNameDNSSECPageMixin, DomainNameExplicitDelegationView):
+    pass
+
 class DomainNameDNSSECGraphMixin(DNSSECMixin):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form, url_file=None, format=None, **kwargs):
         options_form, values = get_dnssec_options_form_data(request.GET)
@@ -284,6 +311,9 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
         return response
 
 class DomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, DomainNameSimpleView):
+    pass
+
+class DomainNameDNSSECGraphExplicitDelegationView(DomainNameDNSSECGraphMixin, DomainNameExplicitDelegationView):
     pass
 
 class DomainNameResponsesMixin(object):
@@ -504,6 +534,9 @@ class DomainNameResponsesMixin(object):
 class DomainNameResponsesView(DomainNameResponsesMixin, DomainNameView):
     pass
 
+class DomainNameResponsesExplicitDelegationView(DomainNameResponsesMixin, DomainNameExplicitDelegationView):
+    pass
+
 class DomainNameServersMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         options_form, values = get_dnssec_options_form_data({})
@@ -607,6 +640,9 @@ class DomainNameServersMixin(object):
 class DomainNameServersView(DomainNameServersMixin, DomainNameView):
     pass
 
+class DomainNameServersExplicitDelegationView(DomainNameServersMixin, DomainNameExplicitDelegationView):
+    pass
+
 class DomainNameRESTMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form, rest_dir=None):
         options_form, values = get_dnssec_options_form_data({})
@@ -644,6 +680,9 @@ class DomainNameRESTMixin(object):
         return HttpResponse(json.dumps(d, **kwargs), content_type='application/json')
 
 class DomainNameRESTView(DomainNameRESTMixin, DomainNameView):
+    pass
+
+class DomainNameRESTExplicitDelegationView(DomainNameRESTMixin, DomainNameExplicitDelegationView):
     pass
 
 def domain_search(request):
@@ -703,22 +742,25 @@ def analyze(request, name, url_subdir=None):
         if analyze_form.is_valid():
             force_ancestor = analyze_form.cleaned_data['force_ancestor']
             extra_rdtypes = analyze_form.cleaned_data['extra_types']
+            explicit_delegations = {}
+            if analyze_form.cleaned_data['explicit_delegation']:
+                explicit_delegations[force_ancestor] = analyze_form.cleaned_data['explicit_delegation']
             start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
 
             # for ajax requests, analyze asynchronously, using a logger with
             # callbacks and streaming output to the browser.  If there is an
             # error with the analysis, it will be handled by the javascript.
             if request.is_ajax():
-                a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), logger=analysis_logger.logger, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
+                a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), logger=analysis_logger.logger, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
                 a.analyze_async(analysis_logger.success_callback, analysis_logger.exc_callback)
                 #TODO set alarm here for too long waits
                 return StreamingHttpResponse(analysis_logger.handler)
 
             # for non-ajax requests analyze synchronously
             else:
-                a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
+                a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
                 try:
-                    a.analyze()
+                    name_obj = a.analyze()
 
                 # if there is an error with the analysis, then return the bound form,
                 # so the errors will be rendered with the form.
@@ -728,6 +770,8 @@ def analyze(request, name, url_subdir=None):
 
                 # if there were no errors, then return a redirect
                 else:
+                    if name_obj.explicit_delegation_group is not None:
+                        return HttpResponseRedirect(name_obj.base_url_with_timestamp())
                     return HttpResponseRedirect('../')
 
         # if the form contents were invalid in an ajax request, then send a

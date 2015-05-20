@@ -245,6 +245,11 @@ fieldset { border: 0; }
 	width:auto;
 }
 
+#analysis-description {
+	float:right;
+	width:auto;
+}
+
 #date-search form {
 	margin: 0;
 }
