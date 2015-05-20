@@ -163,7 +163,7 @@ class DNSSECMixin(object):
 
         return G
 
-class DomainNameDNSSECPageView(DomainNameView, DNSSECMixin):
+class DomainNameDNSSECPageView(DNSSECMixin, DomainNameView):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         options_form, values = get_dnssec_options_form_data(request.GET)
         rdtypes = set(values['rr'])
@@ -199,7 +199,7 @@ class DomainNameDNSSECPageView(DomainNameView, DNSSECMixin):
                     'notices': notices, 'use_js': use_js, 'query_string': request.META['QUERY_STRING'] },
                 context_instance=RequestContext(request))
 
-class DomainNameDNSSECGraphView(DomainNameView, DNSSECMixin):
+class DomainNameDNSSECGraphView(DNSSECMixin, DomainNameView):
     def get(self, request, name, timestamp=None, url_subdir=None, url_file=None, format=None, **kwargs):
         name = util.name_url_decode(name)
         if timestamp is None:
