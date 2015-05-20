@@ -167,13 +167,13 @@ class DomainNameAnalysisManager(models.Manager):
         except self.model.DoesNotExist:
             return None
 
-    def latest_or_explicit_or_cache(self, name, date=None, stub=False, explicit_delegation_group=None, cache_group=None):
+    def latest_or_explicit_or_cache(self, name, date=None, stub=False, explicit_delegation_group=None, cache_group=None, date_fallback=True):
         if explicit_delegation_group is not None:
             obj = self.get_by_explicit_delegation_group(name, explicit_delegation_group)
             # if there was no object, but there was a date, it might be that
             # this is a name on which another name, with explicit delegation,
             # is dependent, and this name had no explicit delegation.
-            if obj is None and date is not None:
+            if obj is None and datefallback and date is not None:
                 obj = self.latest(name, date=date, stub=stub)
                 if obj is not None:
                     # if this object exists, then mark the instance (won't be
@@ -635,7 +635,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             else:
                 f_stub = False
             parent = self.__class__.objects.latest_or_explicit_or_cache(self.parent_name_db, self.analysis_end, stub=f_stub,
-                    explicit_delegation_group=self.explicit_delegation_group, cache_group=self.cache_group)
+                    explicit_delegation_group=self.explicit_delegation_group, cache_group=self.cache_group, date_fallback=False)
             # if force_stub, make it a stub (even if it isn't a stub in the
             # database) and don't cache it
             if force_stub:
@@ -655,7 +655,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
         if self.nxdomain_ancestor_name_db is not None:
             nxdomain_ancestor = self.__class__.objects.latest_or_explicit_or_cache(self.nxdomain_ancestor_name_db, self.analysis_end,
-                    explicit_delegation_group=self.explicit_delegation_group, cache_group=self.cache_group)
+                    explicit_delegation_group=self.explicit_delegation_group, cache_group=self.cache_group, date_fallback=False)
             if nxdomain_ancestor.pk in cache:
                 nxdomain_ancestor, code = cache[nxdomain_ancestor.pk]
             if nxdomain_ancestor.pk not in cache or code > level:
