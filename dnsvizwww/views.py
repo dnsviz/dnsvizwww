@@ -99,9 +99,12 @@ class DomainNameView(View):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         raise Http404
 
-class DomainNameDetailView(DomainNameView):
+class DomainNameDetailMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         return HttpResponseRedirect('dnssec/')
+
+class DomainNameDetailView(DomainNameDetailMixin, DomainNameView):
+    pass
 
 class DNSSECMixin(object):
     def _graph_dane_related_name(self, G, name_obj, trusted_keys, rdtypes, denial_of_existence):
@@ -163,7 +166,7 @@ class DNSSECMixin(object):
 
         return G
 
-class DomainNameDNSSECPageView(DNSSECMixin, DomainNameView):
+class DomainNameDNSSECPageMixin(DNSSECMixin):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         options_form, values = get_dnssec_options_form_data(request.GET)
         rdtypes = set(values['rr'])
@@ -199,7 +202,10 @@ class DomainNameDNSSECPageView(DNSSECMixin, DomainNameView):
                     'notices': notices, 'use_js': use_js, 'query_string': request.META['QUERY_STRING'] },
                 context_instance=RequestContext(request))
 
-class DomainNameDNSSECGraphView(DNSSECMixin, DomainNameView):
+class DomainNameDNSSECPageView(DomainNameDNSSECPageMixin, DomainNameView):
+    pass
+
+class DomainNameDNSSECGraphMixin(DNSSECMixin):
     def get(self, request, name, timestamp=None, url_subdir=None, url_file=None, format=None, **kwargs):
         name = util.name_url_decode(name)
         if timestamp is None:
@@ -269,7 +275,10 @@ class DomainNameDNSSECGraphView(DNSSECMixin, DomainNameView):
 
         return response
 
-class DomainNameResponsesView(DomainNameView):
+class DomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, DomainNameView):
+    pass
+
+class DomainNameResponsesMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         options_form, values = get_dnssec_options_form_data({})
 
@@ -484,7 +493,10 @@ class DomainNameResponsesView(DomainNameView):
                     'date_form': date_form, 'response_consistency': response_consistency },
                 context_instance=RequestContext(request))
 
-class DomainNameServersView(DomainNameView):
+class DomainNameResponsesView(DomainNameResponsesMixin, DomainNameView):
+    pass
+
+class DomainNameServersMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         options_form, values = get_dnssec_options_form_data({})
 
@@ -584,7 +596,10 @@ class DomainNameServersView(DomainNameView):
                     'ips_from_parent': ips_from_parent, 'ips_from_child': ips_from_child },
                 context_instance=RequestContext(request))
 
-class DomainNameRESTView(DomainNameView):
+class DomainNameServersView(DomainNameServersMixin, DomainNameView):
+    pass
+
+class DomainNameRESTMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form, rest_dir=None):
         options_form, values = get_dnssec_options_form_data({})
 
@@ -619,6 +634,9 @@ class DomainNameRESTView(DomainNameView):
             raise Http404
 
         return HttpResponse(json.dumps(d, **kwargs), content_type='application/json')
+
+class DomainNameRESTView(DomainNameRESTMixin, DomainNameView):
+    pass
 
 def domain_search(request):
     name = request.GET.get('d', '')
