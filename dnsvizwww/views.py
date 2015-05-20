@@ -93,6 +93,9 @@ class DomainNameView(View):
 
         return self._get(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
 
+    def _get(self, request, name_obj, timestamp, url_subdir, date_form, **kwargs):
+        raise Http404
+
 class DomainNameSimpleView(View):
     def get(self, request, name, timestamp=None, url_subdir='', **kwargs):
         name = util.name_url_decode(name)
