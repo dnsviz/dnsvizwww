@@ -81,9 +81,6 @@ class DomainNameView(View):
             date = util.datetime_url_decode(timestamp)
             name_obj = OfflineDomainNameAnalysis.objects.get_by_date(name, date)
 
-        if not url_subdir:
-            url_subdir = ''
-
         if name_obj is None:
             subdir_path_length = len(url_subdir.split('/'))-1
             if timestamp is None:
