@@ -96,6 +96,24 @@ class DomainNameView(View):
 
         return self._get(request, name_obj, timestamp, url_subdir, date_form, **kwargs)
 
+class DomainNameSimpleView(View):
+    def get(self, request, name, timestamp=None, url_subdir='', **kwargs):
+        name = util.name_url_decode(name)
+
+        if timestamp is None:
+            name_obj = OfflineDomainNameAnalysis.objects.latest(name)
+        else:
+            date = util.datetime_url_decode(timestamp)
+            name_obj = OfflineDomainNameAnalysis.objects.get_by_date(name, date)
+
+        if name_obj is None:
+            raise Http404
+
+        return self._get(request, name_obj, timestamp, url_subdir, None, **kwargs)
+
+    def _get(self, request, name_obj, timestamp, url_subdir, date_form, **kwargs):
+        raise Http404
+
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         raise Http404
 
@@ -206,17 +224,7 @@ class DomainNameDNSSECPageView(DomainNameDNSSECPageMixin, DomainNameView):
     pass
 
 class DomainNameDNSSECGraphMixin(DNSSECMixin):
-    def get(self, request, name, timestamp=None, url_subdir=None, url_file=None, format=None, **kwargs):
-        name = util.name_url_decode(name)
-        if timestamp is None:
-            name_obj = OfflineDomainNameAnalysis.objects.latest(name)
-        else:
-            date = util.datetime_url_decode(timestamp)
-            name_obj = OfflineDomainNameAnalysis.objects.get_by_date(name, date)
-
-        if name_obj is None:
-            raise Http404
-
+    def _get(self, request, name_obj, timestamp, url_subdir, date_form, url_file=None, format=None, **kwargs):
         options_form, values = get_dnssec_options_form_data(request.GET)
 
         rdtypes = set(values['rr'])
@@ -275,7 +283,7 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
 
         return response
 
-class DomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, DomainNameView):
+class DomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, DomainNameSimpleView):
     pass
 
 class DomainNameResponsesMixin(object):
