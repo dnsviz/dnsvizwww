@@ -170,18 +170,12 @@ def domain_analysis_form(name):
                 (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
                 (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
 
-        force_ancestor = forms.ChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, initial=name.to_text(), required=True,
+        force_ancestor = forms.TypedChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, initial=name.to_text(), required=True, coerce=dns.name.from_text,
                 help_text='Usually it is sufficient to select the name itself (%s) or its zone, in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True)))
-        extra_types = forms.MultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False,
+        extra_types = forms.TypedMultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False, coerce=int,
                 help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
         explicit_delegation = forms.CharField(initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
                 help_text='If you wish to designate servers explicitly for the "force ancestor" zone (rather than following delegation from the IANA root), enter the addresses, either as A/AAAA records or as space-separated name/address pairs.')
-
-        def clean_force_ancestor(self):
-            return dns.name.from_text(self.cleaned_data['force_ancestor'])
-
-        def clean_extra_types(self):
-            return map(int, self.cleaned_data['extra_types'])
 
         def clean_explicit_delegation(self):
             s = self.cleaned_data['explicit_delegation']
