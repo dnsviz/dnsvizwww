@@ -211,23 +211,24 @@ class DNSSECMixin(object):
 class DomainNameDNSSECPageMixin(DNSSECMixin):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         options_form, values = get_dnssec_options_form_data(request.GET)
-        rdtypes = set(values['rr'])
-        denial_of_existence = values['doe']
-        dnssec_algorithms = set(values['a'])
-        ds_algorithms = set(values['ds'])
-        trusted_keys_explicit = values['tk']
-        trusted_zones = values['ta']
-        redundant_edges = values['red']
-
-        trusted_keys = trusted_keys_explicit + trusted_zones
 
         use_js = 'no_js' not in request.GET
 
-        G = DNSAuthGraph()
-            
         if use_js:
             notices = {}
         else:
+            rdtypes = set(values['rr'])
+            denial_of_existence = values['doe']
+            dnssec_algorithms = set(values['a'])
+            ds_algorithms = set(values['ds'])
+            trusted_keys_explicit = values['tk']
+            trusted_zones = values['ta']
+            redundant_edges = values['red']
+
+            trusted_keys = trusted_keys_explicit + trusted_zones
+
+            G = DNSAuthGraph()
+
             name_obj.retrieve_all()
             name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
             G = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
