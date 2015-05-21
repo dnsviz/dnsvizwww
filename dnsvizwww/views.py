@@ -225,6 +225,14 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
             trusted_zones = values['ta']
             redundant_edges = values['red']
 
+            # disable IANA root keys, if there is an explicit delegation of the root
+            # (i.e., ignore root KSK ta setting)
+            if name_obj.explicit_delegation_group is not None:
+                if OfflineDomainNameAnalysis.objects.get_by_explicit_delegation_group(dns.name.root, name_obj.explicit_delegation_group) is not None:
+                    trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
+                    if '.' in options_form.fields['ta'].initial:
+                        options_form.fields['ta'].initial.remove('.')
+
             trusted_keys = trusted_keys_explicit + trusted_zones
 
             G = DNSAuthGraph()
@@ -262,6 +270,14 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
         trusted_keys_explicit = values['tk']
         trusted_zones = values['ta']
         redundant_edges = values['red']
+
+        # disable IANA root keys, if there is an explicit delegation of the root
+        # (i.e., ignore root KSK ta setting)
+        if name_obj.explicit_delegation_group is not None:
+            if OfflineDomainNameAnalysis.objects.get_by_explicit_delegation_group(dns.name.root, name_obj.explicit_delegation_group) is not None:
+                trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
+                if '.' in options_form.fields['ta'].initial:
+                    options_form.fields['ta'].initial.remove('.')
 
         trusted_keys = trusted_keys_explicit + trusted_zones
 
