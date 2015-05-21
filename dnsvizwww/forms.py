@@ -47,6 +47,7 @@ _implicit_tk_str = '''
 dlv.isc.org.		IN	DNSKEY	257 3 5 BEAAAAPHMu/5onzrEE7z1egmhg/WPO0+juoZrW3euWEn4MxDCE1+lLy2 brhQv5rN32RKtMzX6Mj70jdzeND4XknW58dnJNPCxn8+jAGl2FZLK8t+ 1uq4W+nnA3qO2+DL+k6BD4mewMLbIYFwe0PG73Te9fZ2kJb56dhgMde5 ymX4BI/oQ+cAK50/xvJv00Frf8kw6ucMTwFlgPe+jnGxPPEmHAte/URk Y62ZfkLoBAADLHQ9IrS2tryAe7mbBZVcOwIeU/Rw/mRx/vwwMCTgNboM QKtUdvNXDrYJDSHZws3xiRXF1Rf+al9UmZfSav/4NWLKjHzpT59k/VSt TDN0YUuWrBNh
 '''
 
+CR_RE = re.compile(r'\r\n', re.MULTILINE)
 ZONE_COMMENTS_RE = re.compile(r'\s*;.*', re.MULTILINE)
 BLANK_LINES_RE = re.compile(r'\n\s*\n')
 
@@ -182,6 +183,7 @@ def domain_analysis_form(name):
             mappings = set()
 
             # strip out comments, blank lines, and leading/trailing whitespace
+            s = CR_RE.sub('\n', s)
             s = ZONE_COMMENTS_RE.sub('', s)
             s = BLANK_LINES_RE.sub(r'\n', s)
             s = s.strip()
