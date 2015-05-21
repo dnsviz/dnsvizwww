@@ -125,7 +125,7 @@ class DomainNameExplicitDelegationView(View):
         except OfflineDomainNameAnalysis.DoesNotExist:
             name_obj = None
         else:
-            name_obj = OfflineDomainNameAnalysis.objects.get_by_explicit_delegation_group(name, explicit_delegation_group=explicit_delegation_group)
+            name_obj = OfflineDomainNameAnalysis.objects.get_by_explicit_delegation_group(name, explicit_delegation_group)
 
         if not url_subdir:
             url_subdir = ''
