@@ -53,12 +53,12 @@ class QueueForIteratorHandler(logging.Handler):
             s = self.format(record)
         self.queue.put(s)
 
-class HTMLFormatter(logging.Formatter):
+class JSONFormatter(logging.Formatter):
     def format(self, record):
-        return '<div class="loglevel-%s">%s</div>' % (record.levelname.lower(), escape(record.getMessage()))
+        return '{"type":"logmessage","level":"%s","message":"%s"}\r\n' % (record.levelname.lower(), escape(record.getMessage()))
 
 class IsolatedLogger(object):
-    def __init__(self, loglevel, external_logger, exc_message):
+    def __init__(self, loglevel):
         # initialize a new manager with an instantiation of a custom Logger
         # instance
         class _IsolatedLogger(logging.Logger):
@@ -68,22 +68,10 @@ class IsolatedLogger(object):
         _IsolatedLogger.manager = logging.Manager(self.logger)
 
         self.handler = QueueForIteratorHandler()
-        self.handler.setFormatter(HTMLFormatter())
+        self.handler.setFormatter(JSONFormatter())
         self.handler.setLevel(loglevel)
         self.logger.addHandler(self.handler)
         self.logger.setLevel(loglevel)
-
-        self.external_logger = external_logger
-        self.exc_message = exc_message
-
-    def success_callback(self, result):
-        self.logger.info('Success!')
-        self.close()
-
-    def exc_callback(self, exc_info):
-        self.logger.error(self.exc_message)
-        self.external_logger.error(self.exc_message, exc_info=exc_info)
-        self.close()
 
     def close(self):
         self.logger.debug('<EOF>')

@@ -735,7 +735,22 @@ def analyze(request, name, url_subdir=None):
     error_msg = None
     if request.POST:
         request_logger = logging.getLogger('django.request')
-        analysis_logger = log.IsolatedLogger(logging.DEBUG, request_logger, 'Error analyzing %s' % name_obj)
+        analysis_logger = log.IsolatedLogger(logging.DEBUG)
+
+        def success_callback(name_obj):
+            analysis_logger.logger.info('Success!')
+            if name_obj.explicit_delegation_group is not None:
+                next_url = name_obj.base_url_with_timestamp()
+            else:
+                next_url = '../'
+            analysis_logger.handler.queue.put('{"type":"next-location","url":"%s"}\r\n' % escape(next_url))
+            analysis_logger.close()
+
+        def exc_callback(exc_info):
+            analysis_logger.logger.error('Error analyzing %s' % name_obj)
+            request_logger.error('Error analyzing %s' % name_obj, exc_info=exc_info)
+            analysis_logger.handler.queue.put('{"type":"next-location","url":"./"}\r\n')
+            analysis_logger.close()
 
         # instantiate a bound form
         analyze_form = form_class(request.POST)
@@ -752,7 +767,7 @@ def analyze(request, name, url_subdir=None):
             # error with the analysis, it will be handled by the javascript.
             if request.is_ajax():
                 a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), logger=analysis_logger.logger, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
-                a.analyze_async(analysis_logger.success_callback, analysis_logger.exc_callback)
+                a.analyze_async(success_callback, exc_callback)
                 #TODO set alarm here for too long waits
                 return StreamingHttpResponse(analysis_logger.handler)
 
@@ -771,8 +786,10 @@ def analyze(request, name, url_subdir=None):
                 # if there were no errors, then return a redirect
                 else:
                     if name_obj.explicit_delegation_group is not None:
-                        return HttpResponseRedirect(name_obj.base_url_with_timestamp())
-                    return HttpResponseRedirect('../')
+                        next_url = name_obj.base_url_with_timestamp()
+                    else:
+                        next_url = '../'
+                    return HttpResponseRedirect(next_url)
 
         # if the form contents were invalid in an ajax request, then send a
         # critical-level error, which will prompt the browser to re-issue a
@@ -780,7 +797,7 @@ def analyze(request, name, url_subdir=None):
         elif request.is_ajax():
             analysis_logger.logger.critical('Form error')
             analysis_logger.close()
-            return StreamingHttpResponse(analysis_logger.handler)
+            return StreamingHttpResponse(analysis_logger.handler, content_type='application/json')
 
     # instantiate an unbound form
     else:

@@ -15,7 +15,7 @@
 					'duration': 'slow',
 					'complete': function() {
 						if (tog.text() == 'Hide advanced options') {
-							tog.text('Show advanced options');
+							tog.text('Advanced options');
 							$('#advanced-options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
 						} else {
 							tog.text('Hide advanced options');
@@ -29,10 +29,12 @@
 				});
 			});
 
-			{% if not analysis_form.errors %}
+			{% if analyze_form.errors %}
+			$('#options .toggle').text('Hide advanced options');
+			{% else %}
 			$('#advanced-options').hide();
 			$('#advanced-options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
-			$('#options .toggle').text('Show advanced options');
+			$('#options .toggle').text('Advanced options');
 			{% endif %}
 
 			// viz options tooltips
@@ -59,7 +61,18 @@
 					dataType: "html",
 					xhrFields: {
 						onprogress: function(e) {
-							$('#progress-log').html(e.target.responseText);
+							var txt = "";
+							var entries = e.target.responseText.split("\r\n");
+							$('#progress-log').html(txt);
+							for (var i = 0; i < entries.length - 1; i++) {
+								var json = $.parseJSON(entries[i]);
+								if (json["type"] == "logmessage") {
+									txt += "<div class=\"loglevel-" + json["level"] + "\">" + json["message"] + "</div>";
+								} else if (json["type"] == "next-location") {
+									$('<p><form><input type="button" class="button" value="Continue"></form></p>').insertAfter($('#progress-log')).find('input.button').click(function() { document.location = json["url"]; });
+								}
+							}
+							$('#progress-log').html(txt);
 							$("#progress-log").scrollTop($("#progress-log")[0].scrollHeight);
 						}
 					},
@@ -74,7 +87,6 @@
 							if (el.hasClass('loglevel-error')) {
 								$('<p class="form-error">There was an error analyzing {{ name_obj }}.  We\'ve been notified of the problem and will look into fixing it.</p>').insertAfter($('#progress-log'));
 							}
-							$('<p><form><input type="button" class="button" value="Continue"></form></p>').insertAfter($('#progress-log')).find('input.button').click(function() { document.location = '../dnssec/'; });
 						}
 					},
 					error: function() {
