@@ -689,7 +689,7 @@ class DomainNameRESTMixin(object):
         name_obj.retrieve_all()
 
         d = collections.OrderedDict()
-        if rest_dir == 'analysis/':
+        if rest_dir == 'processed/':
             name_obj.populate_status(trusted_keys)
             name_obj.serialize_status(d, loglevel=loglevel)
         elif rest_dir == 'raw/':
