@@ -686,7 +686,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             self.dlv_parent = dlv_parent
         if nxdomain_ancestor is not None:
             self.nxdomain_ancestor = nxdomain_ancestor
-        if self.parent is None and self.explicit_delegation_group:
+        if self.parent is None and self.explicit_delegation_group is not None:
             self.explicit_delegation = True
 
     def retrieve_dependencies(self, cache=None):
