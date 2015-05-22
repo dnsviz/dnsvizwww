@@ -573,6 +573,9 @@ class DomainNameServersMixin(object):
             return cmp((y[0], x[1], x[2]), (x[0], y[1], y[2]))
 
         all_names_list = list(zone_obj.get_ns_names())
+        if not all_names_list:
+            all_names_list = list(zone_obj.get_auth_ns_ip_mapping())
+
         all_names_list.sort()
 
         if zone_obj.parent is not None and not zone_obj.get_auth_or_designated_servers().difference(zone_obj.parent.get_auth_or_designated_servers()):
