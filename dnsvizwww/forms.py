@@ -36,8 +36,10 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.utils.timezone import utc
 
+from dnsviz.analysis import resolver
 import dnsviz.format as fmt
 from dnsviz.ipaddr import IPAddr
+from dnsviz.resolver import DNSAnswer
 from dnsviz.util import get_trusted_keys
 
 from dnsvizwww.models import OfflineDomainNameAnalysis
@@ -47,9 +49,7 @@ _implicit_tk_str = '''
 dlv.isc.org.		IN	DNSKEY	257 3 5 BEAAAAPHMu/5onzrEE7z1egmhg/WPO0+juoZrW3euWEn4MxDCE1+lLy2 brhQv5rN32RKtMzX6Mj70jdzeND4XknW58dnJNPCxn8+jAGl2FZLK8t+ 1uq4W+nnA3qO2+DL+k6BD4mewMLbIYFwe0PG73Te9fZ2kJb56dhgMde5 ymX4BI/oQ+cAK50/xvJv00Frf8kw6ucMTwFlgPe+jnGxPPEmHAte/URk Y62ZfkLoBAADLHQ9IrS2tryAe7mbBZVcOwIeU/Rw/mRx/vwwMCTgNboM QKtUdvNXDrYJDSHZws3xiRXF1Rf+al9UmZfSav/4NWLKjHzpT59k/VSt TDN0YUuWrBNh
 '''
 
-CR_RE = re.compile(r'\r\n', re.MULTILINE)
-ZONE_COMMENTS_RE = re.compile(r'\s*;.*', re.MULTILINE)
-BLANK_LINES_RE = re.compile(r'\n\s*\n')
+RR_LINE_RE = re.compile(r'^(\S+)\s+(\d+\s+)?(IN\s+)?(A|AAAA)\s+(\S+)$', re.IGNORECASE)
 
 class DNSSECOptionsForm(forms.Form):
     RR_CHOICES = (('all', '--All--'),
@@ -176,37 +176,55 @@ def domain_analysis_form(name):
         extra_types = forms.TypedMultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False, coerce=int,
                 help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
         explicit_delegation = forms.CharField(initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
-                help_text='If you wish to designate servers explicitly for the "force ancestor" zone (rather than following delegation from the IANA root), enter the addresses, either as A/AAAA records or as space-separated name/address pairs.')
+                help_text='If you wish to designate servers explicitly for the "force ancestor" zone (rather than following delegation from the IANA root), enter the server names, one per line.  You may optionally include an IPv4 or IPv6 address on the same line as the name.')
 
         def clean_explicit_delegation(self):
             s = self.cleaned_data['explicit_delegation']
             mappings = set()
 
-            # strip out comments, blank lines, and leading/trailing whitespace
-            s = CR_RE.sub('\n', s)
-            s = ZONE_COMMENTS_RE.sub('', s)
-            s = BLANK_LINES_RE.sub(r'\n', s)
-            s = s.strip()
-            try:
-                m = dns.message.from_text(str(';ANSWER\n'+s))
-            except:
-                # if there was an exception processing the input as address records
-                # in zone file format, try again as whitespace-separated name/address
-                # pairs
+            for line in s.splitlines():
+                line = line.strip()
+                line = RR_LINE_RE.sub(r'\1 \5', line)
                 try:
-                    for line in s.splitlines():
-                        n, a = line.split()
-                        mappings.add((dns.name.from_text(n), IPAddr(a)))
-                # if that failed too, then raise a validation error because
-                # processing failed.
-                except (ValueError, dns.exception.DNSException):
-                    raise forms.ValidationError('Unable to process address records!')
-            else:
-                for rrset in m.answer:
-                    if rrset.rdtype not in (dns.rdatatype.A, dns.rdatatype.AAAA):
-                        continue
-                    for rr in rrset:
-                        mappings.add((rrset.name, IPAddr(rr.to_text())))
+                    name, addr = line.split()
+                except ValueError:
+                    name = line
+                    addr = None
+
+                try:
+                    name = dns.name.from_text(name)
+                except dns.exception.DNSException:
+                    raise forms.ValidationError('The domain name was invalid: "%s"' % name)
+
+                # no address is provided, so query A/AAAA records for the name
+                if addr is None:
+                    query_tuples = ((name, dns.rdatatype.A, dns.rdataclass.IN), (name, dns.rdatatype.AAAA, dns.rdataclass.IN))
+                    answer_map = resolver.query_multiple_for_answer(*query_tuples)
+                    found_answer = False
+                    for a in answer_map.values():
+                        if isinstance(a, DNSAnswer):
+                            found_answer = True
+                            for a_rr in a.rrset:
+                                mappings.add((name, IPAddr(a_rr.to_text())))
+                        # negative responses
+                        elif isinstance(a, (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer)):
+                            pass
+                        # error responses
+                        elif isinstance(a, (dns.exception.Timeout, dns.resolver.NoNameservers)):
+                            raise forms.ValidationError('There was an error resolving "%s".  Please specify an address or use a name that resolves properly.' % fmt.humanize_name(name))
+
+                    if not found_answer:
+                        raise forms.ValidationError('"%s" did not resolve to an address.  Please specify an address or use a name that resolves properly.' % fmt.humanize_name(name))
+
+                # otherwise, add the address
+                else:
+                    if addr and addr[0] == '[' and addr[-1] == ']':
+                        addr = addr[1:-1]
+                    try:
+                        addr = IPAddr(addr)
+                    except ValueError:
+                        raise forms.ValidationError('The IP address was invalid: "%s"' % addr)
+                    mappings.add((name, addr))
 
             # if there something in the box, yet no mappings resulted, then raise a
             # validation error
