@@ -31,6 +31,12 @@ h1.site-title a:visited {
 	color: #990000;
 	border:none;
 }
+h2.site-subtitle a,
+h2.site-subtitle a:link,
+h2.site-subtitle a:visited {
+	color: #990000;
+	border-bottom: none;
+}
 
 #crumbtrail a:hover, #content-sub a:hover {
 	color:#990000;
