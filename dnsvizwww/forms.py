@@ -193,7 +193,7 @@ def domain_analysis_form(name):
 
                 try:
                     name = dns.name.from_text(name)
-                except dns.exception.DNSException:
+                except:
                     raise forms.ValidationError('The domain name was invalid: "%s"' % name)
 
                 # no address is provided, so query A/AAAA records for the name
