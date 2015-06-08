@@ -43,7 +43,7 @@ from django.template import RequestContext
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from dnsviz.analysis import status as Status
+from dnsviz.analysis import status as Status, Analyst as _Analyst, OfflineDomainNameAnalysis as _OfflineDomainNameAnalysis
 from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
 import dnsviz.response as Response
@@ -58,6 +58,9 @@ from dnsvizwww import util
 import urls
 from forms import *
 from notices import get_notices, notices_to_javascript
+
+class DynamicAnalyst(_Analyst):
+    analysis_model = _OfflineDomainNameAnalysis
 
 def reset_query_string(request):
     return HttpResponseRedirect(request.path)
@@ -332,6 +335,55 @@ class DomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, DomainNameSimpleView
 
 class DomainNameDNSSECGraphExplicitDelegationView(DomainNameDNSSECGraphMixin, DomainNameExplicitDelegationView):
     pass
+
+class DynamicDomainNameDNSSECPage(View):
+    def get(self, request, name, url_subdir='', **kwargs):
+        name = util.name_url_decode(name)
+        options_form, values = get_dnssec_options_form_data(request.GET)
+
+        name_obj = _OfflineDomainNameAnalysis(name)
+        name_obj.analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+        name_obj.base_url_with_timestamp = '../'
+        name_obj.previous = OfflineDomainNameAnalysis.objects.latest(name)
+        template = 'dnssec.html'
+
+        analyzed_name_obj = name_obj
+
+        date_form = domain_date_search_form(name)(initial={'date': fmt.datetime_to_str(name_obj.analysis_end)[:10] })
+
+        return render_to_response(template,
+                { 'name_obj': name_obj, 'analyzed_name_obj': analyzed_name_obj, 'url_subdir': url_subdir, 'title': name_obj,
+                    'options_form': options_form, 'date_form': date_form,
+                    'use_js': True, 'query_string': request.META['QUERY_STRING'] },
+                context_instance=RequestContext(request))
+
+class DynamicDomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, View):
+    def get(self, request, name, url_subdir='', url_file=None, format=None, **kwargs):
+        name = util.name_url_decode(name)
+        options_form, values = get_dnssec_options_form_data(request.GET)
+
+        rdtypes = set(values['rr'])
+        denial_of_existence = values['doe']
+        dnssec_algorithms = set(values['a'])
+        ds_algorithms = set(values['ds'])
+        trusted_keys_explicit = values['tk']
+        trusted_zones = values['ta']
+        redundant_edges = values['red']
+
+        trusted_keys = trusted_keys_explicit + trusted_zones
+
+        a = DynamicAnalyst(name)
+        name_obj = a.analyze()
+        name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
+
+        G = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
+        G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
+        G.remove_extra_edges(redundant_edges)
+
+        if url_file == 'auth_graph':
+            return self.dnssec_auth_graph(request, name_obj, G, format)
+        else:
+            raise Http404
 
 class DomainNameResponsesMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
