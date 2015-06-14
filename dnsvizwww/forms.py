@@ -37,6 +37,7 @@ from django.core.mail import send_mail
 from django.utils.timezone import utc
 
 from dnsviz.analysis import resolver
+from dnsviz.analysis.online import ANALYSIS_TYPE_AUTHORITATIVE, ANALYSIS_TYPE_RECURSIVE
 import dnsviz.format as fmt
 from dnsviz.ipaddr import IPAddr
 from dnsviz.resolver import DNSAnswer
@@ -169,12 +170,24 @@ def domain_analysis_form(name):
                 (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
                 (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
 
+        ANALYSIS_TYPES = ((ANALYSIS_TYPE_AUTHORITATIVE, 'Authoritative servers'),
+                (ANALYSIS_TYPE_RECURSIVE, 'Recursive servers'))
+
         force_ancestor = forms.TypedChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, initial=name.to_text(), required=True, coerce=dns.name.from_text,
                 help_text='Usually it is sufficient to select the name itself (%s) or its zone, in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True)))
         extra_types = forms.TypedMultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False, coerce=int,
                 help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
         explicit_delegation = forms.CharField(initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
                 help_text='If you wish to designate servers explicitly for the "force ancestor" zone (rather than following delegation from the IANA root), enter the server names, one per line.  You may optionally include an IPv4 or IPv6 address on the same line as the name.')
+        analysis_type = forms.TypedChoiceField(choices=ANALYSIS_TYPES, initial=ANALYSIS_TYPE_AUTHORITATIVE, coerce=int, widget=forms.RadioSelect(),
+                help_text='If authoritative analysis is selected, then the authoritative servers will be analyzed, beginning at the root servers--or the servers explicitly designated; if recursive analysis is selected, then the designated recursive servers will be analyzed.')
+
+        def clean(self):
+            cleaned_data = super(DomainNameAnalysisForm, self).clean()
+            if cleaned_data['analysis_type'] == ANALYSIS_TYPE_RECURSIVE and \
+                    not cleaned_data.get('explicit_delegation', None):
+                raise forms.ValidationError('If recursive analysis is desired, then servers names and/or addresses must be specified.')
+            return cleaned_data
 
         def clean_explicit_delegation(self):
             s = self.cleaned_data['explicit_delegation']

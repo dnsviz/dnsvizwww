@@ -44,6 +44,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
 from dnsviz.analysis import status as Status, Analyst as _Analyst, OfflineDomainNameAnalysis as _OfflineDomainNameAnalysis
+from dnsviz.analysis.online import WILDCARD_EXPLICIT_DELEGATION, ANALYSIS_TYPE_AUTHORITATIVE, ANALYSIS_TYPE_RECURSIVE
 from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
 import dnsviz.response as Response
@@ -51,7 +52,7 @@ from dnsviz.util import get_trusted_keys
 from django.views.decorators.cache import cache_page
 from dnsviz.viz.dnssec import DNSAuthGraph
 
-from dnsvizwww.analysis import Analyst, OfflineDomainNameAnalysis
+from dnsvizwww.analysis import Analyst, RecursiveAnalyst, OfflineDomainNameAnalysis
 from dnsvizwww import log
 from dnsvizwww import util
 
@@ -853,7 +854,7 @@ def analyze(request, name, url_subdir=None):
 
         def success_callback(name_obj):
             analysis_logger.logger.info('Success!')
-            if name_obj.explicit_delegation_group is not None:
+            if name_obj.explicit_delegation_group is not None or name_obj.cache_group is not None:
                 next_url = name_obj.base_url_with_timestamp()
             else:
                 next_url = '../'
@@ -869,25 +870,33 @@ def analyze(request, name, url_subdir=None):
         # instantiate a bound form
         analyze_form = form_class(request.POST)
         if analyze_form.is_valid():
-            force_ancestor = analyze_form.cleaned_data['force_ancestor']
             extra_rdtypes = analyze_form.cleaned_data['extra_types']
             explicit_delegations = {}
-            if analyze_form.cleaned_data['explicit_delegation']:
-                explicit_delegations[force_ancestor] = analyze_form.cleaned_data['explicit_delegation']
+            if analyze_form.cleaned_data['analysis_type'] == ANALYSIS_TYPE_AUTHORITATIVE:
+                analyst_cls = Analyst
+                dlv_domain = dns.name.from_text('dlv.isc.org')
+                force_ancestor = analyze_form.cleaned_data['force_ancestor']
+                if analyze_form.cleaned_data['explicit_delegation']:
+                    explicit_delegations[force_ancestor] = analyze_form.cleaned_data['explicit_delegation']
+            else:
+                analyst_cls = RecursiveAnalyst
+                dlv_domain = None
+                force_ancestor = dns.name.root
+                explicit_delegations[WILDCARD_EXPLICIT_DELEGATION] = analyze_form.cleaned_data['explicit_delegation']
             start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
 
             # for ajax requests, analyze asynchronously, using a logger with
             # callbacks and streaming output to the browser.  If there is an
             # error with the analysis, it will be handled by the javascript.
             if request.is_ajax():
-                a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), logger=analysis_logger.logger, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
+                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, logger=analysis_logger.logger, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
                 a.analyze_async(success_callback, exc_callback)
                 #TODO set alarm here for too long waits
                 return StreamingHttpResponse(analysis_logger.handler)
 
             # for non-ajax requests analyze synchronously
             else:
-                a = Analyst(name_obj.name, dlv_domain=dns.name.from_text('dlv.isc.org'), explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
+                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
                 try:
                     name_obj = a.analyze()
 
@@ -899,7 +908,7 @@ def analyze(request, name, url_subdir=None):
 
                 # if there were no errors, then return a redirect
                 else:
-                    if name_obj.explicit_delegation_group is not None:
+                    if name_obj.explicit_delegation_group is not None or name_obj.cache_group is not None:
                         next_url = name_obj.base_url_with_timestamp()
                     else:
                         next_url = '../'
