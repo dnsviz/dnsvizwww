@@ -49,8 +49,6 @@ _implicit_tk_str = '''
 dlv.isc.org.		IN	DNSKEY	257 3 5 BEAAAAPHMu/5onzrEE7z1egmhg/WPO0+juoZrW3euWEn4MxDCE1+lLy2 brhQv5rN32RKtMzX6Mj70jdzeND4XknW58dnJNPCxn8+jAGl2FZLK8t+ 1uq4W+nnA3qO2+DL+k6BD4mewMLbIYFwe0PG73Te9fZ2kJb56dhgMde5 ymX4BI/oQ+cAK50/xvJv00Frf8kw6ucMTwFlgPe+jnGxPPEmHAte/URk Y62ZfkLoBAADLHQ9IrS2tryAe7mbBZVcOwIeU/Rw/mRx/vwwMCTgNboM QKtUdvNXDrYJDSHZws3xiRXF1Rf+al9UmZfSav/4NWLKjHzpT59k/VSt TDN0YUuWrBNh
 '''
 
-RR_LINE_RE = re.compile(r'^(\S+)\s+(\d+\s+)?(IN\s+)?(A|AAAA)\s+(\S+)$', re.IGNORECASE)
-
 class DNSSECOptionsForm(forms.Form):
     RR_CHOICES = (('all', '--All--'),
             (dns.rdatatype.A, dns.rdatatype.to_text(dns.rdatatype.A)),
@@ -181,16 +179,30 @@ def domain_analysis_form(name):
         def clean_explicit_delegation(self):
             s = self.cleaned_data['explicit_delegation']
             mappings = set()
-
+            i = 1
             for line in s.splitlines():
                 line = line.strip()
-                line = RR_LINE_RE.sub(r'\1 \5', line)
+                if not line:
+                    continue
+                # get ride of extra columns
+                cols = line.split()
+                if len(cols) > 1:
+                    line = '%s %s' % (cols[0], cols[-1])
                 try:
                     name, addr = line.split()
                 except ValueError:
-                    name = line
-                    addr = None
-
+                    # first see if it's a plain IP address
+                    try:
+                        addr = IPAddr(line.strip())
+                    except ValueError:
+                        # if not, then assign name to mapping
+                        name = line
+                        addr = None
+                    else:
+                        # if it's an IP with no name specified, then create
+                        # a name
+                        name = 'ns%d' % i
+                        i += 1
                 try:
                     name = dns.name.from_text(name)
                 except:
