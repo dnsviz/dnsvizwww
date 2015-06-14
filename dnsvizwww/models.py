@@ -365,6 +365,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     def base_url_with_timestamp(self):
         if self.explicit_delegation_group is not None:
             return '%se/%d/' % (self.base_url(), self.explicit_delegation_group.pk)
+        elif self.cache_group is not None:
+            return '%sr/%d/' % (self.base_url(), self.cache_group.pk)
         else:
             return '%s%s/' % (self.base_url(), self.timestamp_url_encoded())
 
