@@ -104,11 +104,17 @@ class Analyst(dnsviz.analysis.Analyst):
         if name_obj.pk is not None:
             return
 
+        #TODO fix this for explicit_delegation
+        if name_obj.analysis_type == dnsviz.analysis.online.ANALYSIS_TYPE_AUTHORITATIVE:
+            rdtype = name_obj.referral_rdtype
+        else:
+            rdtype = filter(lambda x: x[0] == name_obj.name, name_obj.queries.keys())[0][1]
+
         # whether this object is the nxdomain_ancestor of the name in question
         is_nxdomain_ancestor = \
                 name_obj.nxdomain_ancestor is None and \
-                name_obj.referral_rdtype is not None and \
-                name_obj.queries[(name_obj.name, name_obj.referral_rdtype)].is_nxdomain_all()
+                rdtype is not None and \
+                name_obj.queries[(name_obj.name, rdtype)].is_nxdomain_all()
 
         if not (name_obj.ttl_mapping or \
                 name_obj.name == self.name or \
@@ -134,6 +140,7 @@ class Analyst(dnsviz.analysis.Analyst):
                     with transaction.atomic():
                         name_obj.save_all()
                         name_obj.set_explicit_delegation_group(self.explicit_delegations)
+                        name_obj.set_cache_group()
                 except Exception, e:
                     # retry if this is a database error and we tried
                     # less than three times
@@ -156,7 +163,7 @@ class Analyst(dnsviz.analysis.Analyst):
                 wait_for_analysis = True
             except KeyError:
                 if lock:
-                    name_obj = self.analysis_cache[name] = self.analysis_model(name, stub=stub)
+                    name_obj = self.analysis_cache[name] = self.analysis_model(name, stub=stub, analysis_type=self.analysis_type)
                 wait_for_analysis = False
 
         # name is now locked locally (for threads that use analysis_cache) but
@@ -267,3 +274,6 @@ class Analyst(dnsviz.analysis.Analyst):
             return True
 
         return False
+
+class RecursiveAnalyst(dnsviz.analysis.RecursiveAnalyst, Analyst):
+    _get_name_for_analysis = dnsviz.analysis.RecursiveAnalyst._get_name_for_analysis

@@ -455,16 +455,22 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         self.dlv_parent_name_db = self.dlv_parent_name()
         self.nxdomain_ancestor_name_db = self.nxdomain_ancestor_name()
 
-        # if the parent has an explicit delegation id, then match it
-        if self.parent is not None and self.parent.explicit_delegation_group is not None:
-            self.explicit_delegation_group = self.parent.explicit_delegation_group
+        # if the parent has an explicit delegation or cache id, then match it
+        if self.parent is not None:
+            if self.parent.explicit_delegation_group is not None:
+                self.explicit_delegation_group = self.parent.explicit_delegation_group
+            elif self.parent.cache_group is not None:
+                self.cache_group = self.parent.cache_group
 
         self.save()
 
-        # if this analysis was marked as using an explicit delegation, then
-        # set the explicit_delegation_group to the value of its own pk
-        if self.explicit_delegation:
-            self.explicit_delegation_group = self
+        # if this analysis was marked as using an explicit delegation or cache analysis, then
+        # set the explicit_delegation_group or cache_group to the value of its own pk
+        if self.parent is None:
+            if self.analysis_type == dnsviz.analysis.online.ANALYSIS_TYPE_RECURSIVE:
+                self.cache_group = self
+            elif self.explicit_delegation:
+                self.explicit_delegation_group = self
 
         self.schedule_refresh()
 
@@ -479,7 +485,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         # dependency chain utilizing explicit delegations), but it will at this
         # point be set to something (i.e., not None) if there was an explicit
         # delegation used in this analysis.
-        if not self.explicit_delegation_group:
+        if self.explicit_delegation_group is None and self.cache_group is None:
             # store the latest pk associated with the name
             Cache.set('dnsvizwww.models.OnlineDomainNameAnalysis.name.%s.latest.pk' % (util.uuid_for_name(self.name).hex), self.pk)
 
@@ -735,6 +741,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             self.nxdomain_ancestor = nxdomain_ancestor
         if self.parent is None and self.explicit_delegation_group is not None:
             self.explicit_delegation = True
+        if self.cache_group is not None:
+            self.explicit_delegation = True
 
     def retrieve_dependencies(self, cache=None):
         if cache is None:
@@ -814,6 +822,37 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             if group:
                 group = [a.pk for a in group]
                 OnlineDomainNameAnalysis.objects.filter(pk__in=group).update(explicit_delegation_group=self.explicit_delegation_group)
+
+    def analyses_for_cache_group(self, trace=None):
+        if trace is None:
+            trace = []
+
+        result = []
+        if self.name in trace:
+            return result
+
+        # add all analyses in ancestry to result
+        obj = self
+        while obj is not None:
+            result.append(obj)
+            obj = obj.parent
+        for cname in self.cname_targets:
+            for cname_obj in self.cname_targets[cname].values():
+                result.extend(cname_obj.analyses_for_cache_group(trace + [self]))
+        for signer_obj in self.external_signers.values():
+            obj = signer_obj
+            result.extend(signer_obj.analyses_for_cache_group(trace + [self]))
+        for ns_obj in self.ns_dependencies.values():
+            if ns_obj is not None:
+                result.extend(ns_obj.analyses_for_cache_group(trace + [self]))
+        return result
+
+    def set_cache_group(self):
+        if self.cache_group is not None:
+            group = self.analyses_for_cache_group()
+            if group:
+                group = [a.pk for a in group]
+                OnlineDomainNameAnalysis.objects.filter(pk__in=group).update(cache_group=self.cache_group)
 
     def save_dependencies(self):
         for cname in self.cname_targets:
