@@ -237,35 +237,82 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     def __init__(self, *args, **kwargs):
         if args:
             if kwargs:
-                # since args and kwargs were both supplied to __init__, this was
-                # intended for dnsviz.analysis.OfflineDomainNameAnalysis, so we need to
-                # convert the args to kwargs for models.Model.__init__.
-                dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, *args[:2], **kwargs)
+                # since both args and kwargs were supplied this was intended
+                # for dnsviz.analysis.OfflineDomainNameAnalysis.__init__()
+
+                # First call
+                # dnsviz.analysis.OfflineDomainNameAnalysis.__init__() with
+                # arguments that were passed...
+                dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, *args, **kwargs)
+
+                # now call models.Model.__init__() with kwargs
                 kwargs['name'] = args[0]
+                # add stub to kwargs if it was specified as an arg
                 if len(args) > 1: kwargs['stub'] = args[1]
-                args = ()
+                # remove analysis_type from kwargs if it was included
+                if 'analysis_type' in kwargs:
+                    del kwargs['analysis_type']
+                models.Model.__init__(self, **kwargs)
+
             else:
-                # If only args, then this could suit either parent __init__.
-                # In the case of models.Model, the first argument would be int,
-                # for the 'id' field.  In this case, we convert the args to
-                # kwargs for models.Model.__init__.
+                # If only args were supplied, then this could match __init__()
+                # for either parent.
                 if isinstance(args[0], (int, long)):
-                    args_modified = args[1:3]
+                    # In the case of models.Model, the first argument would be int,
+                    # for the 'id' field.
+
+                    # First call
+                    # dnsviz.analysis.OfflineDomainNameAnalysis.__init__() with
+                    # at most the first two arguments
+                    dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, *args[1:3])
+
+                    # Now call models.Model.__init__() with arguments that were
+                    # passed
+                    models.Model.__init__(self, *args)
+
+                    # Since analysis_type wasn't set by calling
+                    # dns.analysis.OfflineDomainNameAnalysis.__init__(), set it
+                    # explicitly based on the outcome of
+                    # models.Model.__init__()
+                    if self.cache_group_id is not None:
+                        self.analysis_type = dnsviz.analysis.online.ANALYSIS_TYPE_RECURSIVE
+                    else:
+                        self.analysis_type = dnsviz.analysis.online.ANALYSIS_TYPE_AUTHORITATIVE
+
                 else:
-                    args_modified = args[:2]
+                    # Otherwise, this matches
+                    # dnsviz.analysis.OfflineDomainNameAnalysis.__init__()
+
+                    # First call
+                    # dnsviz.analysis.OfflineDomainNameAnalysis.__init__() with
+                    # only the args passed
+                    dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, *args)
+
+                    # Now call models.Model.__init__() with modified kwargs
                     kwargs['name'] = args[0]
                     if len(args) > 1: kwargs['stub'] = args[1]
-                    args = ()
-                dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, *args_modified)
+                    models.Model.__init__(self, **kwargs)
+
         else:
-            # only kwargs, so this was intended only for models.Model.__init__.  We
-            # create args for dnsviz.analysis.OfflineDomainNameAnalysis.__init__ by pulling
-            # the 'name' kwarg from kwargs.
-            kwargs_modified = {}
+            # Only kwargs were passed, so this was intended only for models.Model.__init__().
+
+            # First call dnsviz.analysis.OfflineDomainNameAnalysis.__init__()
+            # with derived kwargs
             if 'stub' in kwargs:
-                kwargs_modified['stub'] = kwargs['stub']
-            dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, (kwargs['name'],), **kwargs_modified)
-        models.Model.__init__(self, *args, **kwargs)
+                kwargs2['stub'] = kwargs['stub']
+            dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, kwargs['name'], **kwargs2)
+
+            # Now call
+            # models.Model.__init__() with only the kwargs passed
+            models.Model.__init__(self, **kwargs)
+
+            # Since analysis_type wasn't set by calling
+            # dns.analysis.OfflineDomainNameAnalysis.__init__(), set it
+            # explicitly based on the outcome of models.Model.__init__()
+            if self.cache_group_id is not None:
+                self.analysis_type = dnsviz.analysis.online.ANALYSIS_TYPE_RECURSIVE
+            else:
+                self.analysis_type = dnsviz.analysis.online.ANALYSIS_TYPE_AUTHORITATIVE
 
         self.ttl_mapping = {}
         self.rrsig_expiration_mapping = {}
@@ -1164,7 +1211,7 @@ class DNSResponse(models.Model):
             self._export_sections(self._message)
 
         return self._message
-        
+
     message = property(_get_message, _set_message)
 
 class ResourceRecordMapper(models.Model):
