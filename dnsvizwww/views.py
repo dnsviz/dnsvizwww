@@ -141,6 +141,30 @@ class DomainNameExplicitDelegationView(View):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form, **kwargs):
         raise Http404
 
+class DomainNameRecursiveAnalysisView(View):
+    def get(self, request, name, cache_group_id, url_subdir='', **kwargs):
+        if 'reset_query' in request.GET:
+            return reset_query_string(request)
+
+        name = util.name_url_decode(name)
+        try:
+            cache_group = OfflineDomainNameAnalysis.objects.get(pk=int(cache_group_id))
+        except OfflineDomainNameAnalysis.DoesNotExist:
+            name_obj = None
+        else:
+            name_obj = OfflineDomainNameAnalysis.objects.get_by_cache_group(name, cache_group)
+
+        if not url_subdir:
+            url_subdir = ''
+
+        if name_obj is None:
+            raise Http404
+
+        return self._get(request, name_obj, None, url_subdir, None, **kwargs)
+
+    def _get(self, request, name_obj, timestamp, url_subdir, date_form, **kwargs):
+        raise Http404
+
 class DomainNameDetailMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         return HttpResponseRedirect('dnssec/')
@@ -149,6 +173,9 @@ class DomainNameDetailView(DomainNameDetailMixin, DomainNameView):
     pass
 
 class DomainNameDetailExplicitDelegationView(DomainNameDetailMixin, DomainNameExplicitDelegationView):
+    pass
+
+class DomainNameDetailRecursiveAnalysisView(DomainNameDetailMixin, DomainNameRecursiveAnalysisView):
     pass
 
 class DNSSECMixin(object):
@@ -262,6 +289,9 @@ class DomainNameDNSSECPageView(DomainNameDNSSECPageMixin, DomainNameView):
 class DomainNameDNSSECPageExplicitDelegationView(DomainNameDNSSECPageMixin, DomainNameExplicitDelegationView):
     pass
 
+class DomainNameDNSSECPageRecursiveAnalysisView(DomainNameDNSSECPageMixin, DomainNameRecursiveAnalysisView):
+    pass
+
 class DomainNameDNSSECGraphMixin(DNSSECMixin):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form, url_file=None, format=None, **kwargs):
         options_form, values = get_dnssec_options_form_data(request.GET)
@@ -334,6 +364,9 @@ class DomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, DomainNameSimpleView
     pass
 
 class DomainNameDNSSECGraphExplicitDelegationView(DomainNameDNSSECGraphMixin, DomainNameExplicitDelegationView):
+    pass
+
+class DomainNameDNSSECGraphRecursiveAnalysisView(DomainNameDNSSECGraphMixin, DomainNameRecursiveAnalysisView):
     pass
 
 class DynamicDomainNameDNSSECPage(View):
@@ -606,6 +639,9 @@ class DomainNameResponsesView(DomainNameResponsesMixin, DomainNameView):
 class DomainNameResponsesExplicitDelegationView(DomainNameResponsesMixin, DomainNameExplicitDelegationView):
     pass
 
+class DomainNameResponsesRecursiveAnalysisView(DomainNameResponsesMixin, DomainNameRecursiveAnalysisView):
+    pass
+
 class DomainNameServersMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
         options_form, values = get_dnssec_options_form_data({})
@@ -715,6 +751,9 @@ class DomainNameServersView(DomainNameServersMixin, DomainNameView):
 class DomainNameServersExplicitDelegationView(DomainNameServersMixin, DomainNameExplicitDelegationView):
     pass
 
+class DomainNameServersRecursiveAnalysisView(DomainNameServersMixin, DomainNameRecursiveAnalysisView):
+    pass
+
 class DomainNameRESTMixin(object):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form, rest_dir=None):
         options_form, values = get_dnssec_options_form_data({})
@@ -755,6 +794,9 @@ class DomainNameRESTView(DomainNameRESTMixin, DomainNameView):
     pass
 
 class DomainNameRESTExplicitDelegationView(DomainNameRESTMixin, DomainNameExplicitDelegationView):
+    pass
+
+class DomainNameRESTRecursiveAnalysisView(DomainNameRESTMixin, DomainNameRecursiveAnalysisView):
     pass
 
 def domain_search(request):

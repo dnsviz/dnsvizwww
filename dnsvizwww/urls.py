@@ -75,6 +75,13 @@ urlpatterns = patterns('',
         url(r'^d/(?P<name>%s)/e/(?P<explicit_delegation_group_id>\d+)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, never_cache(views.DomainNameDNSSECGraphExplicitDelegationView.as_view())),
         url(r'^d/(?P<name>%s)/e/(?P<explicit_delegation_group_id>\d+)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|processed)/)$' % dns_name, never_cache(views.DomainNameRESTExplicitDelegationView.as_view())),
 
+        url(r'^d/(?P<name>%s)/r/(?P<cache_group_id>\d+)/$' % dns_name, never_cache(views.DomainNameDetailRecursiveAnalysisView.as_view())),
+        url(r'^d/(?P<name>%s)/r/(?P<cache_group_id>\d+)/(?P<url_subdir>dnssec/)$' % dns_name, never_cache(views.DomainNameDNSSECPageRecursiveAnalysisView.as_view())),
+        url(r'^d/(?P<name>%s)/r/(?P<cache_group_id>\d+)/(?P<url_subdir>servers/)$' % dns_name, never_cache(views.DomainNameServersRecursiveAnalysisView.as_view())),
+        url(r'^d/(?P<name>%s)/r/(?P<cache_group_id>\d+)/(?P<url_subdir>responses/)$' % dns_name, never_cache(views.DomainNameResponsesRecursiveAnalysisView.as_view())),
+        url(r'^d/(?P<name>%s)/r/(?P<cache_group_id>\d+)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, never_cache(views.DomainNameDNSSECGraphRecursiveAnalysisView.as_view())),
+        url(r'^d/(?P<name>%s)/r/(?P<cache_group_id>\d+)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|processed)/)$' % dns_name, never_cache(views.DomainNameRESTRecursiveAnalysisView.as_view())),
+
         url(r'^contact/$', views.contact),
         url(r'^message_submitted/$', TemplateView.as_view(template_name='message_submitted.html')),
 
