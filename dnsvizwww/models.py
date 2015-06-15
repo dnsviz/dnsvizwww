@@ -807,6 +807,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         while obj is not None and filter(lambda x: obj.name.is_subdomain(x), explicit_delegations):
             result.append(obj)
             obj = obj.parent
+        if self.nxdomain_ancestor is not None:
+            result.append(self.nxdomain_ancestor)
         for cname in self.cname_targets:
             for cname_obj in self.cname_targets[cname].values():
                 result.extend(cname_obj.analyses_for_explicit_delegation_group(explicit_delegations, trace + [self]))
@@ -838,6 +840,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         while obj is not None:
             result.append(obj)
             obj = obj.parent
+        if self.nxdomain_ancestor is not None:
+            result.append(self.nxdomain_ancestor)
         for cname in self.cname_targets:
             for cname_obj in self.cname_targets[cname].values():
                 result.extend(cname_obj.analyses_for_cache_group(trace + [self]))
