@@ -799,7 +799,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             trace = []
 
         result = []
-        if self.name in trace:
+        if self in trace:
             return result
 
         # add all analyses in ancestry with explicit delegations to result
@@ -832,7 +832,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             trace = []
 
         result = []
-        if self.name in trace:
+        if self in trace:
             return result
 
         # add all analyses in ancestry to result
