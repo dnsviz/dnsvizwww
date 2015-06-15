@@ -277,3 +277,7 @@ class Analyst(dnsviz.analysis.Analyst):
 
 class RecursiveAnalyst(dnsviz.analysis.RecursiveAnalyst, Analyst):
     _get_name_for_analysis = dnsviz.analysis.RecursiveAnalyst._get_name_for_analysis
+
+    def _finalize_analysis_all(self, name_obj):
+        DomainName.objects.get_or_create(name=name_obj.name)
+        super(RecursiveAnalyst, self)._finalize_analysis_all(name_obj)
