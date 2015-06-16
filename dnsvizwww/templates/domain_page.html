@@ -36,6 +36,10 @@
 <div id="analysis-description">
 	Explicit delegation of <span class="domain">{{ name_obj.explicit_delegation_group }}</span>
 </div>
+{% elif name_obj.cache_group %}
+<div id="analysis-description">
+	Recursive analysis
+</div>
 {% endif %}
 
 {% if name_obj.analysis_end %}
@@ -49,7 +53,7 @@
 	{% endif %}
 	<span id="updated-time"><strong>{% if url_subdir != "analyze/" %}<a href="{{ name_obj.base_url_with_timestamp }}{{ url_subdir }}{% if query_string %}?{{ query_string }}{% endif %}">{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC</a>{% else %}{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC{% endif %}</strong> (<abbr class="timeago" title="{{ name_obj.analysis_end|date:"c" }}">{{ name_obj.updated_ago_str }} ago</abbr>)</span>
 <span id="most-recent">
-{% if name_obj.explicit_delegation_group %}
+{% if name_obj.explicit_delegation_group or name_obj.cache_group %}
 	<a href="{{ name_obj.base_url }}{{ url_subdir }}">Go to delegated analysis &raquo;</a>
 {% elif name_obj.next %}
 	<a href="{{ name_obj.base_url }}{{ url_subdir }}">Go to most recent &raquo;</a>
@@ -99,17 +103,17 @@
 		{% if url_subdir == "dnssec/" %}
 		<li class="active"><a>DNSSEC</a></li>
 		{% else %}
-		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.explicit_delegation_group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}dnssec/"{% endif %}>DNSSEC</a></li>
+		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.explicit_delegation_group or name_obj.cache_group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}dnssec/"{% endif %}>DNSSEC</a></li>
 		{% endif %}
 		{% if url_subdir == "responses/" %}
 		<li class="active"><a>Responses</a></li>
 		{% else %}
-		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.explicit_delegation_group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}responses/"{% endif %}>Responses</a></li>
+		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.explicit_delegation_group or name_obj.cache_group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}responses/"{% endif %}>Responses</a></li>
 		{% endif %}
 		{% if url_subdir == "servers/" %}
 		<li class="active"><a>Servers</a></li>
 		{% else %}
-		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.explicit_delegation_group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}servers/"{% endif %}>Servers</a></li>
+		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.explicit_delegation_group or name_obj.cache_group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}servers/"{% endif %}>Servers</a></li>
 		{% endif %}
 		{% if url_subdir == "analyze/" %}
 		<li class="active"><a>Analyze</a></li>
