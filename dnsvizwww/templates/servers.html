@@ -61,6 +61,8 @@
 		</div>
 		<div id="consistency-region">
 			<div class="consistency-matrix">
+			{% if zone_obj.cache_group_id %}
+			{% else %}
 			<h4>Delegation Information</h4>
 				<table>
 					<tr><th{% if zone_obj.parent %} rowspan="2"{% endif %}>Name</th>{% if zone_obj.parent %}<th colspan="3">Parent zone</th><th>Child zone</th>{% endif %}<th colspan="2"{% if zone_obj.parent %} rowspan="2"{% endif %}>{% if zone_obj.explicit_delegation %}Explicitly-defined IPs{% else %}Authoritative IPs{% endif %}</th></tr>
@@ -74,6 +76,7 @@
 				</table>
 				{% if show_msg and no_non_auth_parent_msg %}<p>* {{ no_non_auth_parent_msg }}</p>{% endif %}
 			</div>
+			{% endif %}
 			{% if stealth %}
 			<div class="consistency-matrix">
 			<h4>Stealth Servers</h4>
