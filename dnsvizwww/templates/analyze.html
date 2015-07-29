@@ -15,7 +15,7 @@
 					'duration': 'slow',
 					'complete': function() {
 						if (tog.text() == 'Hide advanced options') {
-							tog.text('Advanced options');
+							tog.text('Advanced options (forced ancestor analysis, recursive, explicit delegation, etc.)');
 							$('#advanced-options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
 						} else {
 							tog.text('Hide advanced options');
@@ -34,7 +34,7 @@
 			{% else %}
 			$('#advanced-options').hide();
 			$('#advanced-options').css({'border-bottom':'0', 'border-left':'0', 'border-right':'0', 'padding-left' : '3px' });
-			$('#options .toggle').text('Advanced options');
+			$('#options .toggle').text('Advanced options (forced ancestor analysis, recursive, explicit delegation, etc.)');
 			{% endif %}
 
 			// viz options tooltips
@@ -124,7 +124,7 @@
 			<input type="submit" class="button" value="Analyze" />
 		</p>
 
-		<p><a class="toggle">Advanced options</a></p>
+		<p><a class="toggle">Advanced options (forced ancestor analysis, recursive, explicit delegation, etc.)</a></p>
 
 		<fieldset id="advanced-options">
 		{% if analyze_form.errors %}
