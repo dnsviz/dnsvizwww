@@ -672,7 +672,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 other_queries.append(query1)
 
         for query in delegation_queries:
-            self.add_query(query)
+            self.add_query(query, True)
         # set the NS dependencies for the name
         if self.is_zone():
             self.set_ns_dependencies()
