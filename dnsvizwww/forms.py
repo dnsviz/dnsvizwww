@@ -57,7 +57,7 @@ class DNSSECOptionsForm(forms.Form):
             (dns.rdatatype.TXT, dns.rdatatype.to_text(dns.rdatatype.TXT)),
             (dns.rdatatype.PTR, dns.rdatatype.to_text(dns.rdatatype.PTR)),
             (dns.rdatatype.MX, dns.rdatatype.to_text(dns.rdatatype.MX)),
-            #(dns.rdatatype.NS, dns.rdatatype.to_text(dns.rdatatype.NS)),
+            (dns.rdatatype.NS, dns.rdatatype.to_text(dns.rdatatype.NS)),
             (dns.rdatatype.SOA, dns.rdatatype.to_text(dns.rdatatype.SOA)),
             (dns.rdatatype.CNAME, dns.rdatatype.to_text(dns.rdatatype.CNAME)),
             (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
