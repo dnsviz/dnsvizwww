@@ -677,7 +677,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         if self.is_zone():
             self.set_ns_dependencies()
         for query in other_queries:
-            self.add_query(query)
+            self.add_query(query, False)
 
         self._store_related_cache(level)
 
