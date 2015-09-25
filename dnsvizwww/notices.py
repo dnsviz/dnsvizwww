@@ -53,6 +53,8 @@ def _init_notices():
     return collections.OrderedDict((
         ('RRset status', collections.OrderedDict((
             (Status.rrset_status_mapping[Status.RRSET_STATUS_BOGUS], []),
+            ('ERROR', []),
+            ('WARNING', []),
             (Status.rrset_status_mapping[Status.RRSET_STATUS_INSECURE], []),
             (Status.rrset_status_mapping[Status.RRSET_STATUS_SECURE], []),
             (Status.rrset_status_mapping[Status.RRSET_STATUS_NON_EXISTENT], []),
