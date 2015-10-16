@@ -96,9 +96,9 @@ AuthGraph.prototype.infoToHtmlTableComponents = function (obj) {
 				val = newval;
 			}
 			if (key.toLowerCase() in {'errors':null,'warnings':null}) {
-				var servers_tags = [];
 				s += '<ul>';
 				for (var i = 0; i < val.length; i++) {
+					var servers_tags = [];
 					s += '<li>' + val[i]['description'];
 					if (val[i]['servers'] != undefined) {
 						servers_tags = servers_tags.concat(val[i]['servers']);
