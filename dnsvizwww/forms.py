@@ -40,7 +40,8 @@ from dnsviz.analysis import resolver
 from dnsviz.analysis.online import ANALYSIS_TYPE_AUTHORITATIVE, ANALYSIS_TYPE_RECURSIVE
 import dnsviz.format as fmt
 from dnsviz.ipaddr import IPAddr
-from dnsviz.resolver import DNSAnswer
+from dnsviz.query import StandardRecursiveQueryCD
+from dnsviz.resolver import DNSAnswer, Resolver
 from dnsviz.util import get_trusted_keys
 
 from dnsvizwww.models import OfflineDomainNameAnalysis
@@ -190,6 +191,8 @@ def domain_analysis_form(name):
             return cleaned_data
 
         def clean_explicit_delegation(self):
+            resolver = Resolver.from_file('/etc/resolv.conf', StandardRecursiveQueryCD)
+
             s = self.cleaned_data['explicit_delegation']
             mappings = set()
             i = 1
