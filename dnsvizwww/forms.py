@@ -36,7 +36,6 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.utils.timezone import utc
 
-from dnsviz.analysis import resolver
 from dnsviz.analysis.online import ANALYSIS_TYPE_AUTHORITATIVE, ANALYSIS_TYPE_RECURSIVE
 import dnsviz.format as fmt
 from dnsviz.ipaddr import IPAddr
