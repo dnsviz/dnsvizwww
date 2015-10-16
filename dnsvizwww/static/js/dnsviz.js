@@ -96,11 +96,18 @@ AuthGraph.prototype.infoToHtmlTableComponents = function (obj) {
 				val = newval;
 			}
 			if (key.toLowerCase() in {'errors':null,'warnings':null}) {
+				var servers_tags = [];
 				s += '<ul>';
 				for (var i = 0; i < val.length; i++) {
 					s += '<li>' + val[i]['description'];
 					if (val[i]['servers'] != undefined) {
-						s += ' (' + val[i]['servers'].join(", ") + ')';
+						servers_tags = servers_tags.concat(val[i]['servers']);
+					}
+					if (val[i]['tags'] != undefined) {
+						servers_tags = servers_tags.concat(val[i]['tags']);
+					}
+					if (servers_tags.length > 0) {
+						s += ' (' + servers_tags.join(", ") + ')';
 					}
 				 	s += '</li>';
 				}
