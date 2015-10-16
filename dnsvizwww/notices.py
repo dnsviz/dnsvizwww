@@ -154,8 +154,8 @@ def _populate_notices(notices, obj, label=None):
                         servers_tags = []
                         if 'servers' in e:
                             servers_tags += e['servers']
-                        if 'tags' in e:
-                            servers_tags += e['tags']
+                        if 'query_options' in e:
+                            servers_tags += e['query_options']
                         description += ' (%s)' % (', '.join(servers_tags))
                         bisect.insort(notices['notices'][node_name], '%s: %s' % (l, description))
             _populate_notices(notices, val, l)
