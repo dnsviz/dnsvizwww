@@ -96,6 +96,61 @@
 
 				return false;
 			});
+
+			function init_authoritative() {
+				// Enable force_ancestor
+				$('#id_force_ancestor').prop('disabled', false);
+				// Change label of explicit delegation
+				$('label[for="id_explicit_delegation"]').text('Authoritative servers:');
+				// Change value of explicit delegation, if not already set
+				$('#id_explicit_delegation').val('(Optional) Enter names or addresses of servers authoritative for ' + $('#id_force_ancestor').val() + ', one per line.');
+			}
+
+			function init_recursive() {
+				// Change to force root, and disable force_ancestor
+				$('#id_force_ancestor').val('.');
+				$('#id_force_ancestor').prop('disabled', true);
+				// Change label of explicit delegation
+				$('label[for="id_explicit_delegation"]').text('Recursive resolvers:');
+				// Change value of explicit delegation, if not already set
+				$('#id_explicit_delegation').val('Enter names or addresses of resolvers, one per line.');
+			}
+
+			function init_form() {
+				if ($('#id_analysis_type_1').prop('checked')) {
+					init_recursive();
+				}
+				if ($('#id_analysis_type_0').prop('checked')) {
+					init_authoritative();
+				}
+			}
+
+			init_form();
+
+			$('#id_force_ancestor').change(function() {
+				init_form();
+			});
+
+			$('#id_analysis_type_1').change(function() {
+				init_form();
+			});
+
+			$('#id_analysis_type_0').change(function() {
+				init_form();
+			});
+
+			$('#id_explicit_delegation').focus(function() {
+				if ($(this).val().search(/Enter names or addresses/) >= 0) {
+					$(this).val('');
+				}
+			});
+
+			$('#id_explicit_delegation').blur(function() {
+				if (!$(this).val()) {
+					init_form();
+				}
+			});
+
 		});
 		-->
 	</script>
