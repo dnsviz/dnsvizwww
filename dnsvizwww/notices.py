@@ -90,7 +90,7 @@ def _get_label_for_node(notices, node_name, val):
             if m1.group('id') == '0':
                 l += ' (NXDOMAIN)'
             elif m1.group('id') == '1':
-                l += ' (NO DATA)'
+                l += ' (NODATA)'
             if m1.group('id') not in ('2', '3'):
                 bisect.insort(notices['RRset status'][val[0]['status']],l)
         elif t1 == 'DNSKEY':
