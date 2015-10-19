@@ -883,13 +883,14 @@ def analyze(request, name, url_subdir=None):
                 dlv_domain = None
                 force_ancestor = dns.name.root
                 explicit_delegations[WILDCARD_EXPLICIT_DELEGATION] = analyze_form.cleaned_data['explicit_delegation']
+            edns_diagnostics = analyze_form.cleaned_data['edns_diagnostics']
             start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
 
             # for ajax requests, analyze asynchronously, using a logger with
             # callbacks and streaming output to the browser.  If there is an
             # error with the analysis, it will be handled by the javascript.
             if request.is_ajax():
-                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, logger=analysis_logger.logger, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
+                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, logger=analysis_logger.logger, edns_diagnostics=edns_diagnostics, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
                 a.analyze_async(success_callback, exc_callback)
                 #TODO set alarm here for too long waits
                 return StreamingHttpResponse(analysis_logger.handler)
