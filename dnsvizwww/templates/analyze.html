@@ -49,6 +49,10 @@
 				$('#analysis-text').hide();
 				$('#analysis-progress').show();
 
+				if ($('#id_explicit_delegation').val().search(/Enter names or addresses/) >= 0) {
+					$('#id_explicit_delegation').val('');
+				}
+
 				var form = $('#options form');
 				form.unbind('submit');
 				var formData = form.serialize();
