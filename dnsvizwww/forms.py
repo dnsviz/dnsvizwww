@@ -33,7 +33,7 @@ import dns.message, dns.name, dns.rdataclass, dns.rdatatype, dns.rrset
 
 from django import forms
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMessage
 from django.utils.timezone import utc
 
 from dnsviz.analysis.online import ANALYSIS_TYPE_AUTHORITATIVE, ANALYSIS_TYPE_RECURSIVE
@@ -145,10 +145,11 @@ class ContactForm(forms.Form):
 
     def submit_message(self):
         recipients = [e[1] for e in settings.MANAGERS]
-        send_mail('[dnsviz] %s' % self.cleaned_data['subject'],
-                self.cleaned_data['message'],
-                self.cleaned_data['reply_email'],
-                recipients)
+        msg = EmailMessage(subject='[dnsviz] %s' % self.cleaned_data['subject'],
+                body=self.cleaned_data['message'],
+                to=recipients,
+                headers = {'Reply-To': self.cleaned_data['reply_email'] })
+        msg.send()
 
 def domain_analysis_form(name):
     ANCESTOR_CHOICES = [(name.to_text(), fmt.humanize_name(name, True))]
