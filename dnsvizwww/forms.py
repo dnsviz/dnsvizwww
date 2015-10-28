@@ -187,7 +187,7 @@ def domain_analysis_form(name):
 
         def clean(self):
             cleaned_data = super(DomainNameAnalysisForm, self).clean()
-            if cleaned_data['analysis_type'] == ANALYSIS_TYPE_RECURSIVE and \
+            if cleaned_data.get('analysis_type', None) == ANALYSIS_TYPE_RECURSIVE and \
                     not cleaned_data.get('explicit_delegation', None):
                 raise forms.ValidationError('If recursive analysis is desired, then servers names and/or addresses must be specified.')
             return cleaned_data
