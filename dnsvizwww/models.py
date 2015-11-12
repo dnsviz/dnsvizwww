@@ -298,6 +298,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
             # First call dnsviz.analysis.OfflineDomainNameAnalysis.__init__()
             # with derived kwargs
+            kwargs2 = {}
             if 'stub' in kwargs:
                 kwargs2['stub'] = kwargs['stub']
             dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, kwargs['name'], **kwargs2)
