@@ -48,6 +48,7 @@ _dname_re = re.compile(r'^RRset-\d+\|(?P<name>[^|]+)\|(?P<rdtype>[A-Z]+)')
 _nsecc_re = re.compile(r'(?P<type>NSEC3?)-\d+\|(?P<name>[^\|]+)\|(?P<rdtype>[A-Z]+)$')
 _del_re = re.compile(r'^(?P<child>[^|]+)\|(?P<parent>[^|]+)$')
 _edge_re = re.compile(r'^(?P<node_type>digest|RRSIG|dname|NSEC3?C|del)-(?P<remnant>.*)$')
+_zone_re = re.compile(r'^cluster_(?P<name>.+)_top$')
 
 def _init_notices():
     return collections.OrderedDict((
@@ -139,6 +140,11 @@ def _get_label_for_node(notices, node_name, val):
             elif t1 == 'dname':
                 m2 = _dname_re.search(m1.group('remnant'))
                 l = 'CNAME synthesis of %s' % (fmt.humanize_name(dns.name.from_text(m2.group('name')), True))
+        else:
+            m1 = _zone_re.search(node_name)
+            if m1 is not None:
+                l = '%s zone' % (fmt.humanize_name(dns.name.from_text(m1.group('name')), True))
+
     return l
 
 def _populate_notices(notices, obj, label=None):
