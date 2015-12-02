@@ -42,8 +42,17 @@ from django.conf import settings
 
 from dnsvizwww.analysis import Analyst, OnlineDomainNameAnalysis
 from dnsvizwww.models import DomainName
-from dnsviz.analysis import get_client_addresses, NetworkConnectivityException, resolver
+from dnsviz.analysis import NetworkConnectivityException
 import dnsviz.format as fmt
+from dnsviz.ipaddr import IPAddr
+from dnsviz import transport
+from dnsviz.util import get_client_address
+
+# this needs to be global because of multiprocessing
+th = None
+
+A_ROOT_IPV4 = IPAddr('198.41.0.4')
+A_ROOT_IPV6 = IPAddr('2001:503:ba3e::2:30')
 
 django.setup()
 
@@ -61,30 +70,38 @@ def _raise_eof(signum, frame):
     # KeyboardInterrupt
     raise EOFError
 
+def _init_th():
+    global th
+    th = transport.DNSQueryTransport()
+
 def _init_interrupt_handler():
     signal.signal(signal.SIGINT, _raise_eof)
 
-def _analyze((cls, name, dlv_domain, client_ipv4, client_ipv6, force_ancestor, start_time)):
+def _init_subprocess():
+    _init_th()
+    _init_interrupt_handler()
+
+def _analyze((cls, name, dlv_domain, force_ancestor, start_time)):
     try:
-        a = cls(name, dlv_domain=dlv_domain, client_ipv4=client_ipv4, client_ipv6=client_ipv6, start_time=start_time, force_ancestor=force_ancestor)
+        a = cls(name, dlv_domain=dlv_domain, transport_handler=th, start_time=start_time, force_ancestor=force_ancestor)
         a.analyze()
     # re-raise a KeyboardInterrupt, as this means we've been interrupted
     except KeyboardInterrupt:
         raise
+    # report exceptions related to network connectivity
+    except NetworkConnectivityException, e:
+        logger.error('Error analyzing %s: %s' % (fmt.humanize_name(name), e))
     # don't report EOFError, as that is what is raised if there is a
     # KeyboardInterrupt in ParallelAnalyst
     except EOFError:
         pass
     except:
-        logger.exception('Error analyzing %s' % name.canonicalize().to_text())
+        logger.exception('Error analyzing %s' % fmt.humanize_name(name))
 
 class BulkAnalyst(object):
     analyst_cls = Analyst
 
     def __init__(self, force_ancestor, dlv_domain):
-        self.client_ipv4, self.client_ipv6 = get_client_addresses()
-        if self.client_ipv4 is None and self.client_ipv6 is None:
-            raise NetworkConnectivityException('No network interfaces available for analysis!')
         self.force_ancestor = force_ancestor
         self.dlv_domain = dlv_domain
 
@@ -92,7 +109,7 @@ class BulkAnalyst(object):
 
     def _name_to_args_iter(self, names):
         for name in names:
-            yield (self.analyst_cls, name, self.dlv_domain, self.client_ipv4, self.client_ipv6, self.force_ancestor, self.start_time)
+            yield (self.analyst_cls, name, self.dlv_domain, self.force_ancestor, self.start_time)
 
     def analyze(self, names):
         for args in self._name_to_args_iter(names):
@@ -113,7 +130,7 @@ class ParallelAnalyst(BulkAnalyst):
 
     def analyze(self, names):
         results = []
-        pool = multiprocessing.Pool(self.processes, _init_interrupt_handler, maxtasksperchild=50)
+        pool = multiprocessing.Pool(self.processes, _init_subprocess, maxtasksperchild=50)
         try:
             for args in self._name_to_args_iter(names):
                 while pool._taskqueue.full():
@@ -138,7 +155,7 @@ class ParallelAnalyst(BulkAnalyst):
         stats_interval = 1800
         refreshed = 0
 
-        pool = multiprocessing.Pool(self.processes, _init_interrupt_handler, maxtasksperchild=50)
+        pool = multiprocessing.Pool(self.processes, _init_subprocess, maxtasksperchild=50)
         try:
             while True:
                 refresh_intervals = set(DomainName.objects.filter(refresh_interval__isnull=False).values_list('refresh_interval', flat=True).distinct())
@@ -274,17 +291,22 @@ def main():
             logger.addHandler(handler)
         logger.setLevel(debug_level)
 
+        if get_client_address(A_ROOT_IPV4) is None:
+            logger.warning('No global IPv4 connectivity detected')
+        if get_client_address(A_ROOT_IPV6) is None:
+            logger.warning('No global IPv6 connectivity detected')
+
         names = []
         if '-f' in opts:
             try:
                 f = codecs.open(opts['-f'], 'r', 'utf-8')
             except IOError, e:
                 logger.error('%s: "%s"' % (e.strerror, opts['-f']))
-                sys.exit(2)
+                sys.exit(3)
             for line in f:
                 name = line.strip()
                 try:
-                    name = dns.name.from_unicode(name)
+                    name = dns.name.from_text(name)
                 except UnicodeDecodeError, e:
                     logger.error('%s: "%s"' % (e, name))
                 except dns.exception.DNSException:
@@ -293,9 +315,12 @@ def main():
                     names.append(name)
             f.close()
         else:
+            args = map(lambda x: x.decode(sys.getfilesystemencoding()), args)
             for name in args:
                 try:
                     name = dns.name.from_text(name)
+                except UnicodeDecodeError, e:
+                    logger.error('%s: "%s"' % (e, name))
                 except dns.exception.DNSException:
                     logger.error('The domain name was invalid: "%s"' % name)
                 else:
@@ -314,6 +339,12 @@ def main():
     except KeyboardInterrupt:
         logger.error('Interrupted.')
         sys.exit(4)
+
+    # th is global (because of possible multiprocessing), so we need to
+    # explicitly close it here
+    finally:
+        if th is not None:
+            th.close()
 
 if __name__ == "__main__":
     main()
