@@ -49,7 +49,7 @@ from dnsviz import transport
 from dnsviz.util import get_client_address
 
 # this needs to be global because of multiprocessing
-th = None
+tm = None
 
 A_ROOT_IPV4 = IPAddr('198.41.0.4')
 A_ROOT_IPV6 = IPAddr('2001:503:ba3e::2:30')
@@ -70,20 +70,20 @@ def _raise_eof(signum, frame):
     # KeyboardInterrupt
     raise EOFError
 
-def _init_th():
-    global th
-    th = transport.DNSQueryTransport()
+def _init_tm():
+    global tm
+    tm = transport.DNSQueryTransportManager()
 
 def _init_interrupt_handler():
     signal.signal(signal.SIGINT, _raise_eof)
 
 def _init_subprocess():
-    _init_th()
+    _init_tm()
     _init_interrupt_handler()
 
 def _analyze((cls, name, dlv_domain, force_ancestor, start_time)):
     try:
-        a = cls(name, dlv_domain=dlv_domain, transport_handler=th, start_time=start_time, force_ancestor=force_ancestor)
+        a = cls(name, dlv_domain=dlv_domain, transport_manager=tm, start_time=start_time, force_ancestor=force_ancestor)
         a.analyze()
     # re-raise a KeyboardInterrupt, as this means we've been interrupted
     except KeyboardInterrupt:
@@ -340,11 +340,11 @@ def main():
         logger.error('Interrupted.')
         sys.exit(4)
 
-    # th is global (because of possible multiprocessing), so we need to
+    # tm is global (because of possible multiprocessing), so we need to
     # explicitly close it here
     finally:
-        if th is not None:
-            th.close()
+        if tm is not None:
+            tm.close()
 
 if __name__ == "__main__":
     main()
