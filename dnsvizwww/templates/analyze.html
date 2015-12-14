@@ -53,6 +53,9 @@
 					$('#id_explicit_delegation').val('');
 				}
 
+				// if force_ancestor is disabled, then re-enable it
+				$('#id_force_ancestor').prop('disabled', false);
+
 				var form = $('#options form');
 				form.unbind('submit');
 				var formData = form.serialize();
