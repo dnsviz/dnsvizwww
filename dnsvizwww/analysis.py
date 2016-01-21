@@ -45,12 +45,13 @@ class Analyst(dnsviz.analysis.Analyst):
     qname_only = False
     analysis_model = OnlineDomainNameAnalysis
 
-    clone_attrnames = dnsviz.analysis.Analyst.clone_attrnames + ['force_ancestor','start_time']
+    clone_attrnames = dnsviz.analysis.Analyst.clone_attrnames + ['force_ancestor','start_time','force_group']
 
     def __init__(self, *args, **kwargs):
         self.start_time = kwargs.pop('start_time', datetime.datetime.now(fmt.utc).replace(microsecond=0))
         self.force_ancestor = kwargs.pop('force_ancestor', None)
         self.force_self = kwargs.pop('force_self', True)
+        self.force_group = kwargs.pop('force_group', False)
         super(Analyst, self).__init__(*args, **kwargs)
 
     def _analyze_dlv(self):
@@ -67,7 +68,7 @@ class Analyst(dnsviz.analysis.Analyst):
         unsaved_names = []
         if name_obj.name in trace:
             return unsaved_names
-        
+
         for cname in name_obj.cname_targets:
             for target, cname_obj in name_obj.cname_targets[cname].items():
                 if cname_obj is None or cname_obj.pk is None:
@@ -134,13 +135,18 @@ class Analyst(dnsviz.analysis.Analyst):
                 unsaved_dep_in_trace = True
         if not unsaved_dep_in_trace:
             attempts = 0
+
+            # group if either implicit or forced
+            force_group = self.force_group or \
+                    name_obj.analysis_type != dnsviz.analysis.online.ANALYSIS_TYPE_AUTHORITATIVE
+            group_initial = force_group or self.explicit_delegations
+
             while True:
                 attempts += 1
                 try:
                     with transaction.atomic():
-                        name_obj.save_all()
-                        name_obj.set_explicit_delegation_group(self.explicit_delegations)
-                        name_obj.set_cache_group()
+                        name_obj.save_all(group_initial)
+                        name_obj.set_group(force_group, self.explicit_delegations)
                 except Exception, e:
                     # retry if this is a database error and we tried
                     # less than three times

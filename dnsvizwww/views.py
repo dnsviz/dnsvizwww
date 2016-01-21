@@ -118,42 +118,18 @@ class DomainNameSimpleView(View):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form, **kwargs):
         raise Http404
 
-class DomainNameExplicitDelegationView(View):
-    def get(self, request, name, explicit_delegation_group_id, url_subdir='', **kwargs):
+class DomainNameGroupView(View):
+    def get(self, request, name, group_id, url_subdir='', **kwargs):
         if 'reset_query' in request.GET:
             return reset_query_string(request)
 
         name = util.name_url_decode(name)
         try:
-            explicit_delegation_group = OfflineDomainNameAnalysis.objects.get(pk=int(explicit_delegation_group_id))
+            group = OfflineDomainNameAnalysis.objects.get(pk=int(group_id))
         except OfflineDomainNameAnalysis.DoesNotExist:
             name_obj = None
         else:
-            name_obj = OfflineDomainNameAnalysis.objects.get_by_explicit_delegation_group(name, explicit_delegation_group)
-
-        if not url_subdir:
-            url_subdir = ''
-
-        if name_obj is None:
-            raise Http404
-
-        return self._get(request, name_obj, None, url_subdir, None, **kwargs)
-
-    def _get(self, request, name_obj, timestamp, url_subdir, date_form, **kwargs):
-        raise Http404
-
-class DomainNameRecursiveAnalysisView(View):
-    def get(self, request, name, cache_group_id, url_subdir='', **kwargs):
-        if 'reset_query' in request.GET:
-            return reset_query_string(request)
-
-        name = util.name_url_decode(name)
-        try:
-            cache_group = OfflineDomainNameAnalysis.objects.get(pk=int(cache_group_id))
-        except OfflineDomainNameAnalysis.DoesNotExist:
-            name_obj = None
-        else:
-            name_obj = OfflineDomainNameAnalysis.objects.get_by_cache_group(name, cache_group)
+            name_obj = OfflineDomainNameAnalysis.objects.get_by_group(name, group)
 
         if not url_subdir:
             url_subdir = ''
@@ -173,10 +149,7 @@ class DomainNameDetailMixin(object):
 class DomainNameDetailView(DomainNameDetailMixin, DomainNameView):
     pass
 
-class DomainNameDetailExplicitDelegationView(DomainNameDetailMixin, DomainNameExplicitDelegationView):
-    pass
-
-class DomainNameDetailRecursiveAnalysisView(DomainNameDetailMixin, DomainNameRecursiveAnalysisView):
+class DomainNameDetailGroupView(DomainNameDetailMixin, DomainNameGroupView):
     pass
 
 class DNSSECMixin(object):
@@ -258,8 +231,8 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
 
             # disable IANA root keys, if there is an explicit delegation of the root
             # (i.e., ignore root KSK ta setting)
-            if name_obj.explicit_delegation_group is not None:
-                if OfflineDomainNameAnalysis.objects.get_by_explicit_delegation_group(dns.name.root, name_obj.explicit_delegation_group) is not None:
+            if name_obj.explicit_delegation:
+                if OfflineDomainNameAnalysis.objects.get_by_group(dns.name.root, name_obj.group) is not None:
                     trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
                     if '.' in options_form.fields['ta'].initial:
                         options_form.fields['ta'].initial.remove('.')
@@ -287,10 +260,7 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
 class DomainNameDNSSECPageView(DomainNameDNSSECPageMixin, DomainNameView):
     pass
 
-class DomainNameDNSSECPageExplicitDelegationView(DomainNameDNSSECPageMixin, DomainNameExplicitDelegationView):
-    pass
-
-class DomainNameDNSSECPageRecursiveAnalysisView(DomainNameDNSSECPageMixin, DomainNameRecursiveAnalysisView):
+class DomainNameDNSSECPageGroupView(DomainNameDNSSECPageMixin, DomainNameGroupView):
     pass
 
 class DomainNameDNSSECGraphMixin(DNSSECMixin):
@@ -307,8 +277,8 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
 
         # disable IANA root keys, if there is an explicit delegation of the root
         # (i.e., ignore root KSK ta setting)
-        if name_obj.explicit_delegation_group is not None:
-            if OfflineDomainNameAnalysis.objects.get_by_explicit_delegation_group(dns.name.root, name_obj.explicit_delegation_group) is not None:
+        if name_obj.explicit_delegation:
+            if OfflineDomainNameAnalysis.objects.get_by_group(dns.name.root, name_obj.group) is not None:
                 trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
                 if '.' in options_form.fields['ta'].initial:
                     options_form.fields['ta'].initial.remove('.')
@@ -364,10 +334,7 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
 class DomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, DomainNameSimpleView):
     pass
 
-class DomainNameDNSSECGraphExplicitDelegationView(DomainNameDNSSECGraphMixin, DomainNameExplicitDelegationView):
-    pass
-
-class DomainNameDNSSECGraphRecursiveAnalysisView(DomainNameDNSSECGraphMixin, DomainNameRecursiveAnalysisView):
+class DomainNameDNSSECGraphGroupView(DomainNameDNSSECGraphMixin, DomainNameGroupView):
     pass
 
 class DynamicDomainNameDNSSECPage(View):
@@ -637,10 +604,7 @@ class DomainNameResponsesMixin(object):
 class DomainNameResponsesView(DomainNameResponsesMixin, DomainNameView):
     pass
 
-class DomainNameResponsesExplicitDelegationView(DomainNameResponsesMixin, DomainNameExplicitDelegationView):
-    pass
-
-class DomainNameResponsesRecursiveAnalysisView(DomainNameResponsesMixin, DomainNameRecursiveAnalysisView):
+class DomainNameResponsesGroupView(DomainNameResponsesMixin, DomainNameGroupView):
     pass
 
 class DomainNameServersMixin(object):
@@ -749,10 +713,7 @@ class DomainNameServersMixin(object):
 class DomainNameServersView(DomainNameServersMixin, DomainNameView):
     pass
 
-class DomainNameServersExplicitDelegationView(DomainNameServersMixin, DomainNameExplicitDelegationView):
-    pass
-
-class DomainNameServersRecursiveAnalysisView(DomainNameServersMixin, DomainNameRecursiveAnalysisView):
+class DomainNameServersGroupView(DomainNameServersMixin, DomainNameGroupView):
     pass
 
 class DomainNameRESTMixin(object):
@@ -794,10 +755,7 @@ class DomainNameRESTMixin(object):
 class DomainNameRESTView(DomainNameRESTMixin, DomainNameView):
     pass
 
-class DomainNameRESTExplicitDelegationView(DomainNameRESTMixin, DomainNameExplicitDelegationView):
-    pass
-
-class DomainNameRESTRecursiveAnalysisView(DomainNameRESTMixin, DomainNameRecursiveAnalysisView):
+class DomainNameRESTGroupView(DomainNameRESTMixin, DomainNameGroupView):
     pass
 
 def domain_search(request):
@@ -854,7 +812,7 @@ def analyze(request, name, url_subdir=None):
 
         def success_callback(name_obj):
             analysis_logger.logger.info('Success!')
-            if name_obj.explicit_delegation_group is not None or name_obj.cache_group is not None:
+            if name_obj.group is not None:
                 next_url = name_obj.base_url_with_timestamp()
             else:
                 next_url = '../'
@@ -909,7 +867,7 @@ def analyze(request, name, url_subdir=None):
 
                 # if there were no errors, then return a redirect
                 else:
-                    if name_obj.explicit_delegation_group is not None or name_obj.cache_group is not None:
+                    if name_obj.group is not None:
                         next_url = name_obj.base_url_with_timestamp()
                     else:
                         next_url = '../'
