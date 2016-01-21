@@ -48,6 +48,7 @@ from dnsviz.analysis.online import WILDCARD_EXPLICIT_DELEGATION, ANALYSIS_TYPE_A
 from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
 import dnsviz.response as Response
+from dnsviz import transport
 from dnsviz.util import get_trusted_keys
 from django.views.decorators.cache import cache_page
 from dnsviz.viz.dnssec import DNSAuthGraph
@@ -841,6 +842,13 @@ def analyze(request, name, url_subdir=None):
                 dlv_domain = None
                 force_ancestor = dns.name.root
                 explicit_delegations[WILDCARD_EXPLICIT_DELEGATION] = analyze_form.cleaned_data['explicit_delegation']
+            if analyze_form.cleaned_data['perspective'] == 'client':
+                th_factories = (transport.DNSQueryTransportHandlerWebSocketFactory(analyze_form.cleaned_data['sockname']),)
+                force_ancestor = dns.name.root
+                force_group = True
+            else:
+                th_factories = None
+                force_group = False
             edns_diagnostics = analyze_form.cleaned_data['edns_diagnostics']
             start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
 
@@ -848,14 +856,14 @@ def analyze(request, name, url_subdir=None):
             # callbacks and streaming output to the browser.  If there is an
             # error with the analysis, it will be handled by the javascript.
             if request.is_ajax():
-                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, logger=analysis_logger.logger, edns_diagnostics=edns_diagnostics, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
+                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, logger=analysis_logger.logger, edns_diagnostics=edns_diagnostics, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
                 a.analyze_async(success_callback, exc_callback)
                 #TODO set alarm here for too long waits
                 return StreamingHttpResponse(analysis_logger.handler)
 
             # for non-ajax requests analyze synchronously
             else:
-                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, start_time=start_time, force_ancestor=force_ancestor)
+                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, edns_diagnostics=edns_diagnostics, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
                 try:
                     name_obj = a.analyze()
 

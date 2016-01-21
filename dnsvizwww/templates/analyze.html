@@ -5,6 +5,7 @@
 	<!-- Javascripts and associated styles -->
 	<script type="text/javascript" src="{{ STATIC_URL }}js/jquery-ui-1.10.4.custom.min.js"></script>
 	<link rel="stylesheet" href="{{ STATIC_URL }}css/redmond/jquery-ui-1.10.4.custom.min.css" />
+	<script src="http://java.com/js/dtjava.js"></script>
 	<script type="text/javascript">
 		<!--
 		$(document).ready(function() {
@@ -45,23 +46,24 @@
 				extraClass: "fixed-width"
 			});
 
-			$('#options form').submit(function() {
-				$('#analysis-text').hide();
-				$('#analysis-progress').show();
+			function deployApplet(callback) {
+				dtjava.embed({
+						id: 'dnslookinglass-applet',
+						url: '{{ STATIC_URL }}/applet/dnslookingglass.jnlp',
+						width: 1,
+						height: 1,
+						placeholder: "appletPlaceholder",
+					},
+					{},
+					{
+						onJavascriptReady: callback,
+					}
+				);
+			}
 
-				if ($('#id_explicit_delegation').val().search(/Enter names or addresses/) >= 0) {
-					$('#id_explicit_delegation').val('');
-				}
-
-				// if force_ancestor is disabled, then re-enable it
-				$('#id_force_ancestor').prop('disabled', false);
-
-				var form = $('#options form');
-				form.unbind('submit');
+			function doAnalysis(form, callback) {
 				var formData = form.serialize();
-
-				var i = 0;
-				var rqst = $.ajax({
+				$.ajax({
 					url: "",
 					type: "POST",
 					data: formData,
@@ -88,18 +90,177 @@
 						var el = $('#progress-log div').last();
 						if (el.hasClass('loglevel-critical')) {
 							$('#progress-bar').show();
-							$('#progress-log').hide()
+							$('#progress-log').hide();
 							form.submit();
 						} else {
 							if (el.hasClass('loglevel-error')) {
 								$('<p class="form-error">There was an error analyzing {{ name_obj }}.  We\'ve been notified of the problem and will look into fixing it.</p>').insertAfter($('#progress-log'));
 							}
 						}
+						if (callback != undefined) {
+							callback();
+						}
 					},
 					error: function() {
 						form.submit();
+						if (callback != undefined) {
+							callback();
+						}
 					}
 				});
+			}
+
+			function getDNSQueryTransportHandler(obj, applet) {
+				var src;
+				var sport = 0;
+				if (obj.req == null) {
+					throw 'Missing "req" field in input.';
+				}
+				if (obj.dst == null) {
+					throw 'Missing "dst" field in input.';
+				}
+				if (obj.dport == null) {
+					throw 'Missing "dport" field in input.';
+				}
+				if (obj.tcp == null) {
+					throw 'Missing "tcp" field in input.';
+				}
+				if (obj.timeout == null) {
+					throw 'Missing "timeout" field in input.';
+				}
+				if (obj.sport != null) {
+					sport = obj.sport;
+				}
+				return applet.getDNSQueryTransportHandler(obj.req, obj.dst, obj.dport, obj.src, sport, obj.timeout, obj.tcp);
+			}
+
+			function decodeRequests(contentEncoded) {
+				var content = JSON.parse(contentEncoded);
+				if (content.version == undefined) {
+					throw "No version information in JSON input";
+				}
+				var vers = content.version.toString().split(".");
+				if (parseInt(vers[0]) != 1 || parseInt(vers[1]) > 0) {
+					throw "Version of JSON input is invalid";
+				}
+				if (content.requests == undefined) {
+					throw "No request information in input";
+				}
+				return content;
+			}
+
+			function runQueries(contentEncoded, appletId) {
+				var content = decodeRequests(contentEncoded);
+				var applet = document.getElementById(appletId);
+				var qths = new Array();
+				var responses = new Array();
+
+				/* create the DNSQueryTransportHandlers */
+				for (var i = 0; i < content.requests.length; i++) {
+					qths.push(getDNSQueryTransportHandler(content.requests[i], applet));
+					if (applet.hasError()) {
+						throw applet.getErrorTrace();
+					}
+				}
+
+				/* execute the queries */
+				applet.executeQueries(qths);
+				if (applet.hasError()) {
+					throw applet.getErrorTrace();
+				}
+
+				/* collect the responses */
+				for (var i = 0; i < qths.length; i++) {
+					var response = {};
+					response.res = qths[i].getEncodedResponse();
+					if (qths[i].getError() != null) {
+						response.err = qths[i].getError();
+						if (qths[i].getErrno() != null) {
+							response.errno = qths[i].getErrno();
+						}
+					}
+					if (qths[i].getSource() != null) {
+						console.log(qths[i].getSource());
+						console.log(qths[i].getSource().getHostAddress());
+						response.src = qths[i].getSource().getHostAddress();
+					} else {
+						response.src = null;
+					}
+					if (qths[i].getSPort() != 0) {
+						response.sport = qths[i].getSPort();
+					} else {
+						response.sport = null;
+					}
+					response.time_elapsed = qths[i].timeElapsed();
+					responses.push(response);
+				}
+
+				/* return the responses */
+				return {
+					version: "1.0",
+					responses: responses
+				}
+			}
+
+			function webSocketURL(path) {
+				var l = window.location;
+				var proto = l.protocol === "https:" ? "wss://" : "ws://";
+				var port = (l.port == 80 || l.port == 443) ? "" : (":" + l.port);
+				return proto + l.hostname + port + path;
+			}
+
+			function setupWebSocket(url, appletId, callback) {
+				var ws = new WebSocket(url);
+				ws.onmessage = function(event) {
+					// Future messages are DNS requests to be run, so change onmessage() to 
+					// be a method to execute the queries asynchronously and return the result.
+					ws.onmessage = function(event) {
+						setTimeout(function() {
+							try {
+								ws.send(JSON.stringify(runQueries(event.data, appletId)))
+							} catch (e) {
+								try {
+									ws.send(JSON.stringify({ version: "1.0", error: e.toString() }));
+									ws.close();
+								} catch (e) {
+									$('<p class="form-error">There was an error analyzing {{ name_obj }}.  We\'ve been notified of the problem and will look into fixing it.</p>').insertAfter($('#progress-log'));
+								}
+							}
+						}, 0);
+						return;
+					}
+					// the first message from the WebSocket is the name of the UNIX
+					// domain socket, to which the analysis process should connect
+					$('#id_sockname').val(event.data);
+					callback(ws);
+				}
+			}
+
+			$('#options form').submit(function() {
+				$('#analysis-text').hide();
+				$('#analysis-progress').show();
+
+				if ($('#id_explicit_delegation').val().search(/Enter names or addresses/) >= 0) {
+					$('#id_explicit_delegation').val('');
+				}
+
+				// if force_ancestor is disabled, then re-enable it
+				$('#id_force_ancestor').prop('disabled', false);
+
+				var form = $('#options form');
+				form.unbind('submit');
+
+				if ($('#id_perspective_1').prop('checked')) {
+					deployApplet(function(id) {
+						setupWebSocket(webSocketURL('/ws/lg'), id, function(ws) {
+							doAnalysis(form, function() {
+								ws.close();
+							});
+						});
+					});
+				} else {
+					doAnalysis(form);
+				}
 
 				return false;
 			});
@@ -223,5 +384,6 @@
 		</div>
 		<div id="progress-log">
 		</div>
+		<div id="appletPlaceholder"></div>
 	</div>
 {% endblock %}
