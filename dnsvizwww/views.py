@@ -843,7 +843,7 @@ def analyze(request, name, url_subdir=None):
                 force_ancestor = dns.name.root
                 explicit_delegations[WILDCARD_EXPLICIT_DELEGATION] = analyze_form.cleaned_data['explicit_delegation']
             if analyze_form.cleaned_data['perspective'] == 'client':
-                th_factories = (transport.DNSQueryTransportHandlerWebSocketFactory(analyze_form.cleaned_data['sockname']),)
+                th_factories = (transport.DNSQueryTransportHandlerWebSocketPrivateFactory(analyze_form.cleaned_data['sockname']),)
                 force_ancestor = dns.name.root
                 force_group = True
             else:
