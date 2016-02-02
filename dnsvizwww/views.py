@@ -33,6 +33,7 @@ import json
 import logging
 import os
 import re
+import urllib
 
 import dns.name, dns.rdatatype
 
@@ -781,7 +782,7 @@ def domain_search(request):
 
     # even an valid name might not fit our (current) URL criteria
     name_re = re.compile(r'^(%s)$' % urls.dns_name)
-    if name_re.match(name) is None:
+    if name_re.match(urllib.unquote(name)) is None:
         name_valid = False
 
     if not name_valid:

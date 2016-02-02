@@ -34,12 +34,13 @@ from django.views.generic.base import TemplateView, RedirectView
 from dnsvizwww import views
 
 _encoded_slash = r'S'
+_wildcard_label = r'\*'
 _dns_label_first_char = r'[_a-z0-9]'
 _dns_label_middle_char = r'[_a-z0-9-]|(%s)' % _encoded_slash
 _dns_label_last_char = _dns_label_first_char
-_dns_label = r'((%s)(%s)*(%s))|(%s)' % \
+_dns_label = r'((%s)(%s)*(%s))|(%s)|(%s)' % \
         (_dns_label_first_char, _dns_label_middle_char, _dns_label_last_char,
-            _dns_label_first_char)
+            _dns_label_first_char, _wildcard_label)
 dns_name = r'(%s)(\.(%s))*' % (_dns_label, _dns_label)
 
 timestamp = r'[a-zA-Z0-9-_]{6}'
