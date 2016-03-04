@@ -35,6 +35,7 @@ import logging
 import os
 import re
 import tempfile
+import urllib
 
 import dns.name, dns.rdatatype
 
@@ -234,11 +235,11 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
 
             # disable IANA root keys, if there is an explicit delegation of the root
             # (i.e., ignore root KSK ta setting)
-            if name_obj.explicit_delegation:
-                if OfflineDomainNameAnalysis.objects.get_by_group(dns.name.root, name_obj.group) is not None:
-                    trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
-                    if '.' in options_form.fields['ta'].initial:
-                        options_form.fields['ta'].initial.remove('.')
+            if name_obj.group is not None and name_obj.group.name == dns.name.root and \
+                    name_obj.group.analysis_type == ANALYSIS_TYPE_AUTHORITATIVE and name_obj.group.explicit_delegation:
+                trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
+                if '.' in options_form.fields['ta'].initial:
+                    options_form.fields['ta'].initial.remove('.')
 
             trusted_keys = trusted_keys_explicit + trusted_zones
 
@@ -280,11 +281,11 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
 
         # disable IANA root keys, if there is an explicit delegation of the root
         # (i.e., ignore root KSK ta setting)
-        if name_obj.explicit_delegation:
-            if OfflineDomainNameAnalysis.objects.get_by_group(dns.name.root, name_obj.group) is not None:
-                trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
-                if '.' in options_form.fields['ta'].initial:
-                    options_form.fields['ta'].initial.remove('.')
+        if name_obj.group is not None and name_obj.group.name == dns.name.root and \
+                name_obj.group.analysis_type == ANALYSIS_TYPE_AUTHORITATIVE and name_obj.group.explicit_delegation:
+            trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
+            if '.' in options_form.fields['ta'].initial:
+                options_form.fields['ta'].initial.remove('.')
 
         trusted_keys = trusted_keys_explicit + trusted_zones
 
@@ -783,7 +784,7 @@ def domain_search(request):
 
     # even an valid name might not fit our (current) URL criteria
     name_re = re.compile(r'^(%s)$' % urls.dns_name)
-    if name_re.match(name) is None:
+    if name_re.match(urllib.unquote(name)) is None:
         name_valid = False
 
     if not name_valid:

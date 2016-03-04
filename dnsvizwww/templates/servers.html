@@ -61,8 +61,7 @@
 		</div>
 		<div id="consistency-region">
 			<div class="consistency-matrix">
-			{% if zone_obj.cache_group_id %}
-			{% else %}
+			{% if zone_obj.analysis_type == 0 %}
 			<h4>Delegation Information</h4>
 				<table>
 					<tr><th{% if zone_obj.parent %} rowspan="2"{% endif %}>Name</th>{% if zone_obj.parent %}<th colspan="3">Parent zone</th><th>Child zone</th>{% endif %}<th colspan="2"{% if zone_obj.parent %} rowspan="2"{% endif %}>{% if zone_obj.explicit_delegation %}Explicitly-defined IPs{% else %}Authoritative IPs{% endif %}</th></tr>
