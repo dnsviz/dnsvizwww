@@ -29,10 +29,12 @@
 from cgi import escape
 import collections
 import datetime
+import hashlib
 import json
 import logging
 import os
 import re
+import tempfile
 
 import dns.name, dns.rdatatype
 
@@ -843,7 +845,8 @@ def analyze(request, name, url_subdir=None):
                 force_ancestor = dns.name.root
                 explicit_delegations[WILDCARD_EXPLICIT_DELEGATION] = analyze_form.cleaned_data['explicit_delegation']
             if analyze_form.cleaned_data['perspective'] == 'client':
-                th_factories = (transport.DNSQueryTransportHandlerWebSocketFactory(analyze_form.cleaned_data['sockname']),)
+                sockname = os.path.join(tempfile.gettempdir(), hashlib.sha1(analyze_form.cleaned_data['sockname']).hexdigest())
+                th_factories = (transport.DNSQueryTransportHandlerWebSocketFactory(sockname),)
                 force_ancestor = dns.name.root
                 force_group = True
             else:
