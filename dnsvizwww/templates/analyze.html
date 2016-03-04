@@ -208,30 +208,31 @@
 			}
 
 			function setupWebSocket(url, appletId, callback) {
-				var ws = new WebSocket(url);
+				var sockLoc = parseInt(Math.random()*1000000);
+				var ws = new WebSocket(url + '?fn=' + sockLoc);
 				ws.onmessage = function(event) {
-					// Future messages are DNS requests to be run, so change onmessage() to 
-					// be a method to execute the queries asynchronously and return the result.
-					ws.onmessage = function(event) {
-						setTimeout(function() {
+					// execute the queries asynchronously and return the result.
+					setTimeout(function() {
+						if (event.data == '') {
+							ws.close();
+							return;
+						}
+						try {
+							ws.send(JSON.stringify(runQueries(event.data, appletId)))
+						} catch (e) {
 							try {
-								ws.send(JSON.stringify(runQueries(event.data, appletId)))
+								ws.send(JSON.stringify({ version: "1.0", error: e.toString() }));
+								ws.close();
 							} catch (e) {
-								try {
-									ws.send(JSON.stringify({ version: "1.0", error: e.toString() }));
-									ws.close();
-								} catch (e) {
-									$('<p class="form-error">There was an error analyzing {{ name_obj }}.  We\'ve been notified of the problem and will look into fixing it.</p>').insertAfter($('#progress-log'));
-								}
+								$('<p class="form-error">There was an error analyzing {{ name_obj }}.  We\'ve been notified of the problem and will look into fixing it.</p>').insertAfter($('#progress-log'));
 							}
-						}, 0);
-						return;
-					}
-					// the first message from the WebSocket is the name of the UNIX
-					// domain socket, to which the analysis process should connect
-					$('#id_sockname').val(event.data);
-					callback(ws);
+						}
+					}, 0);
+					return;
 				}
+				// send the sockLoc to the server, so it knows where to connect
+				$('#id_sockname').val(sockLoc);
+				callback(ws);
 			}
 
 			$('#options form').submit(function() {
