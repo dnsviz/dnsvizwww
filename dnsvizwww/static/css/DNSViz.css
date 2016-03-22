@@ -197,6 +197,11 @@ ul.formfield-error-list {
 #search-again {
 	float:right;
 	width:auto; margin-right:25px; /*width:450px;*/
+	clear: right;
+}
+#github-source {
+	float:right;
+	width:auto; margin-right:45px; /*width:450px;*/
 }
 fieldset { border: 0; }
 #search-again input, #date-search input {
