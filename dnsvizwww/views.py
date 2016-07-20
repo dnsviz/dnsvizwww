@@ -851,6 +851,9 @@ def analyze(request, name, url_subdir=None):
                 th_factories = (transport.DNSQueryTransportHandlerWebSocketFactory(sockname),)
                 force_ancestor = dns.name.root
                 force_group = True
+            elif analyze_form.cleaned_data['perspective'] == 'other':
+                th_factories = (transport.DNSQueryTransportHandlerHTTPFactory(analyze_form.cleaned_data['looking_glass']),)
+                force_group = False
             else:
                 th_factories = None
                 force_group = False

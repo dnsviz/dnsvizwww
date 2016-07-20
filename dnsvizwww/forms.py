@@ -175,7 +175,10 @@ def domain_analysis_form(name):
                 (ANALYSIS_TYPE_RECURSIVE, 'Recursive servers'))
 
         PERSPECTIVE = (('server', 'DNSViz server (me)'),
-                ('client', 'Web client (you)'))
+                ('client', 'Web client (you)'),
+                ('other', 'Third-party (other)'))
+
+        THIRD_PARTY_LG = (())
 
         force_ancestor = forms.TypedChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, initial=name.to_text(), required=True, coerce=dns.name.from_text,
                 help_text='Usually it is sufficient to select the name itself (%s) or its zone, in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True)))
@@ -189,6 +192,8 @@ def domain_analysis_form(name):
                 help_text='If authoritative analysis is selected, then the authoritative servers will be analyzed, beginning at the root servers--or the servers explicitly designated; if recursive analysis is selected, then the designated recursive servers will be analyzed.')
         perspective = forms.TypedChoiceField(choices=PERSPECTIVE, initial='server', widget=forms.RadioSelect(),
                 help_text='If \'DNSViz server\' is selected, then the diagnostic queries will be issued from the DNSViz server.  If \'Web client\' is selected, they will be issued from the browser (requires the use of a Java applet).')
+        looking_glass = forms.ChoiceField(choices=THIRD_PARTY_LG,
+                help_text='')
         sockname = forms.CharField(widget=forms.HiddenInput(), required=False)
 
         def clean(self):
