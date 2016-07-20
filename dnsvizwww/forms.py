@@ -178,7 +178,7 @@ def domain_analysis_form(name):
                 ('client', 'Web client (you)'),
                 ('other', 'Third-party (other)'))
 
-        THIRD_PARTY_LG = (())
+        THIRD_PARTY_LG = ()
 
         force_ancestor = forms.TypedChoiceField(label='Force ancestor analysis', choices=ANCESTOR_CHOICES, initial=name.to_text(), required=True, coerce=dns.name.from_text,
                 help_text='Usually it is sufficient to select the name itself (%s) or its zone, in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True)))
