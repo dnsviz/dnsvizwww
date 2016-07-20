@@ -190,7 +190,7 @@ def domain_analysis_form(name):
                 help_text='If you wish to designate servers explicitly for the "force ancestor" zone (rather than following delegation from the IANA root), enter the server names, one per line.  You may optionally include an IPv4 or IPv6 address on the same line as the name.')
         analysis_type = forms.TypedChoiceField(choices=ANALYSIS_TYPES, initial=ANALYSIS_TYPE_AUTHORITATIVE, coerce=int, widget=forms.RadioSelect(),
                 help_text='If authoritative analysis is selected, then the authoritative servers will be analyzed, beginning at the root servers--or the servers explicitly designated; if recursive analysis is selected, then the designated recursive servers will be analyzed.')
-        perspective = forms.TypedChoiceField(choices=PERSPECTIVE, initial='server', widget=forms.RadioSelect(),
+        perspective = forms.ChoiceField(choices=PERSPECTIVE, initial='server', widget=forms.RadioSelect(),
                 help_text='If \'DNSViz server\' is selected, then the diagnostic queries will be issued from the DNSViz server.  If \'Web client\' is selected, they will be issued from the browser (requires the use of a Java applet).')
         looking_glass = forms.ChoiceField(choices=THIRD_PARTY_LG,
                 help_text='')
