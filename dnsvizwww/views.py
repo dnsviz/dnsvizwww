@@ -468,9 +468,10 @@ class DomainNameResponsesMixin(object):
                 row.append((rrset_info.rrset.ttl, 'not-styled'))
                 row.append((dns.rdatatype.to_text(rrset_info.rrset.rdtype), 'not-styled'))
                 rrset_str = ''
-                rrset_list = list(rrset_info.rrset)
-                rrset_list.sort(cmp=rrset_info.rdata_cmp)
-                for rr in rrset_list:
+                rrset_list = [Response.RdataWrapper(x) for x in rrset_info.rrset]
+                rrset_list.sort()
+                for rrw in rrset_list:
+                    rr = rrw._rdata
                     rr_str = escape(rr.to_text(), quote=True)
                     if rrset_info.rrset.rdtype == dns.rdatatype.DNSKEY:
                         rr_str += ' ; <b>key tag = %d</b>' % Response.DNSKEYMeta.calc_key_tag(rr)
@@ -625,7 +626,7 @@ class DomainNameServersMixin(object):
         zone_obj = name_obj.zone
 
         delegation_matrix = []
-        
+
         def stealth_cmp(x, y):
             return cmp((y[0], x[1], x[2]), (x[0], y[1], y[2]))
 
