@@ -295,6 +295,9 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     def __eq__(self, other):
         return self.name == other.name and self.pk == other.pk
 
+    def __unicode__(self):
+        return fmt.humanize_name(self.name, True)
+
     class Meta:
         unique_together = (('name', 'analysis_end'), ('name', 'group'))
         get_latest_by = 'analysis_end'
@@ -323,7 +326,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             self.ttl_mapping[rrset.rdtype] = min(self.ttl_mapping.get(rrset.rdtype, MAX_TTL), rrset.ttl)
 
     def to_text(self):
-        return str(self)
+        return fmt.humanize_name(self.name)
 
     def timestamp_url_encoded(self):
         return util.datetime_url_encode(self.analysis_end)
