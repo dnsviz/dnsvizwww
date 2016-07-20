@@ -693,7 +693,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 nxdomain_ancestor, code = cache[nxdomain_ancestor.pk]
             if nxdomain_ancestor.pk not in cache or code > level:
                 cache[nxdomain_ancestor.pk] = nxdomain_ancestor, level
-                nxdomain_ancestor.retrieve_ancestry(level, follow_dependencies=False, force_stub=True, cache=cache)
+                nxdomain_ancestor.retrieve_ancestry(level, follow_dependencies=False, cache=cache)
                 nxdomain_ancestor.retrieve_related(level)
         else:
             nxdomain_ancestor = None
