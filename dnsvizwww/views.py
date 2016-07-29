@@ -27,6 +27,7 @@
 #
 
 from cgi import escape
+import codecs
 import collections
 import datetime
 import hashlib
@@ -305,7 +306,9 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
         #XXX currently, graphviz only supports local files, so the
         #XXX following two lines are necessary
         if format not in ('png', 'jpg'):
+            img = codecs.decode(img, 'utf-8')
             img = img.replace(os.path.join(DNSVIZ_SHARE_PATH, 'icons'), os.path.join(settings.STATIC_URL, 'images', 'dnssec_legend'))
+            img = codecs.encode(img, 'utf-8')
         if format == 'dot':
             content_type = 'text/plain'
         elif format == 'jpg':
