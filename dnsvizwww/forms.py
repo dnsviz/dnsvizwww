@@ -47,8 +47,20 @@ from dnsvizwww.models import OfflineDomainNameAnalysis
 
 _implicit_tk_str = '''
 .			IN	DNSKEY	257 3 8 AwEAAagAIKlVZrpC6Ia7gEzahOR+9W29euxhJhVVLOyQbSEW0O8gcCjF FVQUTf6v58fLjwBd0YI0EzrAcQqBGCzh/RStIoO8g0NfnfL2MTJRkxoX bfDaUeVPQuYEhg37NZWAJQ9VnMVDxP/VHL496M/QZxkjf5/Efucp2gaD X6RS6CXpoY68LsvPVjR0ZSwzz1apAzvN9dlzEheX7ICJBBtuA6G3LQpz W5hOA2hzCTMjJPJ8LbqF6dsV6DoBQzgul0sGIcGOYl7OyQdXfZ57relS Qageu+ipAdTTJ25AsRTAoub8ONGcLmqrAmRLKBP1dfwhYB4N7knNnulq QxA+Uk1ihz0=
-dlv.isc.org.		IN	DNSKEY	257 3 5 BEAAAAPHMu/5onzrEE7z1egmhg/WPO0+juoZrW3euWEn4MxDCE1+lLy2 brhQv5rN32RKtMzX6Mj70jdzeND4XknW58dnJNPCxn8+jAGl2FZLK8t+ 1uq4W+nnA3qO2+DL+k6BD4mewMLbIYFwe0PG73Te9fZ2kJb56dhgMde5 ymX4BI/oQ+cAK50/xvJv00Frf8kw6ucMTwFlgPe+jnGxPPEmHAte/URk Y62ZfkLoBAADLHQ9IrS2tryAe7mbBZVcOwIeU/Rw/mRx/vwwMCTgNboM QKtUdvNXDrYJDSHZws3xiRXF1Rf+al9UmZfSav/4NWLKjHzpT59k/VSt TDN0YUuWrBNh
 '''
+
+class LenientMultipleChoiceField(forms.MultipleChoiceField):
+    def validate(self, value):
+        """
+        If any individual value is not valid, then it is simply removed.
+        """
+        if self.required and not value:
+            raise ValidationError(self.error_messages['required'], code='required')
+        # Validate that each value in the value list is in self.choices;
+        # if it isn't, then remove it
+        for val in value[:]:
+            if not self.valid_value(val):
+                value.remove(val)
 
 class DNSSECOptionsForm(forms.Form):
     RR_CHOICES = (('all', '--All--'),
@@ -82,8 +94,7 @@ class DNSSECOptionsForm(forms.Form):
             (3, '3 - GOST R 34.11-94'),
             (4, '4 - SHA-384'),)
 
-    ANCHOR_CHOICES = (('.', 'Root zone KSK'),
-            ('dlv.isc.org.', 'ISC DLV KSK'),)
+    ANCHOR_CHOICES = (('.', 'Root zone KSK'),)
 
     rr = forms.MultipleChoiceField(label='RR types:', choices=RR_CHOICES, initial=['all'], required=True,
             help_text='Select the RR types to be considered in the analysis (note that not all RR types are available for all names).')
@@ -95,7 +106,7 @@ class DNSSECOptionsForm(forms.Form):
             help_text='Show authenticated denial of existence for non-existent RRsets.')
     red = forms.BooleanField(label='Redundant edges:', initial=False, required=False, widget=forms.CheckboxInput(attrs={'class': 'no-border'}),
             help_text='Show redundant edges between DNSKEYs.  Normally redundant edges are pruned to simplify the graph.')
-    ta = forms.MultipleChoiceField(label='Trust anchors:', choices=ANCHOR_CHOICES, initial=['.','dlv.isc.org.'], required=False, widget=forms.CheckboxSelectMultiple(attrs={'class': 'no-border'}),
+    ta = LenientMultipleChoiceField(label='Trust anchors:', choices=ANCHOR_CHOICES, initial=['.'], required=False, widget=forms.CheckboxSelectMultiple(attrs={'class': 'no-border'}),
             help_text='Use KSKs from the following zones as trust anchors for the DNSSEC analysis: the root zone; and/or the KSK for ISC\'s DNSSEC-lookaside validation (DLV) service.')
     tk = forms.CharField(label='Additional trusted keys:', initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
             help_text='Use the following DNSKEY(s) as additional trust anchors for the DNSSEC analysis.  DNSKEYs should be entered one per line, in zone file format.')
