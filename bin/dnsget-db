@@ -46,10 +46,12 @@ from dnsviz.analysis import NetworkConnectivityException
 import dnsviz.format as fmt
 from dnsviz.ipaddr import IPAddr
 from dnsviz import transport
+from dnsviz.resolver import FullResolver
 from dnsviz.util import get_client_address
 
 # this needs to be global because of multiprocessing
 tm = None
+full_resolver = None
 
 A_ROOT_IPV4 = IPAddr('198.41.0.4')
 A_ROOT_IPV6 = IPAddr('2001:503:ba3e::2:30')
@@ -74,16 +76,22 @@ def _init_tm():
     global tm
     tm = transport.DNSQueryTransportManager()
 
+def _init_resolver():
+    global full_resolver
+
+    full_resolver = FullResolver(transport_manager=tm, max_ttl=900)
+
 def _init_interrupt_handler():
     signal.signal(signal.SIGINT, _raise_eof)
 
 def _init_subprocess():
     _init_tm()
+    _init_resolver()
     _init_interrupt_handler()
 
 def _analyze((cls, name, dlv_domain, force_ancestor, start_time)):
     try:
-        a = cls(name, dlv_domain=dlv_domain, transport_manager=tm, start_time=start_time, force_ancestor=force_ancestor)
+        a = cls(name, dlv_domain=dlv_domain, transport_manager=tm, resolver=full_resolver, start_time=start_time, force_ancestor=force_ancestor)
         a.analyze()
     # re-raise a KeyboardInterrupt, as this means we've been interrupted
     except KeyboardInterrupt:
@@ -333,6 +341,7 @@ def main():
             if '-t' in opts:
                 a = ParallelAnalyst(force_ancestor, dlv_domain, processes)
             else:
+                _init_resolver()
                 a = BulkAnalyst(force_ancestor, dlv_domain)
             a.analyze(names)
 
