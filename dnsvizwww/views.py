@@ -840,13 +840,11 @@ def analyze(request, name, url_subdir=None):
             explicit_delegations = {}
             if analyze_form.cleaned_data['analysis_type'] == ANALYSIS_TYPE_AUTHORITATIVE:
                 analyst_cls = Analyst
-                dlv_domain = dns.name.from_text('dlv.isc.org')
                 force_ancestor = analyze_form.cleaned_data['force_ancestor']
                 if analyze_form.cleaned_data['explicit_delegation']:
                     explicit_delegations[force_ancestor] = analyze_form.cleaned_data['explicit_delegation']
             else:
                 analyst_cls = RecursiveAnalyst
-                dlv_domain = None
                 force_ancestor = dns.name.root
                 explicit_delegations[WILDCARD_EXPLICIT_DELEGATION] = analyze_form.cleaned_data['explicit_delegation']
             if analyze_form.cleaned_data['perspective'] == 'client':
@@ -867,14 +865,14 @@ def analyze(request, name, url_subdir=None):
             # callbacks and streaming output to the browser.  If there is an
             # error with the analysis, it will be handled by the javascript.
             if request.is_ajax():
-                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, logger=analysis_logger.logger, edns_diagnostics=edns_diagnostics, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
+                a = analyst_cls(name_obj.name, logger=analysis_logger.logger, edns_diagnostics=edns_diagnostics, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
                 a.analyze_async(success_callback, exc_callback)
                 #TODO set alarm here for too long waits
                 return StreamingHttpResponse(analysis_logger.handler)
 
             # for non-ajax requests analyze synchronously
             else:
-                a = analyst_cls(name_obj.name, dlv_domain=dlv_domain, edns_diagnostics=edns_diagnostics, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
+                a = analyst_cls(name_obj.name, edns_diagnostics=edns_diagnostics, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
                 try:
                     name_obj = a.analyze()
 
