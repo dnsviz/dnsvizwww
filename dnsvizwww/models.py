@@ -295,6 +295,9 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     def __eq__(self, other):
         return self.name == other.name and self.pk == other.pk
 
+    def __unicode__(self):
+        return fmt.humanize_name(self.name, True)
+
     class Meta:
         unique_together = (('name', 'analysis_end'), ('name', 'group'))
         get_latest_by = 'analysis_end'
@@ -323,7 +326,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             self.ttl_mapping[rrset.rdtype] = min(self.ttl_mapping.get(rrset.rdtype, MAX_TTL), rrset.ttl)
 
     def to_text(self):
-        return str(self)
+        return fmt.humanize_name(self.name)
 
     def timestamp_url_encoded(self):
         return util.datetime_url_encode(self.analysis_end)
@@ -690,7 +693,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 nxdomain_ancestor, code = cache[nxdomain_ancestor.pk]
             if nxdomain_ancestor.pk not in cache or code > level:
                 cache[nxdomain_ancestor.pk] = nxdomain_ancestor, level
-                nxdomain_ancestor.retrieve_ancestry(level, follow_dependencies=False, force_stub=True, cache=cache)
+                nxdomain_ancestor.retrieve_ancestry(level, follow_dependencies=False, cache=cache)
                 nxdomain_ancestor.retrieve_related(level)
         else:
             nxdomain_ancestor = None

@@ -27,6 +27,7 @@
 #
 
 from cgi import escape
+import codecs
 import collections
 import datetime
 import hashlib
@@ -305,7 +306,9 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
         #XXX currently, graphviz only supports local files, so the
         #XXX following two lines are necessary
         if format not in ('png', 'jpg'):
+            img = codecs.decode(img, 'utf-8')
             img = img.replace(os.path.join(DNSVIZ_SHARE_PATH, 'icons'), os.path.join(settings.STATIC_URL, 'images', 'dnssec_legend'))
+            img = codecs.encode(img, 'utf-8')
         if format == 'dot':
             content_type = 'text/plain'
         elif format == 'jpg':
@@ -468,9 +471,10 @@ class DomainNameResponsesMixin(object):
                 row.append((rrset_info.rrset.ttl, 'not-styled'))
                 row.append((dns.rdatatype.to_text(rrset_info.rrset.rdtype), 'not-styled'))
                 rrset_str = ''
-                rrset_list = list(rrset_info.rrset)
-                rrset_list.sort(cmp=rrset_info.rdata_cmp)
-                for rr in rrset_list:
+                rrset_list = [Response.RdataWrapper(x) for x in rrset_info.rrset]
+                rrset_list.sort()
+                for rrw in rrset_list:
+                    rr = rrw._rdata
                     rr_str = escape(rr.to_text(), quote=True)
                     if rrset_info.rrset.rdtype == dns.rdatatype.DNSKEY:
                         rr_str += ' ; <b>key tag = %d</b>' % Response.DNSKEYMeta.calc_key_tag(rr)
@@ -625,7 +629,7 @@ class DomainNameServersMixin(object):
         zone_obj = name_obj.zone
 
         delegation_matrix = []
-        
+
         def stealth_cmp(x, y):
             return cmp((y[0], x[1], x[2]), (x[0], y[1], y[2]))
 
@@ -850,6 +854,9 @@ def analyze(request, name, url_subdir=None):
                 th_factories = (transport.DNSQueryTransportHandlerWebSocketFactory(sockname),)
                 force_ancestor = dns.name.root
                 force_group = True
+            elif analyze_form.cleaned_data['perspective'] == 'other':
+                th_factories = (transport.DNSQueryTransportHandlerHTTPFactory(analyze_form.cleaned_data['looking_glass']),)
+                force_group = False
             else:
                 th_factories = None
                 force_group = False
