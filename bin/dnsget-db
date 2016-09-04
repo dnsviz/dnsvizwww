@@ -45,8 +45,9 @@ from dnsvizwww.models import DomainName
 from dnsviz.analysis import NetworkConnectivityException
 import dnsviz.format as fmt
 from dnsviz.ipaddr import IPAddr
+from dnsviz import query as Q
 from dnsviz import transport
-from dnsviz.resolver import FullResolver
+from dnsviz.resolver import Resolver, FullResolver
 from dnsviz.util import get_client_address
 
 # this needs to be global because of multiprocessing
@@ -79,7 +80,8 @@ def _init_tm():
 def _init_resolver():
     global full_resolver
 
-    full_resolver = FullResolver(transport_manager=tm, max_ttl=900)
+    #full_resolver = FullResolver(transport_manager=tm, max_ttl=900)
+    full_resolver = Resolver.from_file('/etc/resolv.conf', Q.StandardRecursiveQueryCD, transport_manager=tm)
 
 def _init_interrupt_handler():
     signal.signal(signal.SIGINT, _raise_eof)
