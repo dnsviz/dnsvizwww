@@ -283,6 +283,14 @@
 				$('#id_explicit_delegation').val('Enter names or addresses of resolvers, one per line.');
 			}
 
+			function enable_disable_looking_glass() {
+				if ($('#id_perspective_2').prop('checked')) {
+					$('#id_looking_glass').prop('disabled', false);
+				} else {
+					$('#id_looking_glass').prop('disabled', true);
+				}
+			}
+
 			function init_form() {
 				if ($('#id_analysis_type_1').prop('checked')) {
 					init_recursive();
@@ -304,6 +312,20 @@
 
 			$('#id_analysis_type_0').change(function() {
 				init_form();
+			});
+
+			enable_disable_looking_glass();
+
+			$('#id_perspective_2').change(function() {
+				enable_disable_looking_glass();
+			});
+
+			$('#id_perspective_1').change(function() {
+				enable_disable_looking_glass();
+			});
+
+			$('#id_perspective_0').change(function() {
+				enable_disable_looking_glass();
 			});
 
 			$('#id_explicit_delegation').focus(function() {
