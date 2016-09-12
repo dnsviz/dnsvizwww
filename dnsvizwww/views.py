@@ -799,7 +799,10 @@ def domain_search(request):
     return HttpResponseRedirect('../d/%s/' % name)
 
 def _set_mappings(domain, mappings):
-    explicit_delegation = { (domain, dns.rdatatype.NS): dns.rrset.RRset(domain, dns.rdataclass.IN, dns.rdatatype.NS) }
+    explicit_delegation = {}
+    if not mappings:
+        return explicit_delegation
+    explicit_delegation[(domain, dns.rdatatype.NS)] = dns.rrset.RRset(domain, dns.rdataclass.IN, dns.rdatatype.NS)
     for (n, addr) in mappings:
         explicit_delegation[(domain, dns.rdatatype.NS)].add(dns.rdtypes.ANY.NS.NS(dns.rdataclass.IN, dns.rdatatype.NS, n))
         if addr.version == 6:
