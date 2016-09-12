@@ -206,7 +206,7 @@ def domain_analysis_form(name):
                 help_text='If authoritative analysis is selected, then the authoritative servers will be analyzed, beginning at the root servers--or the servers explicitly designated; if recursive analysis is selected, then the designated recursive servers will be analyzed.')
         perspective = forms.ChoiceField(choices=PERSPECTIVE, initial='server', widget=forms.RadioSelect(),
                 help_text='If \'DNSViz server\' is selected, then the diagnostic queries will be issued from the DNSViz server.  If \'Web client\' is selected, they will be issued from the browser (requires the use of a Java applet).')
-        looking_glass = forms.ChoiceField(choices=THIRD_PARTY_LG,
+        looking_glass = forms.ChoiceField(choices=THIRD_PARTY_LG, required=False,
                 help_text='')
         sockname = forms.CharField(widget=forms.HiddenInput(), required=False)
 
@@ -218,6 +218,9 @@ def domain_analysis_form(name):
             if cleaned_data.get('perspective', None) == 'client' and \
                     not cleaned_data.get('sockname', None):
                 raise forms.ValidationError('No address supplied for WebSocket')
+            if cleaned_data.get('perspective', None) == 'other' and \
+                    not cleaned_data.get('looking_glass', None):
+                raise forms.ValidationError('No looking glass specified')
             return cleaned_data
 
         def clean_explicit_delegation(self):
