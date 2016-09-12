@@ -871,6 +871,15 @@ def analyze(request, name, url_subdir=None):
             else:
                 th_factories = None
                 force_group = False
+
+            opt = analyze_form.cleaned_data['ecs']
+            if opt is not None:
+                class Foo(object):
+                    edns_options = [opt]
+                query_class_mixin = Foo
+                force_group = True
+            else:
+                query_class_mixin = None
             edns_diagnostics = analyze_form.cleaned_data['edns_diagnostics']
             stop_at_explicit = { force_ancestor: True }
             start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
@@ -879,14 +888,14 @@ def analyze(request, name, url_subdir=None):
             # callbacks and streaming output to the browser.  If there is an
             # error with the analysis, it will be handled by the javascript.
             if request.is_ajax():
-                a = analyst_cls(name_obj.name, logger=analysis_logger.logger, edns_diagnostics=edns_diagnostics, stop_at_explicit=stop_at_explicit, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
+                a = analyst_cls(name_obj.name, logger=analysis_logger.logger, query_class_mixin=query_class_mixin, edns_diagnostics=edns_diagnostics, stop_at_explicit=stop_at_explicit, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
                 a.analyze_async(success_callback, exc_callback)
                 #TODO set alarm here for too long waits
                 return StreamingHttpResponse(analysis_logger.handler)
 
             # for non-ajax requests analyze synchronously
             else:
-                a = analyst_cls(name_obj.name, edns_diagnostics=edns_diagnostics, stop_at_explicit=stop_at_explicit, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
+                a = analyst_cls(name_obj.name, query_class_mixin=query_class_mixin, edns_diagnostics=edns_diagnostics, stop_at_explicit=stop_at_explicit, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
                 try:
                     name_obj = a.analyze()
 

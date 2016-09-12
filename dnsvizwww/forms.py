@@ -28,8 +28,9 @@
 
 import datetime
 import re
+import struct
 
-import dns.message, dns.name, dns.rdataclass, dns.rdatatype, dns.rrset
+import dns.edns, dns.message, dns.name, dns.rdataclass, dns.rdatatype
 
 from django import forms
 from django.conf import settings
@@ -195,6 +196,8 @@ def domain_analysis_form(name):
                 help_text='Usually it is sufficient to select the name itself (%s) or its zone, in which case cached values will be used for the analysis of any ancestor names (unless it is determined that they are out of date).  Occasionally it is useful to re-analyze some portion of the ancestry, in which case the desired ancestor can be selected.  However, the overall analysis will take longer.' % (fmt.humanize_name(name, True)))
         extra_types = forms.TypedMultipleChoiceField(choices=EXTRA_TYPES, initial=(), required=False, coerce=int,
                 help_text='Select any extra RR types to query as part of this analysis.  A default set of types will already be queried based on the nature of the name, but any types selected here will assuredly be included.')
+        ecs = forms.CharField(label='EDNS Client Subnet', required=False,
+                help_text='Enter an optional IPv4 or IPv6 subnet and prefix to be used in the EDNS client subnet field of the queries.')
         edns_diagnostics = forms.BooleanField(label='EDNS diagnostics', initial=False, required=False,
                 help_text='Issue queries specific to EDNS diagnostics.')
         explicit_delegation = forms.CharField(initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
@@ -287,6 +290,51 @@ def domain_analysis_form(name):
                 raise forms.ValidationError('Unable to process address records!')
 
             return mappings
+
+        def clean_ecs(self):
+            if not self.cleaned_data['ecs']:
+                return None
+
+            s = self.cleaned_data['ecs']
+            try:
+                addr, prefix = s.split('/', 1)
+            except ValueError:
+                addr = s
+                prefix = None
+
+            try:
+                addr = IPAddr(addr)
+            except ValueError:
+                raise forms.ValidationError('Please enter a valid IP address.')
+
+            if addr.version == 4:
+                addrlen = 4
+                family = 1
+            else:
+                addrlen = 16
+                family = 2
+
+            if prefix is None:
+                prefix = addrlen << 3
+            else:
+                try:
+                    prefix = int(prefix)
+                except ValueError:
+                    raise forms.ValidationError('Please enter a valid prefix length.')
+
+                if prefix < 0 or prefix > (addrlen << 3):
+                    raise forms.ValidationError('Please enter a valid prefix length.')
+
+            bytes_masked, remainder = divmod(prefix, 8)
+            if remainder:
+                bytes_masked += 1
+
+            wire = struct.pack('!H', family)
+            wire += struct.pack('!B', prefix)
+            wire += struct.pack('!B', 0)
+            wire += addr._ipaddr_bytes[:bytes_masked]
+
+            return dns.edns.GenericOption(8, wire)
 
     return DomainNameAnalysisForm
 
