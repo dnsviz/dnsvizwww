@@ -47,7 +47,7 @@ from django.template import RequestContext
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from dnsviz.analysis import status as Status, Analyst as _Analyst, OfflineDomainNameAnalysis as _OfflineDomainNameAnalysis
+from dnsviz.analysis import status as Status, Analyst as _Analyst, OfflineDomainNameAnalysis as _OfflineDomainNameAnalysis, DNS_RAW_VERSION
 from dnsviz.analysis.online import WILDCARD_EXPLICIT_DELEGATION, ANALYSIS_TYPE_AUTHORITATIVE, ANALYSIS_TYPE_RECURSIVE
 from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
@@ -757,6 +757,8 @@ class DomainNameRESTMixin(object):
             name_obj.serialize(d)
         else:
             raise Http404
+
+        d['_meta._dnsviz.'] = { 'version': DNS_RAW_VERSION, 'names': [name_obj.name.to_text()] }
 
         return HttpResponse(json.dumps(d, **kwargs), content_type='application/json')
 
