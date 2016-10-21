@@ -760,21 +760,26 @@ class DomainNameRESTMixin(object):
             d['name'] = name_obj.name.to_text()
             d['type'] = analysis_types[name_obj.analysis_type]
             d['stub'] = name_obj.stub
-            d['analysis_start'] = fmt.datetime_to_str(name_obj.analysis_start)
-            d['analysis_end'] = fmt.datetime_to_str(name_obj.analysis_end)
+            d['current'] = collections.OrderedDict((
+                ('analysis_start', fmt.datetime_to_str(name_obj.analysis_start)),
+                ('analysis_end', fmt.datetime_to_str(name_obj.analysis_end))))
             if name_obj.group is None:
                 if name_obj.previous is not None:
-                    d['previous_start'] = fmt.datetime_to_str(name_obj.previous.analysis_start)
-                    d['previous_end'] = fmt.datetime_to_str(name_obj.previous.analysis_end)
+                    d['previous'] = collections.OrderedDict((
+                        ('analysis_start', fmt.datetime_to_str(name_obj.previous.analysis_start)),
+                        ('analysis_end', fmt.datetime_to_str(name_obj.previous.analysis_end))))
                 if name_obj.next is not None:
-                    d['next_start'] = fmt.datetime_to_str(name_obj.next.analysis_start)
-                    d['next_end'] = fmt.datetime_to_str(name_obj.next.analysis_end)
+                    d['next'] = collections.OrderedDict((
+                        ('analysis_start', fmt.datetime_to_str(name_obj.next.analysis_start)),
+                        ('analysis_end', fmt.datetime_to_str(name_obj.next.analysis_end))))
                 if name_obj.first is not None:
-                    d['first_start'] = fmt.datetime_to_str(name_obj.first.analysis_start)
-                    d['first_end'] = fmt.datetime_to_str(name_obj.first.analysis_end)
+                    d['first'] = collections.OrderedDict((
+                        ('analysis_start', fmt.datetime_to_str(name_obj.first.analysis_start)),
+                        ('analysis_end', fmt.datetime_to_str(name_obj.first.analysis_end))))
                 if name_obj.latest is not None:
-                    d['latest_start'] = fmt.datetime_to_str(name_obj.latest.analysis_start)
-                    d['latest_end'] = fmt.datetime_to_str(name_obj.latest.analysis_end)
+                    d['latest'] = collections.OrderedDict((
+                        ('analysis_start', fmt.datetime_to_str(name_obj.latest.analysis_start)),
+                        ('analysis_end', fmt.datetime_to_str(name_obj.latest.analysis_end))))
         else:
             raise Http404
 
