@@ -48,7 +48,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
 from dnsviz.analysis import status as Status, Analyst as _Analyst, OfflineDomainNameAnalysis as _OfflineDomainNameAnalysis, DNS_RAW_VERSION
-from dnsviz.analysis.online import WILDCARD_EXPLICIT_DELEGATION, ANALYSIS_TYPE_AUTHORITATIVE, ANALYSIS_TYPE_RECURSIVE
+from dnsviz.analysis.online import WILDCARD_EXPLICIT_DELEGATION, ANALYSIS_TYPE_AUTHORITATIVE, ANALYSIS_TYPE_RECURSIVE, analysis_types
 from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
 import dnsviz.response as Response
@@ -747,18 +747,36 @@ class DomainNameRESTMixin(object):
         else:
             kwargs = {}
 
-        name_obj.retrieve_all()
-
         d = collections.OrderedDict()
         if rest_dir == 'processed/':
+            name_obj.retrieve_all()
             name_obj.populate_status(trusted_keys)
             name_obj.serialize_status(d, loglevel=loglevel)
         elif rest_dir == 'raw/':
+            name_obj.retrieve_all()
             name_obj.serialize(d)
+            d['_meta._dnsviz.'] = { 'version': DNS_RAW_VERSION, 'names': [name_obj.name.to_text()] }
+        elif rest_dir == 'meta/':
+            d['name'] = name_obj.name.to_text()
+            d['type'] = analysis_types[name_obj.analysis_type]
+            d['stub'] = name_obj.stub
+            d['analysis_start'] = fmt.datetime_to_str(name_obj.analysis_start)
+            d['analysis_end'] = fmt.datetime_to_str(name_obj.analysis_end)
+            if name_obj.group is None:
+                if name_obj.previous is not None:
+                    d['previous_start'] = fmt.datetime_to_str(name_obj.previous.analysis_start)
+                    d['previous_end'] = fmt.datetime_to_str(name_obj.previous.analysis_end)
+                if name_obj.next is not None:
+                    d['next_start'] = fmt.datetime_to_str(name_obj.next.analysis_start)
+                    d['next_end'] = fmt.datetime_to_str(name_obj.next.analysis_end)
+                if name_obj.first is not None:
+                    d['first_start'] = fmt.datetime_to_str(name_obj.first.analysis_start)
+                    d['first_end'] = fmt.datetime_to_str(name_obj.first.analysis_end)
+                if name_obj.latest is not None:
+                    d['latest_start'] = fmt.datetime_to_str(name_obj.latest.analysis_start)
+                    d['latest_end'] = fmt.datetime_to_str(name_obj.latest.analysis_end)
         else:
             raise Http404
-
-        d['_meta._dnsviz.'] = { 'version': DNS_RAW_VERSION, 'names': [name_obj.name.to_text()] }
 
         return HttpResponse(json.dumps(d, **kwargs), content_type='application/json')
 

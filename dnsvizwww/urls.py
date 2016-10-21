@@ -58,7 +58,7 @@ urlpatterns = patterns('',
         url(r'^d/(?P<name>%s)/(?P<url_subdir>servers/)$' % dns_name, never_cache(views.DomainNameServersView.as_view())),
         url(r'^d/(?P<name>%s)/(?P<url_subdir>responses/)$' % dns_name, never_cache(views.DomainNameResponsesView.as_view())),
         url(r'^d/(?P<name>%s)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, never_cache(views.DomainNameDNSSECGraphView.as_view())),
-        url(r'^d/(?P<name>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|processed)/)$' % dns_name, never_cache(views.DomainNameRESTView.as_view())),
+        url(r'^d/(?P<name>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|processed|meta)/)$' % dns_name, never_cache(views.DomainNameRESTView.as_view())),
 
         url(r'^d/(?P<name>%s)/(?P<url_subdir>analyze/)$' % dns_name, never_cache(views.analyze)),
 
@@ -67,14 +67,16 @@ urlpatterns = patterns('',
         url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>servers/)$' % (dns_name, timestamp), views.DomainNameServersView.as_view()),
         url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>responses/)$' % (dns_name, timestamp), views.DomainNameResponsesView.as_view()),
         url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % (dns_name, timestamp), views.DomainNameDNSSECGraphView.as_view()),
-        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|processed)/)$' % (dns_name, timestamp), views.DomainNameRESTView.as_view()),
+        url(r'^d/(?P<name>%s)/(?P<timestamp>%s)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|processed|meta)/)$' % (dns_name, timestamp), views.DomainNameRESTView.as_view()),
 
         url(r'^d/(?P<name>%s)/(r|e)/(?P<group_id>\d+)/$' % dns_name, views.DomainNameDetailGroupView.as_view()),
         url(r'^d/(?P<name>%s)/(r|e)/(?P<group_id>\d+)/(?P<url_subdir>dnssec/)$' % dns_name, views.DomainNameDNSSECPageGroupView.as_view()),
         url(r'^d/(?P<name>%s)/(r|e)/(?P<group_id>\d+)/(?P<url_subdir>servers/)$' % dns_name, views.DomainNameServersGroupView.as_view()),
         url(r'^d/(?P<name>%s)/(r|e)/(?P<group_id>\d+)/(?P<url_subdir>responses/)$' % dns_name, views.DomainNameResponsesGroupView.as_view()),
         url(r'^d/(?P<name>%s)/(r|e)/(?P<group_id>\d+)/(?P<url_subdir>dnssec/)(?P<url_file>auth_graph)\.(?P<format>png|jpg|svg|dot|js)$' % dns_name, views.DomainNameDNSSECGraphGroupView.as_view()),
-        url(r'^d/(?P<name>%s)/(r|e)/(?P<group_id>\d+)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|processed)/)$' % dns_name, views.DomainNameRESTGroupView.as_view()),
+        url(r'^d/(?P<name>%s)/(r|e)/(?P<group_id>\d+)/(?P<url_subdir>REST/)(?P<rest_dir>(raw|processed|meta)/)$' % dns_name, views.DomainNameRESTGroupView.as_view()),
+
+        #url(r'^util/dnslookingglass.jnlp$', views.lookingGlassJNLP),
 
         url(r'^contact/$', views.contact),
         url(r'^message_submitted/$', TemplateView.as_view(template_name='message_submitted.html')),
