@@ -75,7 +75,8 @@ class DNSSECOptionsForm(forms.Form):
             (dns.rdatatype.CNAME, dns.rdatatype.to_text(dns.rdatatype.CNAME)),
             (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
             (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
-            (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
+            (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)),
+            (dns.rdatatype.CAA, dns.rdatatype.to_text(dns.rdatatype.CAA)))
 
     A_CHOICES = (('all', '--All--'),
             (1, '1 - RSA/MD5'),
