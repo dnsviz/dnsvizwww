@@ -182,7 +182,8 @@ def domain_analysis_form(name):
                 (dns.rdatatype.CNAME, dns.rdatatype.to_text(dns.rdatatype.CNAME)),
                 (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
                 (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
-                (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)))
+                (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)),
+                (dns.rdatatype.CAA, dns.rdatatype.to_text(dns.rdatatype.CAA)))
 
         ANALYSIS_TYPES = ((ANALYSIS_TYPE_AUTHORITATIVE, 'Authoritative servers'),
                 (ANALYSIS_TYPE_RECURSIVE, 'Recursive servers'))
