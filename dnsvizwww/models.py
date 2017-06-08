@@ -485,7 +485,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 if query.edns >= 0:
                     edns_max_udp_payload = query.edns_max_udp_payload
                     edns_flags = query.edns_flags
-                    edns_options = ''
+                    edns_options = b''
                     for opt in query.edns_options:
                         s = StringIO.StringIO()
                         opt.to_wire(s)
@@ -881,7 +881,7 @@ class ResourceRecord(models.Model):
         if not hasattr(self, '_rdata') or self._rdata is None:
             if not self.rdata_wire:
                 return None
-            self._rdata = dns.rdata.from_wire(self.rdclass, self.rdtype, self.rdata_wire, 0, len(self.rdata_wire))
+            self._rdata = dns.rdata.from_wire(self.rdclass, self.rdtype, bytes(self.rdata_wire), 0, len(self.rdata_wire))
         return self._rdata
 
     rdata = property(_get_rdata, _set_rdata)
@@ -1145,7 +1145,7 @@ class DNSResponse(models.Model):
         if message.edns >= 0:
             self.edns_max_udp_payload = message.payload
             self.edns_flags = message.ednsflags
-            self.edns_options = ''
+            self.edns_options = b''
             for opt in message.options:
                 s = StringIO.StringIO()
                 opt.to_wire(s)
