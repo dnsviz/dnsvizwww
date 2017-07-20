@@ -53,7 +53,7 @@ from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
 import dnsviz.response as Response
 from dnsviz import transport
-from dnsviz.util import get_trusted_keys
+from dnsviz.util import get_default_trusted_keys
 from django.views.decorators.cache import cache_page
 from dnsviz.viz.dnssec import DNSAuthGraph
 
@@ -238,11 +238,16 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
             # (i.e., ignore root KSK ta setting)
             if name_obj.group is not None and name_obj.group.name == dns.name.root and \
                     name_obj.group.analysis_type == ANALYSIS_TYPE_AUTHORITATIVE and name_obj.group.explicit_delegation:
-                trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
+                try:
+                    trusted_zones.remove(dns.name.root)
+                except KeyError:
+                    pass
                 if '.' in options_form.fields['ta'].initial:
                     options_form.fields['ta'].initial.remove('.')
 
-            trusted_keys = trusted_keys_explicit + trusted_zones
+            trusted_keys = trusted_keys_explicit
+            if dns.name.root in trusted_zones:
+                trusted_keys += get_default_trusted_keys(name_obj.analysis_end)
 
             G = DNSAuthGraph()
 
@@ -284,11 +289,16 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
         # (i.e., ignore root KSK ta setting)
         if name_obj.group is not None and name_obj.group.name == dns.name.root and \
                 name_obj.group.analysis_type == ANALYSIS_TYPE_AUTHORITATIVE and name_obj.group.explicit_delegation:
-            trusted_zones = filter(lambda x: x[0] != dns.name.root, trusted_zones)
+            try:
+                trusted_zones.remove(dns.name.root)
+            except KeyError:
+                pass
             if '.' in options_form.fields['ta'].initial:
                 options_form.fields['ta'].initial.remove('.')
 
-        trusted_keys = trusted_keys_explicit + trusted_zones
+        trusted_keys = trusted_keys_explicit
+        if dns.name.root in trusted_zones:
+            trusted_keys += get_default_trusted_keys(name_obj.analysis_end)
 
         name_obj.retrieve_all()
         name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
@@ -378,7 +388,9 @@ class DynamicDomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, View):
         trusted_zones = values['ta']
         redundant_edges = values['red']
 
-        trusted_keys = trusted_keys_explicit + trusted_zones
+        trusted_keys = trusted_keys_explicit
+        if dns.name.root in trusted_zones:
+            trusted_keys += get_default_trusted_keys(datetime.datetime.now(fmt.utc))
 
         a = DynamicAnalyst(name)
         name_obj = a.analyze()
@@ -399,7 +411,9 @@ class DomainNameResponsesMixin(object):
 
         trusted_keys_explicit = values['tk']
         trusted_zones = values['ta']
-        trusted_keys = trusted_keys_explicit + trusted_zones
+        trusted_keys = trusted_keys_explicit
+        if dns.name.root in trusted_zones:
+            trusted_keys += get_default_trusted_keys(name_obj.analysis_end)
 
         name_obj.retrieve_all()
         name_obj.populate_status(trusted_keys)
@@ -621,7 +635,9 @@ class DomainNameServersMixin(object):
 
         trusted_keys_explicit = values['tk']
         trusted_zones = values['ta']
-        trusted_keys = trusted_keys_explicit + trusted_zones
+        trusted_keys = trusted_keys_explicit
+        if dns.name.root in trusted_zones:
+            trusted_keys += get_default_trusted_keys(name_obj.analysis_end)
 
         name_obj.retrieve_all()
         name_obj.populate_status(trusted_keys)
@@ -730,7 +746,9 @@ class DomainNameRESTMixin(object):
 
         trusted_keys_explicit = values['tk']
         trusted_zones = values['ta']
-        trusted_keys = trusted_keys_explicit + trusted_zones
+        trusted_keys = trusted_keys_explicit
+        if dns.name.root in trusted_zones:
+            trusted_keys += get_default_trusted_keys(name_obj.analysis_end)
 
         loglevel = request.GET.get('l', '')
         if loglevel == 'error':

@@ -46,10 +46,6 @@ from dnsviz.util import get_trusted_keys
 
 from dnsvizwww.models import OfflineDomainNameAnalysis
 
-_implicit_tk_str = '''
-.			IN	DNSKEY	257 3 8 AwEAAagAIKlVZrpC6Ia7gEzahOR+9W29euxhJhVVLOyQbSEW0O8gcCjF FVQUTf6v58fLjwBd0YI0EzrAcQqBGCzh/RStIoO8g0NfnfL2MTJRkxoX bfDaUeVPQuYEhg37NZWAJQ9VnMVDxP/VHL496M/QZxkjf5/Efucp2gaD X6RS6CXpoY68LsvPVjR0ZSwzz1apAzvN9dlzEheX7ICJBBtuA6G3LQpz W5hOA2hzCTMjJPJ8LbqF6dsV6DoBQzgul0sGIcGOYl7OyQdXfZ57relS Qageu+ipAdTTJ25AsRTAoub8ONGcLmqrAmRLKBP1dfwhYB4N7knNnulq QxA+Uk1ihz0=
-'''
-
 class LenientMultipleChoiceField(forms.MultipleChoiceField):
     def validate(self, value):
         """
@@ -132,18 +128,7 @@ class DNSSECOptionsForm(forms.Form):
             return map(int, self.cleaned_data['ds'])
 
     def clean_ta(self):
-        ta_all = get_trusted_keys(_implicit_tk_str)
-        names = set()
-        for name in self.cleaned_data['ta']:
-            try:
-                names.add(dns.name.from_text(name))
-            except dns.exception.DNSException:
-                raise forms.ValidationError('Invalid domain name entered: %s!' % name)
-        ta = []
-        for name, key in ta_all:
-            if name in names:
-                ta.append((name,key))
-        return ta
+        return set([dns.name.from_text(n) for n in self.cleaned_data['ta']])
 
     def clean_tk(self):
         try:
