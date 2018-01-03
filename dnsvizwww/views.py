@@ -880,7 +880,7 @@ def analyze(request, name, url_subdir=None):
         analysis_logger = log.IsolatedLogger(logging.DEBUG)
 
         def success_callback(name_obj):
-            analysis_logger.logger.info('Success!')
+            analysis_logger.logger.info('Analysis Complete')
             if name_obj.group is not None:
                 next_url = name_obj.base_url_with_timestamp()
             else:
