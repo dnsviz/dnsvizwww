@@ -166,7 +166,7 @@ class ContactForm(forms.Form):
 
     def clean(self):
         cleaned_data = super(ContactForm, self).clean()
-        if settings.get('CAPTCHA_SECRET', '') and \
+        if hasattr(settings, 'CAPTCHA_SECRET') and \
                 not self.validate_captcha(cleaned_data.get('g-recaptcha-response', '')):
             raise forms.ValidationError('Captcha response invalid.')
         return cleaned_data
