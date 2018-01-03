@@ -27,12 +27,9 @@
 #
 
 import datetime
-import json
 import logging
 import re
 import struct
-import urllib
-import urllib2
 
 import dns.edns, dns.message, dns.name, dns.rdataclass, dns.rdatatype
 
@@ -144,32 +141,6 @@ class ContactForm(forms.Form):
     subject = forms.CharField(max_length='64')
     reply_email = forms.EmailField(help_text='(Your email will not be stored or published anywhere.  It is simply used to return correspondence.)')
     message = forms.CharField(label='', widget=forms.Textarea)
-    captcha = forms.CharField(widget=forms.HiddenInput(), required=False)
-
-    def validate_captcha(self, response):
-        logger = logging.getLogger('django.request')
-        try:
-            data = (('secret', settings.CAPTCHA_SECRET), ('response', response))
-            f = urllib2.urlopen('https://www.google.com/recaptcha/api/siteverify', data=urllib.urlencode(data))
-        except urllib2.URLError:
-            logger.exception('Error validating captcha')
-            return False
-        try:
-            v = json.loads(f.read())
-        except ValueError:
-            logger.exception('Error validating captcha')
-            return False
-        if v.get('success'):
-            return True
-        else:
-            return False
-
-    def clean(self):
-        cleaned_data = super(ContactForm, self).clean()
-        if hasattr(settings, 'CAPTCHA_SECRET') and \
-                not self.validate_captcha(cleaned_data.get('g-recaptcha-response', '')):
-            raise forms.ValidationError('Captcha response invalid.')
-        return cleaned_data
 
     def submit_message(self):
         recipients = [e[1] for e in settings.MANAGERS]

@@ -979,7 +979,9 @@ def analyze(request, name, url_subdir=None):
 def contact(request):
     if request.method == 'POST':
         form = ContactForm(request.POST)
-        if form.is_valid():
+        if form.is_valid() and \
+                (not hasattr(settings, 'CAPTCHA_SECRET') or \
+                        util.validate_captcha(request.POST.get('g-recaptcha-response', ''))):
             form.submit_message()
             return HttpResponseRedirect('/message_submitted/')
     else:

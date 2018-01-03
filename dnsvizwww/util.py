@@ -28,12 +28,16 @@
 
 import base64
 from cgi import escape
+import json
+import logging
 import struct
 import urllib
+import urllib2
 import uuid
 
 import dns.dnssec, dns.name, dns.rdatatype, dns.rdataclass
 
+from django.conf import settings
 from django.core.cache.backends.base import DEFAULT_TIMEOUT
 
 import dnsviz.format as fmt
@@ -94,3 +98,21 @@ def touch_cache(cache, key, timeout=DEFAULT_TIMEOUT, version=None):
 
 def uuid_for_name(name):
     return uuid.uuid5(uuid.NAMESPACE_DNS, name.canonicalize().to_text())
+
+def validate_captcha(response):
+    logger = logging.getLogger('django.request')
+    try:
+        data = (('secret', settings.CAPTCHA_SECRET), ('response', response))
+        f = urllib2.urlopen('https://www.google.com/recaptcha/api/siteverify', data=urllib.urlencode(data))
+    except urllib2.URLError:
+        logger.exception('Error validating captcha')
+        return False
+    try:
+        v = json.loads(f.read())
+    except ValueError:
+        logger.exception('Error validating captcha')
+        return False
+    if v.get('success'):
+        return True
+    else:
+        return False
