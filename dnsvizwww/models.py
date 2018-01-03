@@ -830,17 +830,17 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         if self.name == dns.name.root:
             refresh_interval = 3600
 
-        # if we are a TLD, then re-analyze every six hours
+        # if we are a TLD, then re-analyze every eight hours
         elif len(self.name) <= 2:
-            refresh_interval = 21600
-
-        # if we are a signed zone, then re-analyze every eight hours
-        elif self.signed:
             refresh_interval = 28800
 
-        # if we are an unsigned zone, then re-analyze every two days
-        else:
+        # if we are a signed zone, then re-analyze every two days
+        elif self.signed:
             refresh_interval = 172800
+
+        # if we are an unsigned zone, then don't re-analyze
+        else:
+            return
 
         refresh_offset = util.uuid_for_name(self.name).int % refresh_interval
         dname_obj.set_refresh(refresh_interval, refresh_offset)
