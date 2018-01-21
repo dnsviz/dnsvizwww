@@ -354,6 +354,10 @@ class DomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, DomainNameSimpleView
 class DomainNameDNSSECGraphGroupView(DomainNameDNSSECGraphMixin, DomainNameGroupView):
     pass
 
+class DynamicDomainNameDetailView(View):
+    def get(self, request, name, url_subdir='', **kwargs):
+        return HttpResponseRedirect('dnssec/')
+
 class DynamicDomainNameDNSSECPage(View):
     def get(self, request, name, url_subdir='', **kwargs):
         name = util.name_url_decode(name)
@@ -362,7 +366,7 @@ class DynamicDomainNameDNSSECPage(View):
         name_obj = _OfflineDomainNameAnalysis(name)
         name_obj.analysis_end = datetime.datetime.now(fmt.utc).replace(microsecond=0)
         name_obj.base_url_with_timestamp = '../'
-        name_obj.previous = OfflineDomainNameAnalysis.objects.latest(name)
+        name_obj.previous = None
         template = 'dnssec.html'
 
         analyzed_name_obj = name_obj
@@ -372,7 +376,7 @@ class DynamicDomainNameDNSSECPage(View):
         return render_to_response(template,
                 { 'name_obj': name_obj, 'analyzed_name_obj': analyzed_name_obj, 'url_subdir': url_subdir, 'title': name_obj,
                     'options_form': options_form, 'date_form': date_form,
-                    'use_js': True, 'query_string': request.META['QUERY_STRING'] },
+                    'use_js': True, 'query_string': request.META['QUERY_STRING'], 'dynamic': True },
                 context_instance=RequestContext(request))
 
 class DynamicDomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, View):

@@ -44,6 +44,14 @@
 </form></div>
 {% endif %}
 
+{% if dynamic %}
+
+<div id="last-updated">
+	Updated: <span id="updated-time"><strong>{{ name_obj.analysis_end|date:"Y-m-d H:i:s" }} UTC</strong> (<abbr class="timeago" title="{{ name_obj.analysis_end|date:"c" }}">{{ name_obj.updated_ago_str }} ago</abbr>)</span>
+</div>
+
+{% else %}
+
 {% if name_obj.analysis_end %}
 <div id="last-updated">
 	{% if name_obj.group %}
@@ -90,6 +98,8 @@
 
 {% endif %}
 
+{% endif %}
+
 <div class="panel">
 	<div id="share-buttons">
 		<ul>
@@ -103,6 +113,8 @@
 	</div>
 
 	<!-- TABS -->
+
+	{% if not dynamic %}
 
 	{% block view_tabs %}
 	<ul class="tabs">
@@ -128,6 +140,8 @@
 		{% endif %}
 	</ul>
 	{% endblock %}
+
+	{% endif %}
 
 	{% block page_info %}
 	{% endblock %}

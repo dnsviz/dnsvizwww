@@ -54,7 +54,11 @@
 				tooltipClass: "fixed-width"
 			});
 
+			{% if dynamic %}
+			var load_status = 'Analyzing...';
+			{% else %}
 			var load_status = 'Loading...';
+			{% endif %}
 			var timeout = 30000;
 			$('#graph').html('<div id="auth_graph"><div id="graph_loading"><img src="{{ STATIC_URL }}images/loading.gif" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div></div>');
 			$('#notices').html('<div id="notices_loading"><img src="{{ STATIC_URL }}images/loading.gif" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div>');
@@ -144,9 +148,11 @@
 {% endblock %}
 
 {% block page_content %}
+	{% if not dynamic %}
 	{% block dnssec_options %}
 	{% include "dnssec_options.html" %}
 	{% endblock %}
+	{% endif %}
 
 	<!-- VISUALIZATION DATA -->
 	<div id="viz">
@@ -205,9 +211,11 @@
 		</div> <!-- notices-region -->
 
 		<div id="diagram-region">
+			{% if not dynamic %}
 			<div id="graph-download">
 				Download: <a href="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png?download=1{% if query_string %}&amp;{{ query_string }}{% endif %}">png</a> | <a href="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.svg?download=1{% if query_string %}&amp;{{ query_string }}{% endif %}">svg</a><br />
 			</div>
+			{% endif %}
 
 			<div id="graph-hint">
 			{% if use_js %}
