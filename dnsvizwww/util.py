@@ -58,7 +58,10 @@ def name_url_encode(name):
 def name_url_decode(name):
     if name == 'root':
         return dns.name.root
-    return dns.name.from_text(name.replace('S', '/'), dns.name.root)
+    try:
+        return dns.name.from_text(name.replace('S', '/'), dns.name.root)
+    except (UnicodeEncodeError, dns.name.FormError) as e:
+        return None
 
 def rr_to_html(name, rdclass, rdtype, ttl, rdata):
     s = '<tr class="rr"><td>%s</td><td>%d</td><td>%s</td><td>%s</td><td>' % (name, ttl, dns.rdataclass.to_text(rdclass), dns.rdatatype.to_text(rdtype))

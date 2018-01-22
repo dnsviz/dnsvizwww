@@ -77,6 +77,11 @@ class DomainNameView(View):
             return reset_query_string(request)
 
         name = util.name_url_decode(name)
+        if name is None:
+            # name is invalid
+            #TODO have a custom error page
+            raise Http404
+
         if 'date_search' in request.GET:
             date_form = domain_date_search_form(name)(request.GET)
             if date_form.is_valid():
@@ -108,6 +113,10 @@ class DomainNameView(View):
 class DomainNameSimpleView(View):
     def get(self, request, name, timestamp=None, url_subdir='', **kwargs):
         name = util.name_url_decode(name)
+        if name is None:
+            # name is invalid
+            #TODO have a custom error page
+            raise Http404
 
         if timestamp is None:
             name_obj = OfflineDomainNameAnalysis.objects.latest(name)
@@ -129,6 +138,11 @@ class DomainNameGroupView(View):
             return reset_query_string(request)
 
         name = util.name_url_decode(name)
+        if name is None:
+            # name is invalid
+            #TODO have a custom error page
+            raise Http404
+
         try:
             group = OfflineDomainNameAnalysis.objects.get(pk=int(group_id))
         except OfflineDomainNameAnalysis.DoesNotExist:
@@ -361,6 +375,11 @@ class DynamicDomainNameDetailView(View):
 class DynamicDomainNameDNSSECPage(View):
     def get(self, request, name, url_subdir='', **kwargs):
         name = util.name_url_decode(name)
+        if name is None:
+            # name is invalid
+            #TODO have a custom error page
+            raise Http404
+
         options_form, values = get_dnssec_options_form_data(request.GET)
 
         name_obj = _OfflineDomainNameAnalysis(name)
@@ -382,6 +401,11 @@ class DynamicDomainNameDNSSECPage(View):
 class DynamicDomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, View):
     def get(self, request, name, url_subdir='', url_file=None, format=None, **kwargs):
         name = util.name_url_decode(name)
+        if name is None:
+            # name is invalid
+            #TODO have a custom error page
+            raise Http404
+
         options_form, values = get_dnssec_options_form_data(request.GET)
 
         rdtypes = set(values['rr'])
@@ -866,6 +890,11 @@ def _set_mappings(domain, mappings):
 @csrf_exempt
 def analyze(request, name, url_subdir=None):
     name = util.name_url_decode(name)
+    if name is None:
+        # name is invalid
+        #TODO have a custom error page
+        raise Http404
+
     name_obj = OfflineDomainNameAnalysis.objects.latest(name)
 
     if not url_subdir:
