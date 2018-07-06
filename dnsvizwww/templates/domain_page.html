@@ -1,21 +1,23 @@
 {% extends "base_site.html" %}
 
+{% load static from staticfiles %}
+
 {% block extra_media %}
 	<script type="text/javascript" src="http://platform.twitter.com/widgets.js" ></script>
 	<script type="text/javascript" src="https://apis.google.com/js/plusone.js">
 		{lang:'en-US', parsetags:'explicit'}
 	</script>
-	<script type="text/javascript" src="{{ STATIC_URL }}js/jquery-1.11.1.min.js"></script>
-	<script type="text/javascript" src="{{ STATIC_URL }}js/jquery-ui-1.10.4.custom.min.js"></script>
-	<script type="text/javascript" src="{{ STATIC_URL }}js/jquery.timeago.js"></script>
-	<link rel="stylesheet" href="{{ STATIC_URL }}css/redmond/jquery-ui-1.10.4.custom.min.css" />
-	<link rel="stylesheet" href="{{ STATIC_URL }}css/dnsviz-ui.css" />
+	<script type="text/javascript" src="{% static "js/jquery-1.11.1.min.js" %}"></script>
+	<script type="text/javascript" src="{% static "js/jquery-ui-1.10.4.custom.min.js" %}"></script>
+	<script type="text/javascript" src="{% static "js/jquery.timeago.js" %}"></script>
+	<link rel="stylesheet" href="{% static "css/redmond/jquery-ui-1.10.4.custom.min.css" %}" />
+	<link rel="stylesheet" href="{% static "css/dnsviz-ui.css" %}" />
 	<script type="text/javascript">
 		$(document).ready(function() {
 			var now = new Date();
 			$('abbr.timeago').timeago();
 			{% if url_subdir != "analyze/" %}
-			$('.datepicker').datepicker({ showOn: 'both', buttonImageOnly: true, buttonImage: '{{ STATIC_URL }}images/calendar.gif', buttonText: 'Select a date', dateFormat: 'yy-mm-dd', minDate: '{{ name_obj.first.analysis_end|date:"Y-m-d" }}', maxDate: new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) });
+			$('.datepicker').datepicker({ showOn: 'both', buttonImageOnly: true, buttonImage: '{% static "images/calendar.gif" %}', buttonText: 'Select a date', dateFormat: 'yy-mm-dd', minDate: '{{ name_obj.first.analysis_end|date:"Y-m-d" }}', maxDate: new Date(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) });
 			{% endif %}
 		});
 	</script>

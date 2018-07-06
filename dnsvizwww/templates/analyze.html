@@ -3,8 +3,8 @@
 {% block extra_media %}
 	{{ block.super }}
 	<!-- Javascripts and associated styles -->
-	<script type="text/javascript" src="{{ STATIC_URL }}js/jquery-ui-1.10.4.custom.min.js"></script>
-	<link rel="stylesheet" href="{{ STATIC_URL }}css/redmond/jquery-ui-1.10.4.custom.min.css" />
+	<script type="text/javascript" src="{% static "js/jquery-ui-1.10.4.custom.min.js" %}"></script>
+	<link rel="stylesheet" href="{% static "css/redmond/jquery-ui-1.10.4.custom.min.css" %}" />
 	<script src="http://java.com/js/dtjava.js"></script>
 	<script type="text/javascript">
 		<!--
@@ -49,7 +49,7 @@
 			function deployApplet(callback) {
 				dtjava.embed({
 						id: 'dnslookinglass-applet',
-						url: '{{ STATIC_URL }}/applet/dnslookingglass.jnlp',
+						url: '{% static "/applet/dnslookingglass.jnlp" %}',
 						width: 1,
 						height: 1,
 						placeholder: "appletPlaceholder",
@@ -401,7 +401,7 @@
 	<div id="analysis-progress">
 		<div id="progress-bar">
 			<p>Please be patient while we analyze <span class="domain">{{ name_obj }}</span>.</p>
-			<img alt="progress bar" src="{{ STATIC_URL }}images/progress.gif" />
+			<img alt="progress bar" src="{% static "images/progress.gif" %} />
 		</div>
 		<div id="progress-log">
 		</div>

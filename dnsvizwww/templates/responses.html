@@ -4,7 +4,7 @@
 
 {% block extra_media %}
 	{{ block.super }}
-	<script type="text/javascript" src="{{ STATIC_URL }}js/raphael-min.js"></script>
+	<script type="text/javascript" src="{% static "js/raphael-min.js" %}"></script>
 	<script type="text/javascript">
 		<!--
 		$(document).ready(function() {
