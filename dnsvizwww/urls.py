@@ -26,7 +26,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from django.conf.urls import patterns, url
+from django.conf.urls import url
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from django.views.decorators.cache import never_cache
 from django.views.generic.base import TemplateView, RedirectView
@@ -47,7 +47,7 @@ timestamp = r'[a-zA-Z0-9-_]{6}'
 
 ip_chars = r'[0-9a-fA-F:\.]{,39}'
 
-urlpatterns = patterns('',
+urlpatterns = [
         url(r'^$', TemplateView.as_view(template_name='main.html')),
 
         url(r'^search/$', views.domain_search),
@@ -84,6 +84,6 @@ urlpatterns = patterns('',
         url(r'^doc/$', TemplateView.as_view(template_name='doc.html')),
         url(r'^doc/faq/$', TemplateView.as_view(template_name='faq.html')),
         url(r'^doc/dnssec/$', TemplateView.as_view(template_name='dnssec_legend.html')),
-)
+]
 
 urlpatterns += staticfiles_urlpatterns()
