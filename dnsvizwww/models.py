@@ -34,6 +34,7 @@ import dns.edns, dns.exception, dns.flags, dns.message, dns.name, dns.rcode, dns
 
 from django.conf import settings
 from django.core.cache import cache as Cache
+from django.core.validators import validate_comma_separated_integer_list
 from django.db import models
 from django.db.models import Q
 from django.utils.html import escape
@@ -1059,7 +1060,7 @@ class DNSResponse(models.Model):
     error = models.PositiveSmallIntegerField(blank=True, null=True)
     errno = models.PositiveSmallIntegerField(blank=True, null=True)
     response_time = models.PositiveSmallIntegerField()
-    history_serialized = models.CommaSeparatedIntegerField(max_length=4096, blank=True)
+    history_serialized = models.CharField(max_length=4096, validators=[validate_comma_separated_integer_list], blank=True)
 
     msg_size = fields.UnsignedSmallIntegerField(blank=True, null=True)
 
