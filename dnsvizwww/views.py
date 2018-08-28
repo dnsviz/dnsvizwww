@@ -509,9 +509,9 @@ class DomainNameResponsesMixin(object):
                 rrset_servers = set([s[0] for s in rrset_info.servers_clients])
                 row_grouping = []
                 row = []
-                row.append((fmt.humanize_name(rrset_info.rrset.name, True), 'not-styled'))
-                row.append((rrset_info.rrset.ttl, 'not-styled'))
-                row.append((dns.rdatatype.to_text(rrset_info.rrset.rdtype), 'not-styled'))
+                row.append((fmt.humanize_name(rrset_info.rrset.name, True), 'not-styled', None, None, None))
+                row.append((rrset_info.rrset.ttl, 'not-styled', None, None, None))
+                row.append((dns.rdatatype.to_text(rrset_info.rrset.rdtype), 'not-styled', None, None, None))
                 rrset_str = ''
                 rrset_list = [Response.RdataWrapper(x) for x in rrset_info.rrset]
                 rrset_list.sort()
@@ -521,32 +521,32 @@ class DomainNameResponsesMixin(object):
                     if rrset_info.rrset.rdtype == dns.rdatatype.DNSKEY:
                         rr_str += ' ; <b>key tag = %d</b>' % Response.DNSKEYMeta.calc_key_tag(rr)
                     rrset_str += '\n<div class="rr">%s</div>' % rr_str
-                row.append((rrset_str, 'not-styled'))
+                row.append((rrset_str, 'not-styled', None, None, None))
 
-                status = ('OK', 'valid')
+                status = ('OK', 'valid', None, None, None)
                 row.append(status)
 
                 for server, names in slist:
                     if server in rrset_servers:
-                        row.append(('Y', 'valid', ))
+                        row.append(('Y', 'valid', None, None, None))
                     else:
                         server_queried = False
                         for q in query.queries.values():
                             if server in q.responses:
                                 server_queried = True
                         if server_queried:
-                            row.append(('', 'not-styled'))
+                            row.append(('', 'not-styled', None, None, None))
                         else:
-                            row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype))))
+                            row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype)), None))
                 row_grouping.append(row)
 
                 for rrsig in my_name_obj.rrsig_status[rrset_info]:
                     rrsig_servers = set([s[0] for s in rrset_info.rrsig_info[rrsig].servers_clients])
                     row = []
-                    row.append(('', 'not-styled'))
-                    row.append((rrset_info.rrsig_info[rrsig].ttl, 'not-styled'))
-                    row.append(('RRSIG', 'not-styled'))
-                    row.append(('<div class="rr">%s</div>' % rrsig.to_text(), 'not-styled'))
+                    row.append(('', 'not-styled', None, None, None))
+                    row.append((rrset_info.rrsig_info[rrsig].ttl, 'not-styled', None, None, None))
+                    row.append(('RRSIG', 'not-styled', None, None, None))
+                    row.append(('<div class="rr">%s</div>' % rrsig.to_text(), 'not-styled', None, None, None))
 
                     try:
                         status = filter(lambda x: x.signature_valid == True, my_name_obj.rrsig_status[rrset_info][rrsig].values())[0]
@@ -554,22 +554,22 @@ class DomainNameResponsesMixin(object):
                         status = my_name_obj.rrsig_status[rrset_info][rrsig].values()[0]
 
                     style = Status.rrsig_status_mapping[status.validation_status]
-                    row.append((Status.rrsig_status_mapping[status.validation_status], style))
+                    row.append((Status.rrsig_status_mapping[status.validation_status], style, None, None, None))
 
                     for server, names in slist:
                         if server in rrsig_servers:
-                            row.append(('Y', style))
+                            row.append(('Y', style, None, None, None))
                         elif server not in rrset_servers:
-                            row.append(('', 'not-queried'))
+                            row.append(('', 'not-queried', None, None, None))
                         else:
-                            row.append(('', 'not-styled'))
+                            row.append(('', 'not-styled', None, None, None))
                     row_grouping.append(row)
                 pos_matrix.append(row_grouping)
 
             row_grouping = []
             row = []
             row.append(('RR count (Answer/Authority/Additional)', 'not-styled', None, None, 4))
-            row.append(('OK', 'valid'))
+            row.append(('OK', 'valid', None, None, None))
             for server, names in slist:
                 server_queried = False
                 response = None
@@ -589,18 +589,18 @@ class DomainNameResponsesMixin(object):
                     for i in response.message.additional: additional_ct += len(i)
                     if response.message.edns >= 0:
                         additional_ct += 1
-                    row.append(('%d/%d/%d' % (answer_ct, authority_ct, additional_ct), 'valid'))
+                    row.append(('%d/%d/%d' % (answer_ct, authority_ct, additional_ct), 'valid', None, None, None))
                 elif not server_queried:
-                    row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype))))
+                    row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype)), None))
                 elif server:
-                    row.append(('', 'not-styled'))
+                    row.append(('', 'not-styled', None, None, None))
             row_grouping.append(row)
             pos_matrix.append(row_grouping)
 
             row_grouping = []
             row = []
             row.append(('Response size (bytes)', 'not-styled', None, None, 4))
-            row.append(('OK', 'valid'))
+            row.append(('OK', 'valid', None, None, None))
             for server, names in slist:
                 server_queried = False
                 response = None
@@ -612,18 +612,18 @@ class DomainNameResponsesMixin(object):
                             response = r
                             break
                 if server_queried and response is not None:
-                    row.append((response.msg_size, 'valid'))
+                    row.append((response.msg_size, 'valid', None, None, None))
                 elif not server_queried:
-                    row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype))))
+                    row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype)), None))
                 elif server:
-                    row.append(('', 'not-styled'))
+                    row.append(('', 'not-styled', None, None, None))
             row_grouping.append(row)
             pos_matrix.append(row_grouping)
 
             row_grouping = []
             row = []
             row.append(('Response time (ms)', 'not-styled', None, None, 4))
-            row.append(('OK', 'valid'))
+            row.append(('OK', 'valid', None, None, None))
             for server, names in slist:
                 server_queried = False
                 response = None
@@ -635,11 +635,11 @@ class DomainNameResponsesMixin(object):
                             response = r
                             break
                 if server_queried and response is not None:
-                    row.append((int(response.response_time*1e3), 'valid'))
+                    row.append((int(response.response_time*1e3), 'valid', None, None, None))
                 elif not server_queried:
-                    row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype))))
+                    row.append(('', 'not-queried', None, 'Server %s not queried for %s/%s.' % (server, fmt.humanize_name(name), dns.rdatatype.to_text(rdtype)), None))
                 elif server:
-                    row.append(('', 'not-styled'))
+                    row.append(('', 'not-styled', None, None, None))
             row_grouping.append(row)
             pos_matrix.append(row_grouping)
 
