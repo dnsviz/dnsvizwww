@@ -1013,7 +1013,7 @@ class ResourceRecordManager(models.Manager):
     def model_for_rdtype(self, rdtype):
         return self._rdtype_model_map.get(rdtype, ResourceRecord)
 
-ResourceRecord.add_to_class('objects', ResourceRecordManager())
+ResourceRecord.add_to_class('rr_mapper', ResourceRecordManager())
 
 class DNSQueryOptions(models.Model):
     flags = fields.UnsignedSmallIntegerField()
@@ -1088,7 +1088,7 @@ class DNSResponse(models.Model):
     def _import_section(self, section, number):
         rr_map_list = []
         for index, rrset in enumerate(section):
-            rr_cls = ResourceRecord.objects.model_for_rdtype(rrset.rdtype)
+            rr_cls = ResourceRecord.rr_mapper.model_for_rdtype(rrset.rdtype)
             for rr in rrset:
                 sio = StringIO.StringIO()
                 rr.to_wire(sio)
