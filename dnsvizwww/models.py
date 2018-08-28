@@ -548,9 +548,9 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     def _retrieve_auth_ns_ip_mapping(self):
         # add the auth NS to IP mapping
         for name, ip in self.auth_ns_ip_mapping_db.values_list('name', 'server__ip_address'):
-            self.add_auth_ns_ip_mappings((dns.name.from_text(name), IPAddr(ip)))
+            self.add_auth_ns_ip_mappings((name, IPAddr(ip)))
         for name in self.auth_ns_negative_response_db.values_list('name', flat=True):
-            self.add_auth_ns_ip_mappings((dns.name.from_text(name), None))
+            self.add_auth_ns_ip_mappings((name, None))
 
     def _retrieve_query(self, query, bailiwick_map, default_bailiwick):
         # this query might have already been imported.  If so, don't

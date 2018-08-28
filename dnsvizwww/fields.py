@@ -33,7 +33,9 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
 class UnsignedSmallIntegerField(models.SmallIntegerField):
-    __metaclass__ = models.SubfieldBase
+    def from_db_value(self, value, expression, connection, context):
+        return self.to_python(value)
+
     def to_python(self, value):
         value = super(UnsignedSmallIntegerField, self).to_python(value)
         if value is None:
@@ -51,7 +53,9 @@ class UnsignedSmallIntegerField(models.SmallIntegerField):
         return value
 
 class UnsignedIntegerField(models.IntegerField):
-    __metaclass__ = models.SubfieldBase
+    def from_db_value(self, value, expression, connection, context):
+        return self.to_python(value)
+
     def to_python(self, value):
         value = super(UnsignedIntegerField, self).to_python(value)
         if value is None:
@@ -71,11 +75,12 @@ class UnsignedIntegerField(models.IntegerField):
 class DomainNameField(models.CharField):
     description = _("Domain name (with maximum length of %(max_length)s characters)")
 
-    __metaclass__ = models.SubfieldBase
-
     def __init__(self, *args, **kwargs):
         self.canonicalize = kwargs.pop('canonicalize', True)
         super(DomainNameField, self).__init__(*args, **kwargs)
+
+    def from_db_value(self, value, expression, connection, context):
+        return self.to_python(value)
 
     def to_python(self, value):
         if value is None:
