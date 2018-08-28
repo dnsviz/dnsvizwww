@@ -42,7 +42,7 @@ import dns.name, dns.rdataclass, dns.rdatatype, dns.rdtypes.ANY.NS, dns.rdtypes.
 
 from django.conf import settings
 from django.http import HttpResponse, StreamingHttpResponse, HttpResponseRedirect, Http404
-from django.shortcuts import render_to_response
+from django.shortcuts import render
 from django.template import RequestContext
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
@@ -275,11 +275,10 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
         analyzed_name_obj = name_obj
         template = 'dnssec.html'
 
-        return render_to_response(template,
+        return render(request, template,
                 { 'name_obj': name_obj, 'analyzed_name_obj': analyzed_name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
                     'options_form': options_form, 'date_form': date_form,
-                    'notices': notices, 'use_js': use_js, 'query_string': request.META['QUERY_STRING'] },
-                context_instance=RequestContext(request))
+                    'notices': notices, 'use_js': use_js, 'query_string': request.META['QUERY_STRING'] })
 
 class DomainNameDNSSECPageView(DomainNameDNSSECPageMixin, DomainNameView):
     pass
@@ -392,11 +391,10 @@ class DynamicDomainNameDNSSECPage(View):
 
         date_form = domain_date_search_form(name)(initial={'date': fmt.datetime_to_str(name_obj.analysis_end)[:10] })
 
-        return render_to_response(template,
+        return render(request, template,
                 { 'name_obj': name_obj, 'analyzed_name_obj': analyzed_name_obj, 'url_subdir': url_subdir, 'title': name_obj,
                     'options_form': options_form, 'date_form': date_form,
-                    'use_js': True, 'query_string': request.META['QUERY_STRING'], 'dynamic': True },
-                context_instance=RequestContext(request))
+                    'use_js': True, 'query_string': request.META['QUERY_STRING'], 'dynamic': True })
 
 class DynamicDomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, View):
     def get(self, request, name, url_subdir='', url_file=None, format=None, **kwargs):
@@ -646,10 +644,9 @@ class DomainNameResponsesMixin(object):
             if pos_matrix:
                 response_consistency.append(('Responses for %s/%s' % (fmt.humanize_name(name, True), dns.rdatatype.to_text(rdtype)), slist, pos_matrix))
 
-        return render_to_response('responses.html',
+        return render(request, 'responses.html',
                 { 'name_obj': name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
-                    'date_form': date_form, 'response_consistency': response_consistency },
-                context_instance=RequestContext(request))
+                    'date_form': date_form, 'response_consistency': response_consistency })
 
 class DomainNameResponsesView(DomainNameResponsesMixin, DomainNameView):
     pass
@@ -756,11 +753,10 @@ class DomainNameServersMixin(object):
             row = (names, ancestor_zone, server)
             stealth_matrix.append(row)
 
-        return render_to_response('servers.html',
+        return render(request, 'servers.html',
                 { 'name_obj': name_obj, 'timestamp': timestamp, 'url_subdir': url_subdir, 'title': name_obj,
                     'date_form': date_form, 'zone_obj': zone_obj, 'delegation': delegation_matrix, 'stealth': stealth_matrix, 'no_non_auth_parent_msg': no_non_auth_parent_msg, 'show_msg': show_msg,
-                    'ips_from_parent': ips_from_parent, 'ips_from_child': ips_from_child },
-                context_instance=RequestContext(request))
+                    'ips_from_parent': ips_from_parent, 'ips_from_child': ips_from_child })
 
 class DomainNameServersView(DomainNameServersMixin, DomainNameView):
     pass
@@ -863,9 +859,8 @@ def domain_search(request):
         name_valid = False
 
     if not name_valid:
-        return render_to_response('search.html',
-                { 'domain_name': name, 'title': 'Search' },
-                context_instance=RequestContext(request))
+        return render(request, 'search.html',
+                { 'domain_name': name, 'title': 'Search' })
 
     return HttpResponseRedirect('../d/%s/' % name)
 
@@ -1004,10 +999,9 @@ def analyze(request, name, url_subdir=None):
     else:
         analyze_form = form_class()
 
-    return render_to_response('analyze.html',
+    return render(request, 'analyze.html',
             { 'name_obj': name_obj, 'url_subdir': url_subdir, 'title': name_obj,
-                'error_msg': error_msg, 'analyze_form': analyze_form },
-            context_instance=RequestContext(request))
+                'error_msg': error_msg, 'analyze_form': analyze_form })
 
 def contact(request):
     if request.method == 'POST':
@@ -1020,5 +1014,4 @@ def contact(request):
     else:
         form = ContactForm()
 
-    return render_to_response('contact.html', { 'form': form },
-            context_instance=RequestContext(request))
+    return render(request, 'contact.html', { 'form': form })
