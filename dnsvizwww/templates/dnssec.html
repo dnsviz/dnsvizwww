@@ -1,13 +1,15 @@
 {% extends "domain_page.html" %}
 
+{% load static %}
+
 {% block extra_media %}
 
 	{{ block.super }}
 
 	{% if use_js %}
 	<!-- Javascripts and associated styles -->
-	<script type="text/javascript" src="{{ STATIC_URL }}js/raphael-min.js"></script>
-	<script type="text/javascript" src="{{ STATIC_URL }}js/dnsviz.js"></script>
+	<script type="text/javascript" src="{% static "js/raphael-min.js" %}"></script>
+	<script type="text/javascript" src="{% static "js/dnsviz.js" %}"></script>
 	<style type="text/css" media="screen">
 		/* hide regions that require javascript */
 		.toggle { display:none; }
@@ -61,8 +63,8 @@
 			var load_status = 'Loading...';
 			var timeout = 30000;
 			{% endif %}
-			$('#graph').html('<div id="auth_graph"><div id="graph_loading"><img src="{{ STATIC_URL }}images/loading.gif" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div></div>');
-			$('#notices').html('<div id="notices_loading"><img src="{{ STATIC_URL }}images/loading.gif" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div>');
+			$('#graph').html('<div id="auth_graph"><div id="graph_loading"><img src="{% static "images/loading.gif" %}" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div></div>');
+			$('#notices').html('<div id="notices_loading"><img src="{% static "images/loading.gif" %}" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div>');
 
 			var load_graph = function () {
 				$.ajax("{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.js{% if query_string %}?{{ query_string }}{% endif %}", {
@@ -75,7 +77,7 @@
 
 							//TODO determine whether graph has nodes
 
-							image.postNotices('notices', '{{ STATIC_URL }}images/dnssec_legend/');
+							image.postNotices('notices', '{% static "images/dnssec_legend/" %}');
 
 							$("#notices-region h5").click(function() {
 								var tog = $(this);
@@ -197,10 +199,10 @@
 				<h3>DNSKEY legend</h3>
 				<a href="/doc/dnssec/">Full legend</a><br />
 				<table>
-					<tr><td><img src="{{ STATIC_URL }}images/dnssec_legend/dnskey_sep.png" alt="SEP bit set" /></td><td>SEP bit set</td></tr>
-					<tr><td><img src="{{ STATIC_URL }}images/dnssec_legend/dnskey_revoke.png" alt="Revoke bit set" /></td><td>Revoke bit set</td></tr>
-					<tr><td><img src="{{ STATIC_URL }}images/dnssec_legend/trust_anchor.png" alt="Trust anchor" /></td><td>Trust anchor</td></tr>
-					<!--tr><td><img src="{{ STATIC_URL }}images/dnssec_legend/alias_dep.png" alt="Alias dependency" /></td><td>Alias dependency</td></tr-->
+					<tr><td><img src="{% static "images/dnssec_legend/dnskey_sep.png" %}" alt="SEP bit set" /></td><td>SEP bit set</td></tr>
+					<tr><td><img src="{% static "images/dnssec_legend/dnskey_revoke.png" %}" alt="Revoke bit set" /></td><td>Revoke bit set</td></tr>
+					<tr><td><img src="{% static "images/dnssec_legend/trust_anchor.png" %}" alt="Trust anchor" /></td><td>Trust anchor</td></tr>
+					<!--tr><td><img src="{% static "images/dnssec_legend/alias_dep.png" %}" alt="Alias dependency" /></td><td>Alias dependency</td></tr-->
 				</table>
 			</div>
 
@@ -222,14 +224,14 @@
 			{% if use_js %}
 			<noscript>
 				<div>
-				<img alt="Warning" src="{{ STATIC_URL }}images/dnssec_legend/warning.png" />
+				<img alt="Warning" src="{% static "images/dnssec_legend/warning.png" %}" />
 				JavaScript doesn't appear to be be enabled in your browser. 
 					Please enable JavaScript, or <a href="?{% if query_string %}{{ query_string }}&amp;{% else %}{% endif %}no_js=1">click here</a> to view an alternate version of this page, that includes a more detailed analysis.
 				</div>
 			</noscript>
 			{% else %}
 				<div>
-				<img alt="Warning" src="{{ STATIC_URL }}images/dnssec_legend/warning.png" />
+				<img alt="Warning" src="{% static "images/dnssec_legend/warning.png" %}" />
 					JavaScript is required to make the graph below interactive.
 				</div>
 			{% endif %}

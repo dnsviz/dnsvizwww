@@ -1,5 +1,7 @@
 {% extends "domain_page.html" %}
 
+{% load static %}
+
 {% block extra_media %}
 	{{ block.super }}
 	<!-- Javascripts and associated styles -->
@@ -401,7 +403,7 @@
 	<div id="analysis-progress">
 		<div id="progress-bar">
 			<p>Please be patient while we analyze <span class="domain">{{ name_obj }}</span>.</p>
-			<img alt="progress bar" src="{% static "images/progress.gif" %} />
+			<img alt="progress bar" src="{% static "images/progress.gif" %}" />
 		</div>
 		<div id="progress-log">
 		</div>
