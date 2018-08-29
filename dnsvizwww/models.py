@@ -1105,7 +1105,7 @@ class DNSResponse(models.Model):
         return rr_map_list
 
     def _export_sections(self, message):
-        all_rr_maps = self.rr_mappings.select_related('rr').order_by('section', 'order')
+        all_rr_maps = self.rr_mappings.select_related('rdata').order_by('section', 'order')
 
         prev_section = None
         prev_order = None
@@ -1214,7 +1214,7 @@ class ResourceRecordMapper(models.Model):
         unique_together = (('message', 'rdata', 'section'),)
 
     def __unicode__(self):
-        return unicode(self.rr)
+        return unicode(self.rdata)
 
     def __str__(self):
-        return str(self.rr)
+        return str(self.rdata)
