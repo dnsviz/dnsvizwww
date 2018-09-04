@@ -85,7 +85,9 @@ class DNSSECOptionsForm(forms.Form):
             (10, '10 - RSA/SHA-512'),
             (12, '12 - GOST R 34.10-2001'),
             (13, '13 - ECDSA Curve P-256 with SHA-256'),
-            (14, '14 - ECDSA Curve P-384 with SHA-384'),)
+            (14, '14 - ECDSA Curve P-384 with SHA-384'),
+            (15, '15 - Ed25519'),
+            (16, '16 - Ed448'),)
 
     DS_CHOICES = (('all', '--All--'),
             (1, '1 - SHA-1'),
