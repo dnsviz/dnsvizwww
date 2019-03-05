@@ -554,7 +554,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         for name in self.auth_ns_negative_response_db.values_list('name', flat=True):
             self.add_auth_ns_ip_mappings((name, None))
 
-    def _retrieve_query(self, query, bailiwick_map, default_bailiwick):
+    def _retrieve_query(self, query, bailiwick_map, default_bailiwick, cookie_jar_map, default_cookie_jar):
         # this query might have already been imported.  If so, don't
         # re-import.
         if (query.qname, query.rdtype) in self.queries:
@@ -579,6 +579,28 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
         query1 = Query.DNSQuery(query.qname, query.rdtype, query.rdclass, query.options.flags, edns, edns_max_udp_payload, edns_flags, edns_options, query.options.tcp_first)
 
+        server_cookie = None
+        server_cookie_status = Query.DNS_COOKIE_NO_COOKIE
+        if edns >= 0:
+            try:
+                cookie_opt = [o for o in edns_options if o.otype == 10][0]
+            except IndexError:
+                pass
+            else:
+                if len(cookie_opt.data) == 8:
+                    server_cookie_status = Query.DNS_COOKIE_CLIENT_COOKIE_ONLY
+                elif len(cookie_opt.data) >= 16 and len(cookie_opt.data) <= 40:
+                    if cookie_opt.data[8:] == dnsviz.analysis.online.COOKIE_STANDIN:
+                        # initially assume that there is a cookie for the server;
+                        # change the value later if there isn't
+                        server_cookie_status = Query.DNS_COOKIE_SERVER_COOKIE_FRESH
+                    elif cookie_opt.data[8:] == dnsviz.analysis.online.COOKIE_BAD:
+                        server_cookie_status = Query.DNS_COOKIE_SERVER_COOKIE_BAD
+                    else:
+                        server_cookie_status = Query.DNS_COOKIE_SERVER_COOKIE_STATIC
+                else:
+                    server_cookie_status = Query.DNS_COOKIE_IMPROPER_LENGTH
+
         # add the responses
         for response in query.responses.all():
             history = []
@@ -599,7 +621,12 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
             server = IPAddr(response.server)
             client = IPAddr(response.client)
-            response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time/1000.0, query1)
+            cookie_jar = cookie_jar_map.get(server, default_cookie_jar)
+            server_cookie = cookie_jar.get(server, None)
+            status = server_cookie_status
+            if status == Query.DNS_COOKIE_SERVER_COOKIE_FRESH and server_cookie is None:
+                status = Query.DNS_COOKIE_CLIENT_COOKIE_ONLY
+            response1 = Response.DNSResponse(response.message, response.msg_size, response.error, response.errno, history, response.response_time/1000.0, query1, server_cookie, status)
             bailiwick = bailiwick_map.get(server, default_bailiwick)
             query1.add_response(server, client, response1, bailiwick)
 
@@ -620,11 +647,18 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         delegation_types = set([dns.rdatatype.NS])
         if self.referral_rdtype is not None:
             delegation_types.add(self.referral_rdtype)
+        if self.auth_rdtype is not None:
+            delegation_types.add(self.auth_rdtype)
+        if self.cookie_rdtype is not None:
+            delegation_types.add(self.cookie_rdtype)
 
         delegation_queries = []
+        auth_queries = []
+        cookie_queries = []
         other_queries = []
 
         bailiwick_map, default_bailiwick = self.get_bailiwick_mapping()
+        cookie_jar_map, default_cookie_jar = self.get_cookie_jar_mapping()
 
         # create a filter for the queries, based on rdtypes and name
         f = Q()
@@ -638,21 +672,29 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 names = (self.name,)
             f &= Q(qname__in=names)
         for query in self.queries_db.filter(f):
-            query1 = self._retrieve_query(query, bailiwick_map, default_bailiwick)
+            query1 = self._retrieve_query(query, bailiwick_map, default_bailiwick, cookie_jar_map, default_cookie_jar)
             if query1 is None:
                 continue
-            elif query1.rdtype in delegation_types:
+            elif query1.rdtype == self.referral_rdtype:
                 delegation_queries.append(query1)
+            elif query1.rdtype == self.auth_rdtype:
+                auth_queries.append(query1)
+            elif query1.rdtype == self.cookie_rdtype:
+                cookie_queries.append(query1)
             else:
                 other_queries.append(query1)
 
-        for query in delegation_queries:
-            self.add_query(query, True)
+        for query in delegation_queries + auth_queries + cookie_queries:
+            detect_ns = query.rdtype in (dns.rdatatype.NS, self.referral_rdtype, self.auth_rdtype)
+            detect_cookies = query.rdtype == self.cookie_rdtype
+            self.add_query(query, detect_ns, detect_cookies)
+
         # set the NS dependencies for the name
         if self.is_zone():
             self.set_ns_dependencies()
+
         for query in other_queries:
-            self.add_query(query, False)
+            self.add_query(query, False, False)
 
         self._store_related_cache(level)
 
