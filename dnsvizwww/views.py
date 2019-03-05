@@ -34,7 +34,9 @@ import hashlib
 import json
 import logging
 import os
+import random
 import re
+import struct
 import tempfile
 import urllib
 
@@ -946,14 +948,21 @@ def analyze(request, name, url_subdir=None):
                 th_factories = None
                 force_group = False
 
-            opt = analyze_form.cleaned_data['ecs']
-            if opt is not None:
-                class Foo(object):
-                    edns_options = [opt]
-                query_class_mixin = Foo
+            cls_edns_options = []
+            cookie = struct.pack(b'Q', random.getrandbits(64))
+            cls_edns_options.append(dns.edns.GenericOption(10, cookie))
+
+            if analyze_form.cleaned_data['ecs']:
+                cls_edns_options.append(analyze_form.cleaned_data['ecs'])
                 force_group = True
+
+            if cls_edns_options:
+                class Foo(object):
+                    edns_options = cls_edns_options
+                query_class_mixin = Foo
             else:
                 query_class_mixin = None
+
             edns_diagnostics = analyze_form.cleaned_data['edns_diagnostics']
             stop_at_explicit = { force_ancestor: True }
             start_time = datetime.datetime.now(fmt.utc).replace(microsecond=0)
