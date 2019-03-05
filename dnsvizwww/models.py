@@ -214,6 +214,8 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     nxdomain_ancestor_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
 
     referral_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
+    auth_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
+    cookie_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
     group = models.ForeignKey('self', blank=True, null=True)
 
     nxdomain_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
