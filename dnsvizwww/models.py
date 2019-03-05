@@ -207,7 +207,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     analysis_end = models.DateTimeField(db_index=True)
     dep_analysis_end = models.DateTimeField()
 
-    version = models.PositiveSmallIntegerField(default=25)
+    version = models.PositiveSmallIntegerField(default=26)
 
     parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
     dlv_parent_name_db = fields.DomainNameField(max_length=2048, blank=True, null=True)
