@@ -236,12 +236,15 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 # since both args and kwargs were supplied this was intended
                 # for dnsviz.analysis.OfflineDomainNameAnalysis.__init__()
 
-                # First call
+                # 1. strip arguments that aren't necessary for this
+                kwargs.pop('cookie_standin')
+
+                # 2. call
                 # dnsviz.analysis.OfflineDomainNameAnalysis.__init__() with
                 # arguments that were passed...
                 dnsviz.analysis.OfflineDomainNameAnalysis.__init__(self, *args, **kwargs)
 
-                # now call models.Model.__init__() with kwargs
+                # 3. call models.Model.__init__() with kwargs
                 kwargs['name'] = args[0]
                 # add stub to kwargs if it was specified as an arg
                 if len(args) > 1: kwargs['stub'] = args[1]
