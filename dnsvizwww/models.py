@@ -237,7 +237,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 # for dnsviz.analysis.OfflineDomainNameAnalysis.__init__()
 
                 # 1. strip arguments that aren't necessary for this
-                kwargs.pop('cookie_standin')
+                kwargs.pop('cookie_standin', None)
 
                 # 2. call
                 # dnsviz.analysis.OfflineDomainNameAnalysis.__init__() with
