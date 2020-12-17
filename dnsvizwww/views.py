@@ -951,6 +951,7 @@ def analyze(request, name, url_subdir=None):
             cls_edns_options = []
             cookie = struct.pack(b'Q', random.getrandbits(64))
             cls_edns_options.append(dns.edns.GenericOption(10, cookie))
+            cls_edns_options.append(dns.edns.GenericOption(dns.edns.NSID, b''))
 
             if analyze_form.cleaned_data['ecs']:
                 cls_edns_options.append(analyze_form.cleaned_data['ecs'])
