@@ -899,6 +899,9 @@ class OfflineDomainNameAnalysis(OnlineDomainNameAnalysis):
     class Meta:
         proxy = True
 
+class ResourceRecordManager(models.Manager):
+    pass
+
 class ResourceRecord(models.Model):
     name = fields.DomainNameField(max_length=2048)
     rdtype = fields.UnsignedSmallIntegerField()
@@ -907,6 +910,8 @@ class ResourceRecord(models.Model):
 
     rdata_name = fields.DomainNameField(max_length=2048, blank=True, null=True, db_index=True)
     rdata_address = models.GenericIPAddressField(blank=True, null=True, db_index=True)
+
+    objects = ResourceRecordManager()
 
     class Meta:
         unique_together = (('name', 'rdtype', 'rdclass', 'rdata_wire'),)
@@ -1041,26 +1046,27 @@ class ResourceRecordRRSIG(ResourceRecordDNSKEYRelated):
             })
         return params
 
-class ResourceRecordManager(models.Manager):
-    _rdtype_model_map = {
-            dns.rdatatype.SOA: ResourceRecordSOA,
-            dns.rdatatype.A: ResourceRecordA,
-            dns.rdatatype.AAAA: ResourceRecordA,
-            dns.rdatatype.NS: ResourceRecordNS,
-            dns.rdatatype.MX: ResourceRecordMX,
-            dns.rdatatype.PTR: ResourceRecordNS,
-            dns.rdatatype.CNAME: ResourceRecordNS,
-            dns.rdatatype.DNAME: ResourceRecordNS,
-            dns.rdatatype.SRV: ResourceRecordNS,
-            dns.rdatatype.DNSKEY: ResourceRecordDNSKEY,
-            dns.rdatatype.RRSIG: ResourceRecordRRSIG,
-            dns.rdatatype.DS: ResourceRecordDS,
-    }
 
-    def model_for_rdtype(self, rdtype):
-        return self._rdtype_model_map.get(rdtype, ResourceRecord)
+__rdtype_model_map = {
+        dns.rdatatype.SOA: ResourceRecordSOA,
+        dns.rdatatype.A: ResourceRecordA,
+        dns.rdatatype.AAAA: ResourceRecordA,
+        dns.rdatatype.NS: ResourceRecordNS,
+        dns.rdatatype.MX: ResourceRecordMX,
+        dns.rdatatype.PTR: ResourceRecordNS,
+        dns.rdatatype.CNAME: ResourceRecordNS,
+        dns.rdatatype.DNAME: ResourceRecordNS,
+        dns.rdatatype.SRV: ResourceRecordNS,
+        dns.rdatatype.DNSKEY: ResourceRecordDNSKEY,
+        dns.rdatatype.RRSIG: ResourceRecordRRSIG,
+        dns.rdatatype.DS: ResourceRecordDS,
+}
 
-ResourceRecord.add_to_class('rr_mapper', ResourceRecordManager())
+def __model_for_rdtype(self, rdtype):
+    return self._rdtype_model_map.get(rdtype, ResourceRecord)
+
+ResourceRecordManager._rdtype_model_map = __rdtype_model_map
+ResourceRecordManager.model_for_rdtype = __model_for_rdtype
 
 class DNSQueryOptions(models.Model):
     flags = fields.UnsignedSmallIntegerField()
@@ -1135,7 +1141,7 @@ class DNSResponse(models.Model):
     def _import_section(self, section, number):
         rr_map_list = []
         for index, rrset in enumerate(section):
-            rr_cls = ResourceRecord.rr_mapper.model_for_rdtype(rrset.rdtype)
+            rr_cls = ResourceRecord.objects.model_for_rdtype(rrset.rdtype)
             for rr in rrset:
                 sio = StringIO.StringIO()
                 rr.to_wire(sio)
