@@ -73,6 +73,7 @@ class DNSSECOptionsForm(forms.Form):
             (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
             (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
             (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)),
+            (dns.rdatatype.NSEC3PARAM, dns.rdatatype.to_text(dns.rdatatype.NSEC3PARAM)),
             (dns.rdatatype.CAA, dns.rdatatype.to_text(dns.rdatatype.CAA)))
 
     A_CHOICES = (('all', '--All--'),
@@ -171,6 +172,7 @@ def domain_analysis_form(name):
                 (dns.rdatatype.SRV, dns.rdatatype.to_text(dns.rdatatype.SRV)),
                 (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
                 (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)),
+                (dns.rdatatype.NSEC3PARAM, dns.rdatatype.to_text(dns.rdatatype.NSEC3PARAM)),
                 (dns.rdatatype.CAA, dns.rdatatype.to_text(dns.rdatatype.CAA)))
 
         ANALYSIS_TYPES = ((ANALYSIS_TYPE_AUTHORITATIVE, 'Authoritative servers'),
