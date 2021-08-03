@@ -36,16 +36,16 @@ import dns.name
 from dnsviz.analysis import status as Status
 import dnsviz.format as fmt
 
-_rrset_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<rdtype>[A-Z]+)')
+_rrset_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<rdtype>[A-Z0-9]+)')
 _dnskey_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)')
 _ds_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)\|\d+(_\d+)*')
-_nsec_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<rdtype>[A-Z]+)')
+_nsec_node_re = re.compile(r'^(?P<name>[^|]+)\|(?P<rdtype>[A-Z0-9]+)')
 _node_re = re.compile(r'^(?P<node_type>RRset|DNSKEY|DS|DLV|NSEC3?)-(?P<id>\d+(_\d+)*)\|(?P<remnant>.*)')
 
 _digest_re = re.compile(r'(?P<type>DS|DLV)-(?P<id>\d+(_\d+)*)\|(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)\|\d+(_\d+)*\|([a-fA-F0-9]+)\|[a-z]+$')
 _rrsig_dnskey_re = re.compile(r'DNSKEY-\d+\|(?P<name>[^|]+)\|(?P<alg>\d+)\|(?P<key_tag>\d+)\|([a-fA-F0-9]+)\|[a-z]+')
-_dname_re = re.compile(r'^RRset-\d+\|(?P<name>[^|]+)\|(?P<rdtype>[A-Z]+)')
-_nsecc_re = re.compile(r'(?P<type>NSEC3?)-\d+\|(?P<name>[^\|]+)\|(?P<rdtype>[A-Z]+)$')
+_dname_re = re.compile(r'^RRset-\d+\|(?P<name>[^|]+)\|(?P<rdtype>[A-Z0-9]+)')
+_nsecc_re = re.compile(r'(?P<type>NSEC3?)-\d+\|(?P<name>[^\|]+)\|(?P<rdtype>[A-Z0-9]+)$')
 _del_re = re.compile(r'^(?P<child>[^|]+)\|(?P<parent>[^|]+)$')
 _edge_re = re.compile(r'^(?P<node_type>digest|RRSIG|dname|NSEC3?C|del)-(?P<remnant>.*)$')
 _zone_re = re.compile(r'^cluster_(?P<name>.+)_top$')
