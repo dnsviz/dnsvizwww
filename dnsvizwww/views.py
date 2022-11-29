@@ -8,9 +8,9 @@
 # Copyright 2012-2014 Sandia Corporation. Under the terms of Contract
 # DE-AC04-94AL85000 with Sandia Corporation, the U.S. Government retains
 # certain rights in this software.
-# 
+#
 # Copyright 2014-2015 VeriSign, Inc.
-# 
+#
 # DNSViz is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2 of the License, or
@@ -26,10 +26,11 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 
-from cgi import escape
+from html import escape
 import codecs
 import collections
 import datetime
+import functools
 import hashlib
 import json
 import logging
@@ -63,9 +64,9 @@ from dnsvizwww.analysis import Analyst, RecursiveAnalyst, OfflineDomainNameAnaly
 from dnsvizwww import log
 from dnsvizwww import util
 
-import urls
-from forms import *
-from notices import get_notices, notices_to_javascript
+from . import urls
+from .forms import *
+from .notices import get_notices, notices_to_javascript
 
 class DynamicAnalyst(_Analyst):
     analysis_model = _OfflineDomainNameAnalysis
@@ -197,7 +198,7 @@ class DNSSECMixin(object):
         # get names/types queried in conjunction with the analysis, other than
         # DNSSEC-related types and those not explicitly requested in the options
         # form.
-        qnamestypes = set(filter(lambda x: x[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV) and x[1] in rdtypes, name_obj.queries))
+        qnamestypes = set([q for q in name_obj.queries if q[1] not in (dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV) and q[1] in rdtypes])
 
         # if no qnames/qtypes resulted, it is possible that this is the result of
         # an NXDOMAIN found by querying for the referral_rdtype, which might not have
@@ -215,7 +216,7 @@ class DNSSECMixin(object):
         # identify queries with positive responses, negative responses or error responses
         pos_namestypes = name_obj.yxrrset.intersection(qnamestypes)
         neg_namestypes = name_obj.nxrrset.intersection(qnamestypes)
-        err_namestypes = set(filter(lambda x: name_obj.queries[x].error_info, qnamestypes))
+        err_namestypes = set([qt for qt in qnamestypes if name_obj.queries[qt].error_info])
 
         # if denial_of_existence is selected, then graph everything
         if denial_of_existence:
@@ -344,7 +345,7 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
             content_type = 'image/svg+xml'
         elif format == 'js':
             content_type = 'application/javascript'
-            img += notices_to_javascript(get_notices(G.node_info))
+            img += notices_to_javascript(get_notices(G.node_info)).encode('utf-8')
         else:
             raise Exception('Unknown file type!')
 
@@ -469,11 +470,11 @@ class DomainNameResponsesMixin(object):
             qrrsets.insert(0, (zone_obj, zone_obj.name, dns.rdatatype.DS))
             parent_all_auth_servers = zone_obj.parent.get_auth_or_designated_servers()
             parent_server_list = [(ip, zone_obj.parent.get_ns_name_for_ip(ip)[0]) for ip in parent_all_auth_servers]
-            parent_server_list.sort(cmp=util.ip_name_cmp)
+            parent_server_list = sorted(parent_server_list, key=util.ip_name_key)
 
         all_auth_servers = zone_obj.get_auth_or_designated_servers()
         server_list = [(ip, zone_obj.get_ns_name_for_ip(ip)[0]) for ip in all_auth_servers]
-        server_list.sort(cmp=util.ip_name_cmp)
+        server_list = sorted(server_list, key=util.ip_name_key)
         response_consistency = []
 
         for my_name_obj, name, rdtype in qrrsets:
@@ -549,9 +550,9 @@ class DomainNameResponsesMixin(object):
                     row.append(('<div class="rr">%s</div>' % rrsig.to_text(), 'not-styled', None, None, None))
 
                     try:
-                        status = filter(lambda x: x.signature_valid == True, my_name_obj.rrsig_status[rrset_info][rrsig].values())[0]
+                        status = [r for r in my_name_obj.rrsig_status[rrset_info][rrsig].values() if r.signature_valid == True][0]
                     except IndexError:
-                        status = my_name_obj.rrsig_status[rrset_info][rrsig].values()[0]
+                        status = [v for v in my_name_obj.rrsig_status[rrset_info][rrsig].values()][0]
 
                     style = Status.rrsig_status_mapping[status.validation_status]
                     row.append((Status.rrsig_status_mapping[status.validation_status], style, None, None, None))
@@ -576,7 +577,7 @@ class DomainNameResponsesMixin(object):
                 for q in query.queries.values():
                     if server in q.responses:
                         server_queried = True
-                        r = q.responses[server].values()[0]
+                        r = [v for v in q.responses[server].values()][0]
                         if r.is_complete_response():
                             response = r
                             break
@@ -607,7 +608,7 @@ class DomainNameResponsesMixin(object):
                 for q in query.queries.values():
                     if server in q.responses:
                         server_queried = True
-                        r = q.responses[server].values()[0]
+                        r = [v for v in q.responses[server].values()][0]
                         if r.is_complete_response():
                             response = r
                             break
@@ -630,7 +631,7 @@ class DomainNameResponsesMixin(object):
                 for q in query.queries.values():
                     if server in q.responses:
                         server_queried = True
-                        r = q.responses[server].values()[0]
+                        r = [v for v in q.responses[server].values()][0]
                         if r.is_complete_response():
                             response = r
                             break
@@ -674,7 +675,9 @@ class DomainNameServersMixin(object):
         delegation_matrix = []
 
         def stealth_cmp(x, y):
-            return cmp((y[0], x[1], x[2]), (x[0], y[1], y[2]))
+            a = (y[0], x[1], x[2]),
+            b = (x[0], y[1], y[2])
+            return (a > b) - (a < b)
 
         all_names_list = list(zone_obj.get_ns_names())
         if not all_names_list:
@@ -707,9 +710,9 @@ class DomainNameServersMixin(object):
             if zone_obj.get_ns_names_in_parent():
                 glue_mapping = zone_obj.get_glue_ip_mapping()
                 parent_status['in_parent'] = name in glue_mapping
-                glue_ips_v4 = filter(lambda x: x.version == 4, glue_mapping.get(name, set()))
+                glue_ips_v4 = [ip for ip in glue_mapping.get(name, set()) if ip.version == 4]
                 glue_ips_v4.sort()
-                glue_ips_v6 = filter(lambda x: x.version == 6, glue_mapping.get(name, set()))
+                glue_ips_v6 = [ip for ip in glue_mapping.get(name, set()) if ip.version == 6]
                 glue_ips_v6.sort()
             else:
                 glue_ips_v4 = []
@@ -733,9 +736,9 @@ class DomainNameServersMixin(object):
                 in_child = False
 
             auth_mapping = zone_obj.get_auth_ns_ip_mapping()
-            auth_ips_v4 = filter(lambda x: x.version == 4, auth_mapping.get(name, set()))
+            auth_ips_v4 = [ip for ip in auth_mapping.get(name, set()) if ip.version == 4]
             auth_ips_v4.sort()
-            auth_ips_v6 = filter(lambda x: x.version == 6, auth_mapping.get(name, set()))
+            auth_ips_v6 = [ip for ip in auth_mapping.get(name, set()) if ip.version == 6]
             auth_ips_v6.sort()
 
             row.append({ 'in_child': in_child, 'auth_ips_v4': auth_ips_v4, 'auth_ips_v6': auth_ips_v6 })
@@ -746,7 +749,7 @@ class DomainNameServersMixin(object):
         for server in zone_obj.get_stealth_servers():
             names, ancestor_zone = zone_obj.get_ns_name_for_ip(server)
             stealth_rows.append((ancestor_zone, names, server))
-        stealth_rows.sort(cmp=stealth_cmp)
+        stealth_rows = sorted(stealth_rows, key=functools.cmp_to_key(stealth_cmp))
 
         for ancestor_zone, names, server in stealth_rows:
             names = map(fmt.humanize_name, names)
@@ -857,7 +860,7 @@ def domain_search(request):
 
     # even an valid name might not fit our (current) URL criteria
     name_re = re.compile(r'^(%s)$' % urls.dns_name)
-    if name_re.match(urllib.unquote(name)) is None:
+    if name_re.match(urllib.parse.unquote(name)) is None:
         name_valid = False
 
     if not name_valid:

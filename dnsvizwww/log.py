@@ -27,24 +27,24 @@
 #
 
 import logging
-import Queue
+import queue
 
 from django.utils.html import escape
 
 class QueueForIteratorHandler(logging.Handler):
     def __init__(self):
         logging.Handler.__init__(self)
-        self.queue = Queue.Queue()
+        self.queue = queue.Queue()
 
     def __iter__(self):
         while True:
             try:
                 s = self.queue.get(True)
                 if s == '':
-                    raise StopIteration
+                    break
                 yield s
-            except Queue.Empty:
-                raise StopIteration
+            except queue.Empty:
+                break
 
     def emit(self, record):
         if record.levelno == logging.DEBUG and record.getMessage() == '<EOF>':

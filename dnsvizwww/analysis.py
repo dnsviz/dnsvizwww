@@ -36,7 +36,8 @@ from django.db import DatabaseError, transaction
 
 import dnsviz.analysis
 import dnsviz.format as fmt
-from models import DomainName, OnlineDomainNameAnalysis, OfflineDomainNameAnalysis
+
+from .models import DomainName, OnlineDomainNameAnalysis, OfflineDomainNameAnalysis
 
 MIN_ANALYSIS_INTERVAL = 14400
 MAX_ANALYSIS_TIME = 300
@@ -109,7 +110,7 @@ class Analyst(dnsviz.analysis.Analyst):
         if name_obj.analysis_type == dnsviz.analysis.online.ANALYSIS_TYPE_AUTHORITATIVE:
             rdtype = name_obj.referral_rdtype
         else:
-            rdtype = filter(lambda x: x[0] == name_obj.name, name_obj.queries.keys())[0][1]
+            rdtype = [k for k in name_obj.queries.keys() if k[0] == name_obj.name][0][1]
 
         # whether this object is the nxdomain_ancestor of the name in question
         is_nxdomain_ancestor = \
@@ -147,7 +148,7 @@ class Analyst(dnsviz.analysis.Analyst):
                     with transaction.atomic():
                         name_obj.save_all(group_initial)
                         name_obj.set_group(force_group, self.explicit_delegations)
-                except Exception, e:
+                except Exception as e:
                     # retry if this is a database error and we tried
                     # less than three times
                     if isinstance(e, DatabaseError) and attempts <= 2:
@@ -249,7 +250,7 @@ class Analyst(dnsviz.analysis.Analyst):
         # If force and analysis has not been performed since reference time,
         # then return True.
         force_ancestor = self.force_ancestor is not None and name_obj.name.is_subdomain(self.force_ancestor)
-        force_analysis = self.force_self and (force_ancestor or self.name == name_obj.name or filter(lambda x: name_obj.name.is_subdomain(x), self._cname_chain))
+        force_analysis = self.force_self and (force_ancestor or self.name == name_obj.name or [n for n in self._cname_chain if name_obj.name.is_subdomain(n)])
         updated_since_analysis_start = name_obj.analysis_end >= self.start_time
         if force_analysis and not updated_since_analysis_start:
             return True

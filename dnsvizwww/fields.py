@@ -90,7 +90,7 @@ class DomainNameField(models.CharField):
         else:
             try:
                 name = dns.name.from_text(value)
-            except Exception, e:
+            except Exception as e:
                 raise ValidationError('%s: %s is of type %s' % (e, value, type(value)))
         if self.canonicalize:
             name = name.canonicalize()

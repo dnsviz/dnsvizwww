@@ -27,12 +27,11 @@
 #
 
 import base64
-from cgi import escape
+from html import escape
 import json
 import logging
 import struct
 import urllib
-import urllib2
 import uuid
 
 import dns.dnssec, dns.name, dns.rdatatype, dns.rdataclass
@@ -44,7 +43,7 @@ import dnsviz.format as fmt
 
 def datetime_url_encode(dt):
     timestamp = int(fmt.datetime_to_timestamp(dt))
-    return base64.urlsafe_b64encode(struct.pack('!L',int(timestamp)))[:-2]
+    return base64.urlsafe_b64encode(struct.pack('!L',int(timestamp)))[:-2].decode('utf-8')
 
 def datetime_url_decode(timestamp):
     timestamp = struct.unpack('!L', base64.urlsafe_b64decode(str(timestamp+'==')))[0]
@@ -53,7 +52,7 @@ def datetime_url_decode(timestamp):
 def name_url_encode(name):
     if name == dns.name.root:
         return 'root'
-    return urllib.quote(name.canonicalize().to_text().rstrip('.').replace('/', 'S'), safe='')
+    return urllib.parse.quote(name.canonicalize().to_text().rstrip('.').replace('/', 'S'), safe='')
 
 def name_url_decode(name):
     if name == 'root':
@@ -88,8 +87,9 @@ def target_for_rrset(rrset, section, rdata=None):
         target += '-%s' % m.hexdigest()
     return target
 
-def ip_name_cmp((addr1, namelist1), (addr2, namelist2)):
-    return cmp((namelist1[0], addr1), (namelist2[0], addr2))
+def ip_name_key(addr_namelist):
+    addr, namelist = addr_namelist
+    return (namelist[0], addr)
 
 def touch_cache(cache, key, timeout=DEFAULT_TIMEOUT, version=None):
     try:
@@ -106,8 +106,8 @@ def validate_captcha(response):
     logger = logging.getLogger('django.request')
     try:
         data = (('secret', settings.CAPTCHA_SECRET), ('response', response))
-        f = urllib2.urlopen('https://www.google.com/recaptcha/api/siteverify', data=urllib.urlencode(data))
-    except urllib2.URLError:
+        f = urllib.request.urlopen('https://www.google.com/recaptcha/api/siteverify', data=urllib.parse.urlencode(data))
+    except urllib.error.URLError:
         logger.exception('Error validating captcha')
         return False
     try:
