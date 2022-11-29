@@ -27,7 +27,7 @@
 #
 
 import datetime
-import StringIO
+import io
 import struct
 
 import dns.edns, dns.exception, dns.flags, dns.message, dns.name, dns.rcode, dns.rdataclass, dns.rdata, dns.rdatatype, dns.resolver, dns.rrset
@@ -47,8 +47,8 @@ import dnsviz.query as Query
 import dnsviz.resolver as Resolver
 import dnsviz.response as Response
 
-import fields
-import util
+from . import fields
+from . import util
 
 MAX_TTL = 100000000
 
@@ -108,7 +108,7 @@ class DNSServer(models.Model):
 
 class NSMapping(models.Model):
     name = fields.DomainNameField(max_length=2048)
-    server = models.ForeignKey(DNSServer)
+    server = models.ForeignKey(DNSServer, on_delete=models.CASCADE)
 
     class Meta:
         unique_together = (('name', 'server'),)
@@ -216,7 +216,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
     referral_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
     auth_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
     cookie_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
-    group = models.ForeignKey('self', blank=True, null=True)
+    group = models.ForeignKey('self', blank=True, null=True, on_delete=models.CASCADE)
 
     nxdomain_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
     nxdomain_rdtype = fields.UnsignedSmallIntegerField(blank=True, null=True)
@@ -253,7 +253,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             else:
                 # If only args were supplied, then this could match __init__()
                 # for either parent.
-                if isinstance(args[0], (int, long)):
+                if isinstance(args[0], int):
                     # In the case of models.Model, the first argument would be int,
                     # for the 'id' field.
 
@@ -303,6 +303,9 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
     def __unicode__(self):
         return fmt.humanize_name(self.name, True)
+
+    def __hash__(self):
+        return hash((self.name, self.pk))
 
     class Meta:
         unique_together = (('name', 'analysis_end'), ('name', 'group'))
@@ -493,7 +496,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                     edns_flags = query.edns_flags
                     edns_options = b''
                     for opt in query.edns_options:
-                        s = StringIO.StringIO()
+                        s = io.BytesIO()
                         opt.to_wire(s)
                         data = s.getvalue()
                         edns_options += struct.pack('!HH', opt.otype, len(data)) + data
@@ -523,7 +526,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                             if action_arg is None:
                                 action_arg = -1
                             history.extend([response_time, cause, cause_arg, action, action_arg])
-                        history_str = ','.join(map(str, history))
+                        history_str = ','.join([str(h) for h in history])
                         response_obj = DNSResponse(query=query_obj, server=str(server), client=str(client),
                                 error=query.responses[server][client].error, errno=query.responses[server][client].errno,
                                 msg_size=query.responses[server][client].msg_size,
@@ -562,16 +565,17 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         # re-import.
         if (query.qname, query.rdtype) in self.queries:
             return None
+        options_bytes = bytes(query.options.edns_options)
         if query.options.edns_max_udp_payload is not None:
             edns = query.options.edns_flags>>16
             edns_max_udp_payload = query.options.edns_max_udp_payload
             edns_flags = query.options.edns_flags
             edns_options = []
             index = 0
-            while index < len(query.options.edns_options):
-                (otype, olen) = struct.unpack('!HH', query.options.edns_options[index:index + 4])
+            while index < len(options_bytes):
+                (otype, olen) = struct.unpack('!HH', options_bytes[index:index + 4])
                 index += 4
-                opt = dns.edns.option_from_wire(otype, query.options.edns_options, index, olen)
+                opt = dns.edns.option_from_wire(otype, options_bytes, index, olen)
                 edns_options.append(opt)
                 index += olen
         else:
@@ -608,7 +612,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         for response in query.responses.all():
             history = []
             if response.history_serialized:
-                history_vals = map(int, response.history_serialized.split(','))
+                history_vals = [int(i) for i in response.history_serialized.split(',')]
 
                 for i in range(0, len(history_vals), 5):
                     response_time = history_vals[i]/1000.0
@@ -924,7 +928,7 @@ class ResourceRecord(models.Model):
 
     def _set_rdata(self, rdata):
         self._rdata = rdata
-        wire = StringIO.StringIO()
+        wire = io.BytesIO()
         rdata.to_wire(wire)
         self.rdata_wire = wire.getvalue()
         for name, value in self.rdata_extra_field_params(rdata).items():
@@ -1084,15 +1088,15 @@ class DNSQuery(models.Model):
     rdclass = fields.UnsignedSmallIntegerField()
     response_options = fields.UnsignedSmallIntegerField(default=0)
 
-    options = models.ForeignKey(DNSQueryOptions, related_name='queries')
-    analysis = models.ForeignKey(OnlineDomainNameAnalysis, related_name='queries_db')
+    options = models.ForeignKey(DNSQueryOptions, related_name='queries', on_delete=models.CASCADE)
+    analysis = models.ForeignKey(OnlineDomainNameAnalysis, related_name='queries_db', on_delete=models.CASCADE)
 
     version = models.PositiveSmallIntegerField(default=3)
 
 class DNSResponse(models.Model):
     SECTIONS = { 'QUESTION': 0, 'ANSWER': 1, 'AUTHORITY': 2, 'ADDITIONAL': 3 }
 
-    query = models.ForeignKey(DNSQuery, related_name='responses')
+    query = models.ForeignKey(DNSQuery, related_name='responses', on_delete=models.CASCADE)
 
     # network parameters
     server = models.GenericIPAddressField()
@@ -1143,7 +1147,7 @@ class DNSResponse(models.Model):
         for index, rrset in enumerate(section):
             rr_cls = ResourceRecord.objects.model_for_rdtype(rrset.rdtype)
             for rr in rrset:
-                sio = StringIO.StringIO()
+                sio = io.BytesIO()
                 rr.to_wire(sio)
                 rdata_wire = sio.getvalue()
                 params = dict(rr_cls.rdata_extra_field_params(rr).items())
@@ -1201,7 +1205,7 @@ class DNSResponse(models.Model):
             self.edns_flags = message.ednsflags
             self.edns_options = b''
             for opt in message.options:
-                s = StringIO.StringIO()
+                s = io.BytesIO()
                 opt.to_wire(s)
                 data = s.getvalue()
                 self.edns_options += struct.pack('!HH', opt.otype, len(data)) + data
@@ -1238,15 +1242,17 @@ class DNSResponse(models.Model):
                     qrdtype = self.question_rdtype
                 self._message.question.append(dns.rrset.RRset(qname, qrdclass, qrdtype))
 
+            options_bytes = bytes(self.edns_options)
             if self.edns_max_udp_payload is not None:
-                self._message.use_edns(self.edns_flags>>16, self.edns_flags, self.edns_max_udp_payload, 65536)
+                options = []
                 index = 0
-                while index < len(self.edns_options):
-                    (otype, olen) = struct.unpack('!HH', self.edns_options[index:index + 4])
+                while index < len(options_bytes):
+                    (otype, olen) = struct.unpack('!HH', options_bytes[index:index + 4])
                     index += 4
-                    opt = dns.edns.option_from_wire(otype, self.edns_options, index, olen)
-                    self._message.options.append(opt)
+                    opt = dns.edns.option_from_wire(otype, options_bytes, index, olen)
+                    options.append(opt)
                     index += olen
+                self._message.use_edns(self.edns_flags>>16, self.edns_flags, self.edns_max_udp_payload, 65536, options=options)
 
             self._export_sections(self._message)
 
@@ -1255,12 +1261,12 @@ class DNSResponse(models.Model):
     message = property(_get_message, _set_message)
 
 class ResourceRecordMapper(models.Model):
-    message = models.ForeignKey(DNSResponse, related_name='rr_mappings')
+    message = models.ForeignKey(DNSResponse, related_name='rr_mappings', on_delete=models.CASCADE)
     section = models.PositiveSmallIntegerField()
 
     order = models.PositiveSmallIntegerField()
     raw_name = fields.DomainNameField(max_length=2048, canonicalize=False, blank=True, null=True)
-    rdata = models.ForeignKey(ResourceRecord)
+    rdata = models.ForeignKey(ResourceRecord, on_delete=models.CASCADE)
     ttl = fields.UnsignedIntegerField()
 
     class Meta:
