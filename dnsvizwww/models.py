@@ -831,7 +831,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         obj = self
         while obj is not None and \
                 (force_group or \
-                filter(lambda x: obj.name.is_subdomain(x), [n for n, t in explicit_delegations if t == dns.rdatatype.NS])):
+                [n1 for n1 in [n for n, t in explicit_delegations if t == dns.rdatatype.NS] if obj.name.is_subdomain(n1)]):
             result.append(obj)
             obj = obj.parent
         if self.nxdomain_ancestor is not None:
