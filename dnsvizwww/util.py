@@ -106,7 +106,7 @@ def validate_captcha(response):
     logger = logging.getLogger('django.request')
     try:
         data = (('secret', settings.CAPTCHA_SECRET), ('response', response))
-        f = urllib.request.urlopen('https://www.google.com/recaptcha/api/siteverify', data=urllib.parse.urlencode(data))
+        f = urllib.request.urlopen('https://www.google.com/recaptcha/api/siteverify', data=urllib.parse.urlencode(data).encode('ascii'))
     except urllib.error.URLError:
         logger.exception('Error validating captcha')
         return False
