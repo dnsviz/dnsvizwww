@@ -67,7 +67,7 @@
 			$('#notices').html('<div id="notices_loading"><img src="{% static "images/loading.gif" %}" alt="' + load_status + '"><br /><strong>' + load_status + '</strong></div>');
 
 			var load_graph = function () {
-				$.ajax("{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.js{% if query_string %}?{{ query_string }}{% endif %}", {
+				$.ajax("{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.js{% if query_string %}?{{ query_string|safe }}{% endif %}", {
 					timeout: timeout,
 					cache: true,
 					success: function(data) {
@@ -122,9 +122,9 @@
 			};
 
 			var load_graph_alternate = function (err_msg) {
-				var qs = '?{{ query_string }}';
+				var qs = '?{{ query_string|safe }}';
 				if (err_msg != undefined) {
-					qs += '{% if query_string %}&amp;{% endif %}err=' + err_msg;
+					qs += '{% if query_string %}&{% endif %}err=' + err_msg;
 				}
 				$('#graph-hint').html('We were unable to load the interactive version of the graph.');
 				$('#graph').html('<img id="auth_graph" src="{{ analyzed_name_obj.base_url_with_timestamp }}dnssec/auth_graph.png' + qs + '" alt="DNSSEC authentication graph" />');
