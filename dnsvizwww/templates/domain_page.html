@@ -128,12 +128,12 @@
 		{% if url_subdir == "responses/" %}
 		<li class="active"><a>Responses</a></li>
 		{% else %}
-		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}responses/"{% if query_string %}?{{ query_string }}{% endif %}{% endif %}>Responses</a></li>
+		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}responses/{% if query_string %}?{{ query_string }}{% endif %}"{% endif %}>Responses</a></li>
 		{% endif %}
 		{% if url_subdir == "servers/" %}
 		<li class="active"><a>Servers</a></li>
 		{% else %}
-		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}servers/"{% if query_string %}?{{ query_string }}{% endif %}{% endif %}>Servers</a></li>
+		<li><a{% if name_obj.analysis_end %} href="{% if timestamp or name_obj.group %}{{ name_obj.base_url_with_timestamp }}{% else %}{{ name_obj.base_url }}{% endif %}servers/{% if query_string %}?{{ query_string }}{% endif %}"{% endif %}>Servers</a></li>
 		{% endif %}
 		{% if url_subdir == "analyze/" %}
 		<li class="active"><a>Analyze</a></li>
