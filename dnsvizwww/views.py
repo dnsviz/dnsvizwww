@@ -232,7 +232,7 @@ class DNSSECMixin(object):
         for qname, rdtype in qnamestypes_to_graph:
             G.graph_rrset_auth(name_obj, qname, rdtype)
 
-        return G
+        return G, qnamestypes_to_graph
 
 class DomainNameDNSSECPageMixin(DNSSECMixin):
     def _get(self, request, name_obj, timestamp, url_subdir, date_form):
@@ -270,7 +270,7 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
 
             name_obj.retrieve_all()
             name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
-            G = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
+            G, qnamestypes_graphed = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
             G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
             #G.remove_extra_edges(redundant_edges)
             notices = get_notices(G.node_info)
@@ -318,16 +318,21 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
 
         name_obj.retrieve_all()
         name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
-        G = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
+        G, qnamestypes_graphed = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
         G.remove_extra_edges(redundant_edges)
 
+        qnamestypes_with_warnings, qnamestypes_with_errors = \
+                name_obj.queries_with_errors_warnings()
+        hidden_queries_with_warnings = qnamestypes_with_warnings.difference(qnamestypes_graphed)
+        hidden_queries_with_errors = qnamestypes_with_errors.difference(qnamestypes_graphed)
+
         if url_file == 'auth_graph':
-            return self.dnssec_auth_graph(request, name_obj, G, format)
+            return self.dnssec_auth_graph(request, name_obj, G, format, hidden_queries_with_warnings, hidden_queries_with_errors)
         else:
             raise Http404
 
-    def dnssec_auth_graph(self, request, name_obj, G, format):
+    def dnssec_auth_graph(self, request, name_obj, G, format, hidden_queries_with_warnings, hidden_queries_with_errors):
         img = G.draw(format)
         #XXX currently, graphviz only supports local files, so the
         #XXX following two lines are necessary
@@ -345,7 +350,8 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
             content_type = 'image/svg+xml'
         elif format == 'js':
             content_type = 'application/javascript'
-            img += notices_to_javascript(get_notices(G.node_info)).encode('utf-8')
+            notices = get_notices(G.node_info, hidden_queries_with_warnings, hidden_queries_with_errors)
+            img += notices_to_javascript(notices).encode('utf-8')
         else:
             raise Exception('Unknown file type!')
 
@@ -425,12 +431,17 @@ class DynamicDomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, View):
         name_obj = a.analyze()
         name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms)
 
-        G = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
+        G, qnamestypes_graphed = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
         G.remove_extra_edges(redundant_edges)
 
+        qnamestypes_with_warnings, qnamestypes_with_errors = \
+                name_obj.queries_with_errors_warnings()
+        hidden_queries_with_warnings = qnamestypes_with_warnings.difference(qnamestypes_graphed)
+        hidden_queries_with_errors = qnamestypes_with_errors.difference(qnamestypes_graphed)
+
         if url_file == 'auth_graph':
-            return self.dnssec_auth_graph(request, name_obj, G, format)
+            return self.dnssec_auth_graph(request, name_obj, G, format, hidden_queries_with_warnings, hidden_queries_with_errors)
         else:
             raise Http404
 

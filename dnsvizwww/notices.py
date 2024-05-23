@@ -171,13 +171,25 @@ def _populate_notices(notices, obj, label=None):
             for val in obj:
                 _populate_notices(notices, val, label)
 
+def _add_hidden_notices(notices, hidden_warnings, hidden_errors):
+    for qname, rdtype in hidden_warnings:
+        notices['notices']['warnings'].append(
+                '%s/%s has warnings; select the "Denial of existence" DNSSEC option to see them.' % \
+                        (fmt.humanize_name(qname), dns.rdatatype.to_text(rdtype)))
+
+    for qname, rdtype in hidden_errors:
+        notices['notices']['errors'].append(
+                '%s/%s has errors; select the "Denial of existence" DNSSEC option to see them.' % \
+                        (fmt.humanize_name(qname), dns.rdatatype.to_text(rdtype)))
+
 def _clean_notices(notices):
     if not notices['notices']['errors']: del notices['notices']['errors']
     if not notices['notices']['warnings']: del notices['notices']['warnings']
 
-def get_notices(node_info):
+def get_notices(node_info, hidden_warnings, hidden_errors):
     notices = _init_notices()
     _populate_notices(notices, node_info)
+    _add_hidden_notices(notices, hidden_warnings, hidden_errors)
     _clean_notices(notices)
     return notices
 
