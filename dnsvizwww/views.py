@@ -273,7 +273,12 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
             G, qnamestypes_graphed = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
             G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
             #G.remove_extra_edges(redundant_edges)
-            notices = get_notices(G.node_info)
+
+            qnamestypes_with_warnings, qnamestypes_with_errors = \
+                    name_obj.queries_with_errors_warnings()
+            hidden_queries_with_warnings = qnamestypes_with_warnings.difference(qnamestypes_graphed)
+            hidden_queries_with_errors = qnamestypes_with_errors.difference(qnamestypes_graphed)
+            notices = get_notices(G.node_info, hidden_queries_with_warnings, hidden_queries_with_errors)
 
         analyzed_name_obj = name_obj
         template = 'dnssec.html'
