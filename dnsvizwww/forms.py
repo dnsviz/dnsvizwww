@@ -173,6 +173,7 @@ def domain_analysis_form(name):
                 (dns.rdatatype.NAPTR, dns.rdatatype.to_text(dns.rdatatype.NAPTR)),
                 (dns.rdatatype.TLSA, dns.rdatatype.to_text(dns.rdatatype.TLSA)),
                 (dns.rdatatype.NSEC3PARAM, dns.rdatatype.to_text(dns.rdatatype.NSEC3PARAM)),
+                (dns.rdatatype.HINFO, dns.rdatatype.to_text(dns.rdatatype.HINFO)),
                 (dns.rdatatype.CAA, dns.rdatatype.to_text(dns.rdatatype.CAA)))
 
         ANALYSIS_TYPES = ((ANALYSIS_TYPE_AUTHORITATIVE, 'Authoritative servers'),
