@@ -52,6 +52,7 @@ from django.views.generic import View
 
 from dnsviz.analysis import status as Status, Analyst as _Analyst, OfflineDomainNameAnalysis as _OfflineDomainNameAnalysis, DNS_RAW_VERSION
 from dnsviz.analysis.online import WILDCARD_EXPLICIT_DELEGATION, ANALYSIS_TYPE_AUTHORITATIVE, ANALYSIS_TYPE_RECURSIVE, analysis_types
+from dnsviz.analysis.errors import ExistingCovered
 from dnsviz.config import DNSVIZ_SHARE_PATH
 import dnsviz.format as fmt
 import dnsviz.response as Response
@@ -232,6 +233,16 @@ class DNSSECMixin(object):
         for qname, rdtype in qnamestypes_to_graph:
             G.graph_rrset_auth(name_obj, qname, rdtype)
 
+        if denial_of_existence:
+            if not name_obj.is_zone() and name_obj.zone is not None:
+                z_qnamestypes_with_warnings, z_qnamestypes_with_errors = name_obj.zone.queries_with_errors_warnings(classes=ExistingCovered)
+                z_qnamestypes_with_warnings_or_errors = z_qnamestypes_with_warnings.union(z_qnamestypes_with_errors)
+
+                qname = name_obj.zone.nxrrset_name
+                rdtype = name_obj.zone.nxrrset_rdtype
+                if qname is not None and (qname, rdtype) in z_qnamestypes_with_warnings_or_errors:
+                    G.graph_rrset_auth(name_obj.zone, qname, rdtype)
+
         return G, qnamestypes_to_graph
 
 class DomainNameDNSSECPageMixin(DNSSECMixin):
@@ -276,8 +287,17 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
 
             qnamestypes_with_warnings, qnamestypes_with_errors = \
                     name_obj.queries_with_errors_warnings()
-            hidden_queries_with_warnings = qnamestypes_with_warnings.difference(qnamestypes_graphed)
-            hidden_queries_with_errors = qnamestypes_with_errors.difference(qnamestypes_graphed)
+            if not name_obj.is_zone() and name_obj.zone is not None:
+                z_qnamestypes_with_warnings, z_qnamestypes_with_errors = \
+                        name_obj.zone.queries_with_errors_warnings()
+                if not denial_of_existence and name_obj.zone.nxrrset_name is not None:
+                    if (name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype) in z_qnamestypes_with_warnings:
+                        qnamestypes_with_warnings.add((name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype))
+                    if (name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype) in z_qnamestypes_with_errors:
+                        qnamestypes_with_errors.add((name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype))
+            non_queried_types = set([dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV])
+            hidden_queries_with_warnings = qnamestypes_with_warnings.difference(qnamestypes_graphed.union(non_queried_types))
+            hidden_queries_with_errors = qnamestypes_with_errors.difference(qnamestypes_graphed.union(non_queried_types))
             notices = get_notices(G.node_info, hidden_queries_with_warnings, hidden_queries_with_errors)
 
         analyzed_name_obj = name_obj
@@ -329,8 +349,17 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
 
         qnamestypes_with_warnings, qnamestypes_with_errors = \
                 name_obj.queries_with_errors_warnings()
-        hidden_queries_with_warnings = qnamestypes_with_warnings.difference(qnamestypes_graphed)
-        hidden_queries_with_errors = qnamestypes_with_errors.difference(qnamestypes_graphed)
+        if not name_obj.is_zone() and name_obj.zone is not None:
+            z_qnamestypes_with_warnings, z_qnamestypes_with_errors = \
+                    name_obj.zone.queries_with_errors_warnings(ExistingCovered)
+            if not denial_of_existence and name_obj.zone.nxrrset_name is not None:
+                if (name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype) in z_qnamestypes_with_warnings:
+                    qnamestypes_with_warnings.add((name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype))
+                if (name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype) in z_qnamestypes_with_errors:
+                    qnamestypes_with_errors.add((name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype))
+        non_queried_types = set([dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV])
+        hidden_queries_with_warnings = qnamestypes_with_warnings.difference(qnamestypes_graphed.union(non_queried_types))
+        hidden_queries_with_errors = qnamestypes_with_errors.difference(qnamestypes_graphed.union(non_queried_types))
 
         if url_file == 'auth_graph':
             return self.dnssec_auth_graph(request, name_obj, G, format, hidden_queries_with_warnings, hidden_queries_with_errors)
@@ -442,8 +471,17 @@ class DynamicDomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, View):
 
         qnamestypes_with_warnings, qnamestypes_with_errors = \
                 name_obj.queries_with_errors_warnings()
-        hidden_queries_with_warnings = qnamestypes_with_warnings.difference(qnamestypes_graphed)
-        hidden_queries_with_errors = qnamestypes_with_errors.difference(qnamestypes_graphed)
+        if not name_obj.is_zone() and name_obj.zone is not None:
+            z_qnamestypes_with_warnings, z_qnamestypes_with_errors = \
+                    name_obj.zone.queries_with_errors_warnings(ExistingCovered)
+            if not denial_of_existence and name_obj.zone.nxrrset_name is not None:
+                if (name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype) in z_qnamestypes_with_warnings:
+                    qnamestypes_with_warnings.add((name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype))
+                if (name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype) in z_qnamestypes_with_errors:
+                    qnamestypes_with_errors.add((name_obj.zone.nxrrset_name, name_obj.zone.nxrrset_rdtype))
+        non_queried_types = set([dns.rdatatype.DNSKEY, dns.rdatatype.DS, dns.rdatatype.DLV])
+        hidden_queries_with_warnings = qnamestypes_with_warnings.difference(qnamestypes_graphed.union(non_queried_types))
+        hidden_queries_with_errors = qnamestypes_with_errors.difference(qnamestypes_graphed.union(non_queried_types))
 
         if url_file == 'auth_graph':
             return self.dnssec_auth_graph(request, name_obj, G, format, hidden_queries_with_warnings, hidden_queries_with_errors)
