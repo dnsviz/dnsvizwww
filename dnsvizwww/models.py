@@ -541,6 +541,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             cache = {}
         self.retrieve_ancestry(self.RDTYPES_SECURE_DELEGATION, cache=cache)
         self.retrieve_related(self.RDTYPES_ALL)
+        self.retrieve_zone_negative()
         self.retrieve_dependencies(cache=cache)
 
     def _retrieve_related_cache(self, level):
@@ -704,6 +705,24 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
             self.add_query(query, False, False)
 
         self._store_related_cache(level)
+
+    def retrieve_zone_negative(self):
+        #XXX this currently isn't cached properly
+        if self.is_zone() or not self.zone:
+            return
+
+        if self.zone.stub:
+            return
+
+        bailiwick_map, default_bailiwick = self.zone.get_bailiwick_mapping()
+        cookie_jar_map, default_cookie_jar = self.zone.get_cookie_jar_mapping()
+
+        # create a filter for the queries, based on rdtypes and name
+        f = Q(qname=self.zone.nxrrset_name, rdtype=self.zone.nxrrset_rdtype)
+
+        for query in self.zone.queries_db.filter(f):
+            query1 = self.zone._retrieve_query(query, bailiwick_map, default_bailiwick, cookie_jar_map, default_cookie_jar)
+            self.zone.add_query(query1, False, False)
 
     def retrieve_ancestry(self, level, follow_dependencies=False, force_stub=False, cache=None):
         if cache is None:
