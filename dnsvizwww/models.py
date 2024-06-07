@@ -678,7 +678,10 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
                 names = (self.name, self.dlv_name)
             else:
                 names = (self.name,)
-            f &= Q(qname__in=names)
+            #XXX This doesn't get queries for which qnames are mixed-case
+            # because canonicalize=True for the qname field of DNSQuery.  Need
+            # to fix this.
+            #f &= Q(qname__in=names)
         for query in self.queries_db.filter(f):
             query1 = self._retrieve_query(query, bailiwick_map, default_bailiwick, cookie_jar_map, default_cookie_jar)
             if query1 is None:
@@ -722,7 +725,9 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
 
         for query in self.zone.queries_db.filter(f):
             query1 = self.zone._retrieve_query(query, bailiwick_map, default_bailiwick, cookie_jar_map, default_cookie_jar)
-            self.zone.add_query(query1, False, False)
+            #XXX Some queries don't show up??
+            if query1 is not None:
+                self.zone.add_query(query1, False, False)
 
     def retrieve_ancestry(self, level, follow_dependencies=False, force_stub=False, cache=None):
         if cache is None:
