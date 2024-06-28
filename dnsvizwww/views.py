@@ -280,7 +280,7 @@ class DomainNameDNSSECPageMixin(DNSSECMixin):
             G = DNSAuthGraph()
 
             name_obj.retrieve_all()
-            name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms, ignore_rfc8624=values['ignore_rfc8624'], ignore_rfc9276=values['ignore_rfc9276'])
+            name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms, ignore_rfc8624=values['ignore_rfc8624'], ignore_rfc9276=values['ignore_rfc9276'], multi_signer=values['multi_signer'])
             G, qnamestypes_graphed = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
             G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
             #G.remove_extra_edges(redundant_edges)
@@ -342,7 +342,7 @@ class DomainNameDNSSECGraphMixin(DNSSECMixin):
             trusted_keys += get_default_trusted_keys(name_obj.analysis_end)
 
         name_obj.retrieve_all()
-        name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms, ignore_rfc8624=values['ignore_rfc8624'], ignore_rfc9276=values['ignore_rfc9276'])
+        name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms, ignore_rfc8624=values['ignore_rfc8624'], ignore_rfc9276=values['ignore_rfc9276'], multi_signer=values['multi_signer'])
         G, qnamestypes_graphed = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)
         G.remove_extra_edges(redundant_edges)
@@ -463,7 +463,7 @@ class DynamicDomainNameDNSSECGraphView(DomainNameDNSSECGraphMixin, View):
 
         a = DynamicAnalyst(name)
         name_obj = a.analyze()
-        name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms, ignore_rfc8624=values['ignore_rfc8624'], ignore_rfc9276=values['ignore_rfc9276'])
+        name_obj.populate_status(trusted_keys, supported_algs=dnssec_algorithms, supported_digest_algs=ds_algorithms, ignore_rfc8624=values['ignore_rfc8624'], ignore_rfc9276=values['ignore_rfc9276'], multi_signer=values['multi_signer'])
 
         G, qnamestypes_graphed = self._graph_name(name_obj, trusted_keys, rdtypes, denial_of_existence)
         G.add_trust(trusted_keys, supported_algs=dnssec_algorithms)

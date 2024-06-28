@@ -114,6 +114,8 @@ class DNSSECOptionsForm(forms.Form):
             help_text='Ignore warnings and errors related to RFC 8624, which designates some DNSSEC algorithms prohibited (MUST NOT) or not recommended.')
     ignore_rfc9276 = forms.BooleanField(label='Ignore RFC 9276:', initial=False, required=False, widget=forms.CheckboxInput(attrs={'class': 'no-border'}),
             help_text='Ignore warnings and errors related to RFC 9276, which limits the NSEC3 iterations count and NSEC3 salt length to 0.')
+    multi_signer = forms.BooleanField(label='Multi-signer:', initial=False, required=False, widget=forms.CheckboxInput(attrs={'class': 'no-border'}),
+            help_text='Don\'t issue errors for missing KSKs with DS RRs (e.g., for multi-signer setups)')
     ta = LenientMultipleChoiceField(label='Trust anchors:', choices=ANCHOR_CHOICES, initial=['.'], required=False, widget=forms.CheckboxSelectMultiple(attrs={'class': 'no-border'}),
             help_text='Use KSKs from the following zones as trust anchors for the DNSSEC analysis: the root zone; and/or the KSK for ISC\'s DNSSEC-lookaside validation (DLV) service.')
     tk = forms.CharField(label='Additional trusted keys:', initial='', required=False, widget=forms.Textarea(attrs={'cols': 50, 'rows': 5}),
