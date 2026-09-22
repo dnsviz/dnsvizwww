@@ -1,31 +1,40 @@
 {% extends "base_site.html" %}
 
 {% block body_tag %}
-	<body id="dnsviz-home">
-{% endblock %}
+  <body id="dnsviz-home">
+  {% endblock %}
 
-{% block maincontent %}
-<h3>Contact</h3>
-<p>DNSViz was developed by <a href="http://casey.byu.edu/">Casey Deccio</a>, originally at <a href="http://www.sandia.gov/">Sandia National Laboratories</a>.  <a href="http://www.verisignlabs.com/">Verisign Labs</a> continues to sponsor ongoing development of DNSViz.</p>
-<p>Please use the form below to contact us with your comments and questions.  We appreciate your feedback!</p>
-	<form action="" method="post">
-		{% csrf_token %}
-		{% for field in form %}
-		<p>
-			{% if field.errors %}
-				<ul class="formfield-error-list">
-				{% for err in field.errors %}
-					<li>{{ err }}	
-				{% endfor %}
-				</ul> 
-			{% endif %}
-			{% if field.label %}{{ field.label_tag }}:{% endif %}
-			{{ field }}
-			{% if field.help_text %}
-			<br />{{ field.help_text }}
-			{% endif %}
-		</p>
-		{% endfor %}
-		<p><input type="submit" class="button" value="Submit" /></p>
-	</form>
-{% endblock %}
+  {% block maincontent %}
+    <h3>Contact</h3>
+    <p>
+    DNSViz was developed by <a href="http://casey.byu.edu/">Casey Deccio</a>,
+    originally at
+    <a href="http://www.sandia.gov/">Sandia National Laboratories</a>.
+    This site is currently hosted and operated by
+    <a href="https://www.dns-oarc.net/">DNS-OARC</a>.
+    </p>
+    <p>
+    Please use the form below to contact us with your comments and questions.
+    We appreciate your feedback!
+    </p>
+    <form action="" method="post">
+      {% csrf_token %}
+      {% for field in form %}
+        <p>
+        {% if field.errors %}
+          <ul class="formfield-error-list">
+            {% for err in field.errors %}
+              <li>{{ err }}	
+              {% endfor %}
+          </ul> 
+        {% endif %}
+        {% if field.label %}{{ field.label_tag }}:{% endif %}
+        {{ field }}
+        {% if field.help_text %}
+          <br />{{ field.help_text }}
+        {% endif %}
+        </p>
+      {% endfor %}
+      <p><input type="submit" class="button" value="Submit" /></p>
+    </form>
+  {% endblock %}
