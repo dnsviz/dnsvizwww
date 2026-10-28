@@ -4,7 +4,16 @@ import glob
 import os
 import sys
 
-from distutils.core import setup
+try:
+    import setuptools
+except ImportError:
+    from distutils.core import setup
+    from distutils.command.install import install
+    from distutils.command.build_py import build_py
+else:
+    from setuptools import setup
+    from setuptools.command.install import install
+    from setuptools.command.build_py import build_py
 
 setup(name='dnsvizwww',
         version='0.2.0pre',
