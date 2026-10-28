@@ -30,7 +30,7 @@ import dns.name
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 class UnsignedSmallIntegerField(models.SmallIntegerField):
     def from_db_value(self, value, expression, connection):

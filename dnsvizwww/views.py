@@ -983,6 +983,7 @@ def analyze(request, name, url_subdir=None):
 
         # instantiate a bound form
         analyze_form = form_class(request.POST)
+        is_ajax = request.META.get('HTTP_X_REQUESTED_WITH', '') == 'XMLHttpRequest'
         if analyze_form.is_valid():
             extra_rdtypes = analyze_form.cleaned_data['extra_types']
             if analyze_form.cleaned_data['analysis_type'] == ANALYSIS_TYPE_AUTHORITATIVE:
@@ -1028,7 +1029,7 @@ def analyze(request, name, url_subdir=None):
             # for ajax requests, analyze asynchronously, using a logger with
             # callbacks and streaming output to the browser.  If there is an
             # error with the analysis, it will be handled by the javascript.
-            if request.is_ajax():
+            if is_ajax:
                 a = analyst_cls(name_obj.name, logger=analysis_logger.logger, query_class_mixin=query_class_mixin, edns_diagnostics=edns_diagnostics, stop_at_explicit=stop_at_explicit, explicit_delegations=explicit_delegations, extra_rdtypes=extra_rdtypes, th_factories=th_factories, start_time=start_time, force_ancestor=force_ancestor, force_group=force_group)
                 a.analyze_async(success_callback, exc_callback)
                 #TODO set alarm here for too long waits
@@ -1057,7 +1058,7 @@ def analyze(request, name, url_subdir=None):
         # if the form contents were invalid in an ajax request, then send a
         # critical-level error, which will prompt the browser to re-issue a
         # POST, so the errors are seen.
-        elif request.is_ajax():
+        elif is_ajax:
             analysis_logger.logger.critical('Form error')
             analysis_logger.close()
             return StreamingHttpResponse(analysis_logger.handler, content_type='application/json')

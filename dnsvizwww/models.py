@@ -29,6 +29,7 @@
 import datetime
 import io
 import struct
+from datetime import UTC
 
 import dns.edns, dns.exception, dns.flags, dns.message, dns.name, dns.rcode, dns.rdataclass, dns.rdata, dns.rdatatype, dns.resolver, dns.rrset
 
@@ -38,7 +39,7 @@ from django.core.validators import validate_comma_separated_integer_list
 from django.db import models
 from django.db.models import Q
 from django.utils.html import escape
-from django.utils.timezone import now, utc
+from django.utils.timezone import now
 
 import dnsviz.analysis
 import dnsviz.format as fmt
@@ -57,9 +58,9 @@ class DomainNameManager(models.Manager):
         if interval > 604800:
             #XXX log this
             interval = 604800
-        dt_now = datetime.datetime.now(fmt.utc).replace(microsecond=0)
+        dt_now = datetime.datetime.now(UTC).replace(microsecond=0)
         last_sunday = dt_now.date() - datetime.timedelta(days=dt_now.isoweekday())
-        last_sunday_midnight = datetime.datetime(year=last_sunday.year, month=last_sunday.month, day=last_sunday.day, tzinfo=fmt.utc)
+        last_sunday_midnight = datetime.datetime(year=last_sunday.year, month=last_sunday.month, day=last_sunday.day, tzinfo=utc)
         diff = dt_now - last_sunday_midnight
         return diff.total_seconds() % interval
 
@@ -341,7 +342,7 @@ class OnlineDomainNameAnalysis(dnsviz.analysis.OfflineDomainNameAnalysis, models
         return util.datetime_url_encode(self.analysis_end)
 
     def updated_ago_str(self):
-        updated_ago = datetime.datetime.now(fmt.utc).replace(microsecond=0) - self.analysis_end
+        updated_ago = datetime.datetime.now(UTC).replace(microsecond=0) - self.analysis_end
         return fmt.humanize_time(updated_ago.seconds, updated_ago.days)
 
     def base_url(self):
